@@ -42,8 +42,9 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-// Serve static client files
+// Serve static client files (check both locations for flexibility)
 app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(__dirname)); // Also serve from server folder
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -58,11 +59,11 @@ app.use('/api/', apiLimiter);
 // ============================================================
 function validateBeta(req, res, next) {
   // Check expiration
-  const endDate = new Date(process.env.BETA_END_DATE);
+  const endDate = new Date(process.env.BETA_EXPIRY || process.env.BETA_END_DATE);
   if (new Date() > endDate) {
     return res.status(403).json({ 
       error: 'Beta period has ended',
-      message: 'Thank you for testing! The beta period concluded on ' + process.env.BETA_END_DATE
+      message: 'Thank you for testing! The beta period concluded on ' + (process.env.BETA_EXPIRY || process.env.BETA_END_DATE)
     });
   }
   
@@ -1792,7 +1793,7 @@ app.listen(PORT, () => {
 ║         Dinner Party Planner API - Beta Server             ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Port: ${PORT}                                                 ║
-║  Beta ends: ${process.env.BETA_END_DATE || 'Not set'}                                  ║
+║  Beta ends: ${process.env.BETA_EXPIRY || process.env.BETA_END_DATE || 'Not set'}                                  ║
 ║  Access codes loaded: ${validAccessCodes.length}                                 ║
 ╚════════════════════════════════════════════════════════════╝
   `);
