@@ -1,12 +1,10 @@
 /**
  * Dinner Party Planner - Beta API Server
+ * Complete standalone version with embedded client
  * 
- * Features:
- * - Beta expiration date check
- * - Access code validation & tracking
- * - Rate limiting
- * - Claude API proxy (keeps key secure)
- * - DOCX generation
+ * Deploy to Railway with root directory: server
+ * Environment variables needed:
+ *   ANTHROPIC_API_KEY, ADMIN_CODE, ACCESS_CODES, BETA_EXPIRY, MAX_GENERATIONS_PER_CODE
  */
 
 require('dotenv').config();
@@ -14,86 +12,66 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Railway/cloud deployment
+app.set('trust proxy', 1);
+
 // ============================================================
 // BETA ACCESS TRACKING
 // ============================================================
-const usageTracker = new Map(); // accessCode -> { generations: 0, lastUsed: Date }
-
-function loadAccessCodes() {
-  const codes = process.env.ACCESS_CODES?.split(',').map(c => c.trim()) || [];
-  const adminCode = process.env.ADMIN_CODE;
-  if (adminCode) codes.push(adminCode);
-  return codes;
-}
-
-const validAccessCodes = loadAccessCodes();
+const usageTracker = new Map();
+const validAccessCodes = (process.env.ACCESS_CODES || '').split(',').filter(c => c.trim());
+if (process.env.ADMIN_CODE) validAccessCodes.push(process.env.ADMIN_CODE);
 
 // ============================================================
 // MIDDLEWARE
 // ============================================================
-app.use(helmet({
-  contentSecurityPolicy: false // Allow inline scripts for client
-}));
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(express.json({ limit: '10mb' }));
 
-// Serve static client files (check both locations for flexibility)
-app.use(express.static(path.join(__dirname, '../client')));
-app.use(express.static(__dirname)); // Also serve from server folder
-
-// Rate limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
-  message: { error: 'Too many requests, please slow down' }
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests, please try again later' }
 });
-app.use('/api/', apiLimiter);
+app.use('/api/', limiter);
 
 // ============================================================
 // BETA VALIDATION MIDDLEWARE
 // ============================================================
 function validateBeta(req, res, next) {
-  // Check expiration
-  const endDate = new Date(process.env.BETA_EXPIRY || process.env.BETA_END_DATE);
+  const endDate = new Date(process.env.BETA_EXPIRY || process.env.BETA_END_DATE || '2099-12-31');
   if (new Date() > endDate) {
-    return res.status(403).json({ 
+    return res.status(403).json({
       error: 'Beta period has ended',
-      message: 'Thank you for testing! The beta period concluded on ' + (process.env.BETA_EXPIRY || process.env.BETA_END_DATE)
+      message: 'Thank you for testing!'
     });
   }
-  
-  // Check access code
+
   const accessCode = req.headers['x-access-code'] || req.body.accessCode;
   if (!accessCode || !validAccessCodes.includes(accessCode)) {
-    return res.status(401).json({ 
-      error: 'Invalid access code',
-      message: 'Please enter a valid tester access code'
-    });
+    return res.status(401).json({ error: 'Invalid access code' });
   }
-  
-  // Check usage limits (skip for admin)
+
   if (accessCode !== process.env.ADMIN_CODE) {
     const usage = usageTracker.get(accessCode) || { generations: 0, lastUsed: null };
-    const maxGenerations = parseInt(process.env.MAX_GENERATIONS_PER_CODE) || 50;
-    
-    if (usage.generations >= maxGenerations) {
-      return res.status(429).json({
+    const maxGen = parseInt(process.env.MAX_GENERATIONS_PER_CODE) || 50;
+    if (usage.generations >= maxGen) {
+      return res.status(403).json({
         error: 'Generation limit reached',
-        message: `You've used all ${maxGenerations} menu generations. Thank you for testing!`
+        message: 'Thank you for testing!'
       });
     }
   }
-  
+
   req.accessCode = accessCode;
   next();
 }
 
-// Increment usage counter
 function trackUsage(accessCode) {
   const usage = usageTracker.get(accessCode) || { generations: 0, lastUsed: null };
   usage.generations++;
@@ -105,42 +83,38 @@ function trackUsage(accessCode) {
 // API ROUTES
 // ============================================================
 
-// Health check (no auth required)
+// Health check
 app.get('/api/health', (req, res) => {
-  const endDate = new Date(process.env.BETA_END_DATE);
+  const endDate = new Date(process.env.BETA_EXPIRY || process.env.BETA_END_DATE || '2099-12-31');
   const daysRemaining = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
-  
   res.json({
     status: 'ok',
     beta: {
       active: new Date() < endDate,
-      endDate: process.env.BETA_END_DATE,
+      endDate: process.env.BETA_EXPIRY || process.env.BETA_END_DATE,
       daysRemaining: Math.max(0, daysRemaining)
-    }
+    },
+    accessCodesLoaded: validAccessCodes.length
   });
 });
 
-// Validate access code (for login screen)
+// Validate access code
 app.post('/api/validate-code', (req, res) => {
   const { accessCode } = req.body;
-  
   if (!accessCode || !validAccessCodes.includes(accessCode)) {
     return res.status(401).json({ valid: false, message: 'Invalid access code' });
   }
-  
-  const endDate = new Date(process.env.BETA_END_DATE);
+  const endDate = new Date(process.env.BETA_EXPIRY || process.env.BETA_END_DATE || '2099-12-31');
   if (new Date() > endDate) {
     return res.status(403).json({ valid: false, message: 'Beta period has ended' });
   }
-  
   const usage = usageTracker.get(accessCode) || { generations: 0, lastUsed: null };
-  const maxGenerations = parseInt(process.env.MAX_GENERATIONS_PER_CODE) || 50;
-  
+  const maxGen = parseInt(process.env.MAX_GENERATIONS_PER_CODE) || 50;
   res.json({
     valid: true,
     usage: {
       generations: usage.generations,
-      remaining: accessCode === process.env.ADMIN_CODE ? 'unlimited' : (maxGenerations - usage.generations)
+      remaining: accessCode === process.env.ADMIN_CODE ? 'unlimited' : (maxGen - usage.generations)
     }
   });
 });
@@ -149,9 +123,8 @@ app.post('/api/validate-code', (req, res) => {
 app.post('/api/generate-menus', validateBeta, async (req, res) => {
   try {
     const { preferences } = req.body;
-    
     const prompt = buildMenuPrompt(preferences);
-    
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -162,49 +135,40 @@ app.post('/api/generate-menus', validateBeta, async (req, res) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4000,
-        temperature: 1.15, // Slightly higher for menu variety
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
+        temperature: 0.95,
+        messages: [{ role: 'user', content: prompt }]
       })
     });
-    
+
     if (!response.ok) {
       const error = await response.text();
       console.error('Claude API error:', error);
-      return res.status(500).json({ error: 'Menu generation failed' });
+      return res.status(500).json({ error: 'Menu generation failed', details: error });
     }
-    
+
     const data = await response.json();
     const content = data.content[0].text;
-    
-    // Parse JSON from response
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       return res.status(500).json({ error: 'Failed to parse menu response' });
     }
-    
+
     const menus = JSON.parse(jsonMatch[0]);
-    
-    // Track usage
     trackUsage(req.accessCode);
-    
-    res.json({ menus });
-    
+    res.json({ menus, source: 'ai-generated' });
+
   } catch (error) {
     console.error('Generate menus error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Build complete cookbook data - NOW CALLS CLAUDE WITH PERSONAS
+// Build cookbook data
 app.post('/api/build-cookbook', validateBeta, async (req, res) => {
   try {
-    const { menu, guestCount, serviceTime, staffing } = req.body;
-    
-    const prompt = buildCookbookPrompt(menu, guestCount, serviceTime, staffing);
-    
+    const { menu, guestCount, serviceTime } = req.body;
+    const prompt = buildCookbookPrompt(menu, guestCount, serviceTime);
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -214,1543 +178,178 @@ app.post('/api/build-cookbook', validateBeta, async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 12000,
-        system: 'You are a cookbook generator. Return ONLY valid JSON with no markdown formatting, no code blocks, no explanation. Ensure the JSON is complete and properly closed with all necessary braces and brackets.',
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: prompt }]
       })
     });
-    
+
     if (!response.ok) {
-      const error = await response.text();
-      console.error('Claude API error:', error);
       return res.status(500).json({ error: 'Cookbook generation failed' });
     }
-    
+
     const data = await response.json();
     const content = data.content[0].text;
-    
-    // Parse JSON from response - try to clean up common issues
-    let jsonMatch = content.match(/\{[\s\S]*\}/);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('Failed to find JSON in response:', content.substring(0, 500));
       return res.status(500).json({ error: 'Failed to parse cookbook response' });
     }
-    
-    let jsonStr = jsonMatch[0];
-    
-    // Clean up common JSON issues from Claude
-    // Remove trailing commas before } or ]
-    jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-    // Fix any unquoted keys (rare but possible)
-    jsonStr = jsonStr.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
-    
-    let cookbook;
-    try {
-      cookbook = JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError.message);
-      console.error('JSON snippet:', jsonStr.substring(0, 1000));
-      return res.status(500).json({ error: 'Failed to parse cookbook JSON' });
-    }
-    
-    // Track usage (this is a second generation)
-    trackUsage(req.accessCode);
-    
-    res.json({ cookbook });
-    
+
+    const cookbook = JSON.parse(jsonMatch[0]);
+    res.json({ cookbook, source: 'ai-generated' });
+
   } catch (error) {
     console.error('Build cookbook error:', error);
-    res.status(500).json({ error: 'Failed to build cookbook' });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Generate DOCX file
+// Generate DOCX
 app.post('/api/generate-docx', validateBeta, async (req, res) => {
   try {
-    const { eventTitle, eventDate, eventTime, guestCount, menu, staffing, cookbook } = req.body;
-    
+    const { eventTitle, eventDate, guestCount, menu, cookbook } = req.body;
     const docx = require('docx');
-    const buffer = await generateDocxBuffer(docx, {
-      eventTitle, eventDate, eventTime, guestCount, menu, staffing, cookbook
-    });
-    
+    const buffer = await generateDocxBuffer(docx, { eventTitle, eventDate, guestCount, menu, cookbook });
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${eventTitle.replace(/[^a-z0-9]/gi, '_')}_Cookbook.docx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${(eventTitle || 'Dinner_Party').replace(/[^a-z0-9]/gi, '_')}_Cookbook.docx"`);
     res.send(buffer);
-    
+
   } catch (error) {
     console.error('Generate DOCX error:', error);
     res.status(500).json({ error: 'Failed to generate document' });
   }
 });
 
-// Get usage stats (admin only)
+// Admin stats
 app.get('/api/admin/stats', (req, res) => {
   const adminCode = req.headers['x-access-code'];
   if (adminCode !== process.env.ADMIN_CODE) {
     return res.status(403).json({ error: 'Admin access required' });
   }
-  
   const stats = {};
-  usageTracker.forEach((usage, code) => {
-    stats[code] = usage;
-  });
-  
-  res.json({
-    totalCodes: validAccessCodes.length - 1, // Exclude admin
-    activeTesters: usageTracker.size,
-    usage: stats
-  });
+  usageTracker.forEach((usage, code) => { stats[code] = usage; });
+  res.json({ totalCodes: validAccessCodes.length - 1, activeTesters: usageTracker.size, usage: stats });
 });
 
 // ============================================================
-// HELPER FUNCTIONS
+// PROMPT BUILDERS
 // ============================================================
 
 function buildMenuPrompt(preferences) {
-  // Random style modifier for variety
-  const styles = ['rustic farmhouse', 'modern minimalist', 'classic French', 'bistro-casual', 'elegant formal', 'seasonal harvest', 'Mediterranean villa', 'cozy intimate', 'celebration feast', 'chef\'s tasting'];
-  const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+  const { guestCount, budget, cuisineStyle, dietaryRestrictions, occasion, skillLevel, likes, dislikes } = preferences;
   
-  return `Generate 5 UNIQUE dinner party menu options. Return ONLY a JSON array, no other text.
+  return `You are an expert culinary consultant combining the skills of a James Beard Award-winning chef, Master Sommelier, and CIA instructor.
 
-Style inspiration for this generation: ${randomStyle}
+Generate 5 complete dinner party menu options for ${guestCount} guests with a food budget of ${budget}.
 
-Guest count: ${preferences.guestCount || 6}
-Budget tier: ${preferences.budget || '$30-50 per person'}
-Skill level: ${preferences.skillLevel || 'intermediate'}
-Cuisine preferences: ${preferences.cuisines?.join(', ') || 'any'}
-Ingredients to feature: ${preferences.loves || 'none specified'}
-Ingredients to avoid: ${preferences.avoids || 'none'}
-Dietary restrictions: ${preferences.dietary?.join(', ') || 'none'}
+Cuisine style: ${cuisineStyle || 'Chef\'s choice'}
+Occasion: ${occasion || 'Dinner party'}
+Host skill level: ${skillLevel || 'Intermediate'}
+Likes: ${likes || 'Not specified'}
+Dislikes: ${dislikes || 'Not specified'}
+Dietary restrictions: ${dietaryRestrictions?.join(', ') || 'None'}
 
-IMPORTANT: Make each menu DISTINCT - vary the cooking techniques, flavor profiles, and presentation styles. One might be bold and adventurous, another refined and classic, another rustic and comforting. Surprise the home cook with creative combinations they wouldn't think of themselves.
-
-Each menu must have this exact JSON structure:
+Return ONLY a JSON array with exactly 5 menu objects. No other text. Each menu object must have:
 {
-  "title": "Menu Name",
-  "theme": "Brief theme description",
-  "foodCost": "$XX-XX/person",
-  "wineCost": "$XXX total",
+  "name": "Creative menu name",
+  "description": "2-3 sentence description of the menu concept",
   "courses": [
-    {"type": "Amuse-Bouche", "name": "Dish name with brief description"},
-    {"type": "First Course", "name": "Dish name with brief description"},
-    {"type": "Second Course", "name": "Dish name with brief description"},
-    {"type": "Main Course", "name": "Dish name with brief description"},
-    {"type": "Dessert", "name": "Dish name with brief description"}
-  ]
-}
-
-Return exactly 5 menus in a JSON array. No markdown, no explanation, just the JSON array.`;
-}
-
-function buildCookbookPrompt(menu, guestCount, serviceTime, staffing) {
-  const serviceHour = serviceTime ? parseInt(serviceTime.split(':')[0]) : 19;
-  const serviceTimeStr = serviceHour > 12 ? `${serviceHour - 12}:00 PM` : `${serviceHour}:00 AM`;
-  
-  return `You are creating a complete professional cookbook for a dinner party. Channel multiple expert personas to create the most useful, specific, and actionable content possible.
-
-EVENT DETAILS:
-- Guests: ${guestCount}
-- Service Time: ${serviceTimeStr}
-- Staffing: ${staffing}
-
-SELECTED MENU: ${menu.title}
-Theme: ${menu.theme || 'Elegant dinner party'}
-- Amuse-Bouche: ${menu.courses[0]?.name}
-- First Course: ${menu.courses[1]?.name}
-- Second Course: ${menu.courses[2]?.name}
-- Main Course: ${menu.courses[3]?.name}
-- Dessert: ${menu.courses[4]?.name}
-
-FRENCH PORTION STANDARDS (use these for all calculations):
-- Amuse-Bouche: 1.5-2 oz per person
-- First Course: 2.5 oz protein, 1 oz greens
-- Second Course: 3 oz protein, 2 oz accompaniment
-- Main Course: 4 oz protein, 3 oz starch, 2 oz vegetables
-- Dessert: 3.5 oz total
-Total protein across meal: ~11 oz per person (not American steakhouse portions!)
-
-RESPOND WITH ONLY VALID JSON matching this exact structure:
-
-{
-  "wines": {
-    "_approach": "You are a Master Sommelier who trained at The French Laundry. For each wine slot, provide THREE tiers: top (imported, sommelier's choice), domestic (American wines of same character), and budget (good quality, accessible price).",
-    "aperitif": {
-      "top": {"name": "Specific imported bottle, e.g., 'Pierre Gimonnet Champagne Brut Cuvée Gastronome'", "price": "$45-60", "notes": "Why this sets the tone"},
-      "domestic": {"name": "American alternative, e.g., 'Schramsberg Blanc de Blancs, Napa Valley'", "price": "$30-40", "notes": "Comparable character"},
-      "budget": {"name": "Good value option, e.g., 'Gruet Brut, New Mexico'", "price": "$15-20", "notes": "Perfectly respectable"},
-      "pour": "4 oz"
-    },
-    "white": {
-      "top": {"name": "Specific imported bottle for first/second courses", "price": "$35-50", "notes": "How it pairs"},
-      "domestic": {"name": "American alternative of same character", "price": "$20-30", "notes": "Comparable style"},
-      "budget": {"name": "Good value option", "price": "$12-18", "notes": "Solid choice"},
-      "pour": "5 oz"
-    },
-    "red": {
-      "top": {"name": "Specific imported bottle for main course", "price": "$40-70", "notes": "Why it complements the main"},
-      "domestic": {"name": "American alternative, same weight and character", "price": "$25-40", "notes": "Comparable profile"},
-      "budget": {"name": "Good value option", "price": "$12-20", "notes": "Will work well"},
-      "pour": "5 oz"
-    },
-    "dessert": {
-      "top": {"name": "Specific dessert wine", "price": "$30-50", "notes": "The perfect finish"},
-      "domestic": {"name": "American alternative", "price": "$20-30", "notes": "Comparable sweetness"},
-      "budget": {"name": "Good value option", "price": "$12-20", "notes": "Sweet and satisfying"},
-      "pour": "2 oz"
-    }
-  },
-
-  "cocktail": {
-    "_approach": "You are head bartender at a celebrated speakeasy. Create a signature cocktail that matches this menu's mood.",
-    "name": "Cocktail name",
-    "description": "Why this pairs with the menu's theme",
-    "ingredients": ["2 oz specific spirit", "3/4 oz modifier", "etc - be exact"],
-    "instructions": "Brief technique",
-    "batchRecipe": "Exact quantities to batch for ${guestCount} guests, prep-ahead notes"
-  },
-
-  "shopping": {
-    "_approach": "You are a Bon Appétit food writer. Be SPECIFIC about cuts, quantities, quality indicators. This list must match the actual dishes above.",
-    "proteins": [
-      {"item": "Specific cut and quality, e.g., 'Frenched rack of lamb, 8-bone, domestic'", "qty": "Exact amount for ${guestCount} with 15% buffer", "notes": "What to tell the butcher, what to look for"}
-    ],
-    "seafood": [
-      {"item": "Specific type and grade, e.g., 'Dry-packed U-10 sea scallops'", "qty": "Exact amount", "notes": "Freshness indicators, where to buy"}
-    ],
-    "produce": [
-      {"item": "Specific variety if relevant, e.g., 'Baby arugula' not just 'greens'", "qty": "Amount", "notes": "Ripeness, selection tips"}
-    ],
-    "dairy": [
-      {"item": "Specific product, e.g., 'Plugrá European-style unsalted butter'", "qty": "Amount", "notes": "Brand matters here"}
-    ],
-    "pantry": [
-      {"item": "Item", "qty": "Amount", "notes": "Substitution if unavailable"}
-    ],
-    "specialty": [
-      {"item": "Hard-to-find items for this specific menu", "qty": "Amount", "notes": "Where to find it, online sources"}
-    ]
-  },
-
-  "dayBeforePrep": [
-    {
-      "_approach": "You are an executive chef who backward-schedules from service. These tasks are SPECIFIC to the dishes above.",
-      "name": "Task name specific to this menu, e.g., 'Make rosemary jus for lamb'",
-      "time": 30,
-      "steps": ["Specific step 1", "Step 2", "Step 3"],
-      "storage": "How to store overnight, e.g., 'Refrigerate in mason jar, reheat gently day-of'",
-      "whyAhead": "Why this improves the dish, e.g., 'Flavors meld and deepen overnight'"
-    }
+    { "course": "Amuse-Bouche", "dish": "Dish name", "description": "Brief description" },
+    { "course": "First Course", "dish": "Dish name", "description": "Brief description" },
+    { "course": "Main Course", "dish": "Dish name", "description": "Brief description" },
+    { "course": "Dessert", "dish": "Dish name", "description": "Brief description" }
   ],
+  "estimatedCost": "$XX-$XX",
+  "difficulty": "Easy|Intermediate|Advanced",
+  "prepTime": "X hours",
+  "wineStyle": "Suggested wine style pairing"
+}`;
+}
 
+function buildCookbookPrompt(menu, guestCount, serviceTime) {
+  return `You are an expert culinary team: James Beard chef, Master Sommelier, and CIA instructor.
+
+Create a complete cookbook for this dinner party menu for ${guestCount} guests, service time ${serviceTime || '7:00 PM'}:
+
+Menu: ${menu.name}
+${menu.courses.map(c => `- ${c.course}: ${c.dish}`).join('\n')}
+
+Return ONLY a JSON object with this structure:
+{
   "recipes": [
     {
-      "_approach": "You are a CIA instructor creating ORIGINAL recipes specifically for this menu. Do NOT reproduce existing published recipes. Create your own version with YOUR techniques, YOUR ingredient choices, YOUR flavor decisions. Explain WHY each technique works. Write as if teaching a student - every temperature, every visual cue, every timing should educate.",
-      "course": "Amuse-Bouche",
-      "name": "${menu.courses[0]?.name}",
-      "yield": "Serves ${guestCount}",
-      "activeTime": "XX minutes",
-      "totalTime": "XX minutes", 
-      "whyItWorks": "2-3 sentences explaining YOUR approach - what makes THIS version special, what technique produces great results and why",
-      "makeAhead": "Specific make-ahead strategy with storage method and reheating instructions",
-      "ingredients": [
-        {"amount": "precise amount", "item": "specific ingredient with quality notes", "prep": "how to prepare it", "notes": "why this ingredient or substitution options"}
-      ],
-      "instructions": [
-        "Detailed step with specific temperatures (°F), precise times, and visual/tactile cues that tell you it's done right. Explain WHY when relevant."
-      ],
-      "tips": ["Insider tip that makes the difference between good and great"]
+      "course": "Course name",
+      "dish": "Dish name",
+      "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity"],
+      "instructions": ["Step 1", "Step 2"],
+      "chefTips": ["Tip 1"],
+      "prepTime": "X minutes",
+      "cookTime": "X minutes"
     }
   ],
-
+  "shoppingList": {
+    "produce": ["item 1", "item 2"],
+    "protein": ["item 1"],
+    "dairy": ["item 1"],
+    "pantry": ["item 1"],
+    "specialty": ["item 1"]
+  },
   "timeline": [
-    {
-      "_approach": "You are an executive chef who runs a flawless brigade kitchen. Everything is backward-scheduled from service time. Every task has a duration and dependency. Mise en place is the difference between panic and calm.",
-      "time": "2:00 PM",
-      "label": "5 hours before",
-      "tasks": ["Specific task for THIS menu with duration", "Another task"]
-    },
-    {
-      "time": "3:00 PM",
-      "label": "4 hours before", 
-      "tasks": ["Tasks"]
-    },
-    {
-      "time": "4:00 PM",
-      "label": "3 hours before",
-      "tasks": ["Tasks"]
-    },
-    {
-      "time": "5:00 PM",
-      "label": "2 hours before",
-      "tasks": ["Tasks"]
-    },
-    {
-      "time": "6:00 PM",
-      "label": "1 hour before",
-      "tasks": ["Tasks"]
-    },
-    {
-      "time": "${serviceTimeStr}",
-      "label": "Service",
-      "tasks": ["Plate amuse-bouche", "Welcome guests"]
-    }
+    { "time": "T-3 days", "task": "Task description" },
+    { "time": "T-1 day", "task": "Task description" },
+    { "time": "Day of - 4:00 PM", "task": "Task description" }
   ],
-
+  "winePairings": [
+    { "course": "Course name", "wine": "Wine name", "notes": "Why this pairing works" }
+  ],
   "tableSettings": {
-    "_approach": "You are an event designer whose work appears in Architectural Digest. You understand scale, proportion, sight lines, candle placement, napkin folds—the details that elevate a table from 'set' to 'staged.' The table tells guests how to feel before the first course arrives.",
-    "placeSetting": {
-      "charger": "Charger plate style and color recommendation for ${menu.title} theme",
-      "dinnerPlate": "Dinner plate style (on charger or replacing it at main course)",
-      "left": ["Fork positions from outside in - list each fork and its purpose for this menu's courses"],
-      "right": ["Knife and spoon positions from outside in - list each piece and purpose"],
-      "above": "Dessert spoon and fork arrangement above the plate",
-      "glassware": "Glass positions from left to right: water goblet, then wine glasses in order of service for this menu's wines",
-      "napkin": "Specific fold style and placement (on plate, left of forks, in glass)"
-    },
-    "centerpiece": "Low arrangement (under 12 inches for sight lines) - specific flowers, foliage, and vessel for ${menu.title} theme",
-    "candles": "Taper vs. pillar, specific quantity for table size, placement pattern for even light distribution",
-    "additionalDecor": [
-      "Theme-appropriate accent pieces",
-      "Color palette elements",
-      "Seasonal or occasion touches"
-    ],
-    "lighting": "Dimmer percentage, when to light candles relative to guest arrival, ambient light recommendations",
-    "proTip": "The one detail that elevates from nice to memorable"
+    "style": "Description of table setting style",
+    "elements": ["Element 1", "Element 2"]
   },
-
-  "plating": [
-    {
-      "_approach": "You are a culinary artist trained in kaiseki and modern French technique. Every plate is a composition—negative space matters, height matters, sauce placement matters. You teach the principles so cooks understand the 'why' and can adapt.",
-      "course": "Amuse-Bouche",
-      "portion": "1.5 oz",
-      "vessel": "Specific plate/bowl/spoon recommendation with size and color",
-      "composition": "Clock positions for each element (protein at 6 o'clock, starch at 10, vegetable at 2)",
-      "sauce": "Application technique - dots, swoosh, pool, or drizzle with specific placement",
-      "garnish": "Final touch and exact placement",
-      "temperature": "Plate temp (warm/cold) and ideal food temp",
-      "principle": "The visual principle at work (negative space, height contrast, color balance)",
-      "tip": "Professional plating secret specific to this dish"
-    }
-  ],
-
-  "tips": {
-    "timing": [
-      "Course-specific timing advice for THIS menu"
-    ],
-    "temperature": [
-      "Temperature tips specific to these dishes"
-    ],
-    "lastMinute": [
-      "Final touches for THIS menu"
-    ],
-    "emergency": [
-      {"problem": "Something that could go wrong with THIS menu", "fix": "How to save it"}
-    ]
-  },
-
-  "checklist": {
-    "kitchen": ["Item specific to this menu's prep"],
-    "dining": ["Table setup items"],
-    "thirtyMinutes": ["Final checks before guests arrive"],
-    "mental": ["You've got this - the lamb is resting, the scallops are ready to sear..."]
-  },
-
-  "imagePrompts": {
-    "_approach": "You are a commercial food photographer for Bon Appétit. CRITICAL: AI image generators create cluttered images when given too many elements. Write FOCUSED prompts with selective details. Emphasize NEGATIVE SPACE and BREATHING ROOM. Pick 3-4 key elements per shot, not 10. All images must reference the same room/table from tableSettings.",
-    "styleGuide": "Define the visual style in ONE sentence: lighting type, color palette (from tableSettings), camera angle, mood. Keep it simple - this anchors all shots. Example: 'Warm candlelight, burgundy and gold palette, Hasselblad 85mm f/2.8, intimate evening mood.'",
-    "tablescape": {
-      "prompt": "Write a CLEAN tablescape prompt. Overhead or 30-degree angle. Focus on: the TABLE ITSELF (surface, runner), ONE place setting clearly visible, the centerpiece from tableSettings, candles. DO NOT list every glass, fork, and napkin - let them exist naturally. Emphasize empty space between elements. Magazine editorial, 16:9.",
-      "negativePrompt": "cluttered, busy, too many elements, cramped, overlapping items",
-      "platform": {"midjourney": "--ar 16:9 --style raw --s 750 --q 2 --v 6", "dalle": "photorealistic, editorial food photography, uncluttered composition"}
-    },
-    "mainCourse": {
-      "prompt": "HERO SHOT of ${menu.courses[3]?.name}. Focus on THE PLATE - protein position, sauce, garnish per plating guide. Background is soft blur showing HINTS of the same tablescape (candle glow, flower color). The food is the star. Dramatic but warm lighting. 4:3.",
-      "negativePrompt": "cluttered background, too many elements in focus, busy composition",
-      "platform": {"midjourney": "--ar 4:3 --style raw --s 750 --q 2 --v 6", "dalle": "photorealistic, shallow depth of field, food hero shot"}
-    },
-    "dessert": {
-      "prompt": "${menu.courses[4]?.name} plated simply. Same room, softer light (candles lower). Dessert wine glass in soft focus. Minimal elements - just the dessert, one glass, hint of table. Intimate, satisfied feeling. 4:3.",
-      "negativePrompt": "cluttered, busy, too many props",
-      "platform": {"midjourney": "--ar 4:3 --style raw --s 750 --q 2 --v 6", "dalle": "photorealistic, warm intimate lighting, simple composition"}
-    }
-  }
+  "platingGuides": [
+    { "course": "Course name", "description": "How to plate this dish" }
+  ]
+}`;
 }
 
-CRITICAL INSTRUCTIONS:
-1. Every item must be SPECIFIC to the actual menu dishes listed above
-2. Shopping quantities must be calculated for ${guestCount} guests using French portions with 15% buffer
-3. Wines must be REAL bottles from actual producers with realistic prices
-4. RECIPES MUST BE ORIGINAL - create YOUR version, not reproductions of published recipes. Use your culinary knowledge to design each dish with specific techniques, temperatures, and timings that YOU determine are best. Explain your reasoning.
-5. Timeline must work backward from ${serviceTimeStr} service time
-6. Include 5 complete recipes (one per course)
-7. Image prompts MUST reference the tableSettings above - same flowers, same candles, same color palette in every shot
-8. All food shots show the SAME ROOM established in tablescape, with plating exactly as specified in plating guide
-
-Return ONLY the JSON object. No markdown, no explanation, no preamble.`;
-}
-
-// Legacy fallback function (not used when API works)
-function buildCookbookDataFallback(menu, guestCount, serviceTime, staffing) {
-  const scale = guestCount / 6;
-  const serviceHour = serviceTime ? parseInt(serviceTime.split(':')[0]) : 19;
-  
-  return {
-    // Wine pairings with prices
-    wines: {
-      aperitif: { name: 'Champagne or Crémant', price: '$25-45', pour: '4 oz', notes: 'Crisp bubbles to start' },
-      white: { name: 'Chablis or White Burgundy', price: '$20-35', pour: '5 oz', notes: 'For lighter courses' },
-      red: { name: 'Côtes du Rhône or Pinot Noir', price: '$18-30', pour: '5 oz', notes: 'For the main' },
-      dessert: { name: 'Sauternes or Late Harvest', price: '$25-40', pour: '2 oz', notes: 'Sweet finish' }
-    },
-    
-    // Shopping list scaled
-    shopping: {
-      proteins: [
-        { item: 'Main protein per recipe', qty: `${(1.5 * scale).toFixed(1)} lbs`, note: 'Ask butcher to prep' },
-        { item: 'Seafood for second course', qty: `${(1.25 * scale).toFixed(1)} lbs`, note: 'Fresh, day-of' }
-      ],
-      produce: [
-        { item: 'Mixed greens', qty: `${Math.ceil(0.75 * scale)} lbs` },
-        { item: 'Shallots', qty: `${Math.ceil(4 * scale)}` },
-        { item: 'Garlic', qty: '2 heads' },
-        { item: 'Lemons', qty: `${Math.ceil(6 * scale)}` },
-        { item: 'Fresh herbs (parsley, thyme, rosemary)', qty: '3 bunches' },
-        { item: 'Seasonal vegetables per recipe', qty: `${Math.ceil(2 * scale)} lbs` }
-      ],
-      dairy: [
-        { item: 'Unsalted butter', qty: '2 lbs', note: 'European-style' },
-        { item: 'Heavy cream', qty: '1 quart' },
-        { item: 'Crème fraîche', qty: '8 oz' },
-        { item: 'Parmesan', qty: '4 oz', note: 'Real Parmigiano' }
-      ],
-      pantry: [
-        { item: 'Extra virgin olive oil', qty: '500ml' },
-        { item: 'Aged balsamic vinegar', qty: '250ml' },
-        { item: 'Chicken or vegetable stock', qty: '1 quart' },
-        { item: 'Dijon mustard', qty: '1 jar' }
-      ]
-    },
-    
-    // Day-before prep
-    dayBeforePrep: [
-      { name: 'Make balsamic reduction', time: 30, steps: ['Combine 1 cup balsamic + 1 tbsp honey', 'Simmer 20 min until reduced by 2/3', 'Cool—thickens as it cools'], storage: 'Room temp, 4 weeks' },
-      { name: 'Prep all vegetables', time: 45, steps: ['Wash and dry all produce', 'Dice shallots, mince garlic', 'Prep accompaniments', 'Store in damp towels'], storage: 'Fridge overnight' },
-      { name: 'Make sauces/marinades', time: 30, steps: ['Prepare pan sauce base', 'Make herb oil or compound butter', 'Marinate proteins if needed'], storage: 'Fridge, labeled' },
-      { name: 'Set the table', time: 30, steps: ['Place linens', 'Set chargers and plates', 'Position flatware', 'Add glasses, napkins, unlit candles'], storage: 'N/A' }
-    ],
-    
-    // Day-of timeline
-    timeline: buildTimeline(serviceHour),
-    
-    // Table settings
-    tableSettings: {
-      place: [
-        'Charger 1" from edge',
-        'Forks left (dinner inside, salad out)',
-        'Knife + spoon right (blade in)',
-        'Dessert utensils above plate',
-        'Water glass above knife',
-        'Wine glasses right of water'
-      ],
-      decor: [
-        'Centerpiece under 12" tall',
-        'Unscented candles only',
-        'Cloth napkins on plate or left'
-      ]
-    },
-    
-    // Plating guide
-    plating: [
-      { course: 'Amuse-Bouche', portion: '2 oz', tip: 'Single elegant bite, demitasse or small plate' },
-      { course: 'First Course', portion: '2.5 oz protein', tip: 'Negative space is elegant—don\'t overcrowd' },
-      { course: 'Second Course', portion: '3 oz', tip: 'Sauce underneath, protein on top' },
-      { course: 'Main Course', portion: '4 oz protein + 3 oz starch + 2 oz veg', tip: 'Clock method: protein at 6, starch at 10, veg at 2' },
-      { course: 'Dessert', portion: '3.5 oz', tip: 'Height adds drama—stack or layer' }
-    ],
-    
-    // Tips & secrets
-    tips: {
-      timing: [
-        'Allow 20-25 minutes between courses',
-        'Clear when ALL guests have finished',
-        'Serve ladies first, then clockwise'
-      ],
-      temperature: [
-        'Warm plates in 200°F oven for hot courses',
-        'Chill plates for cold courses',
-        'Pull red wine 1 hour before service'
-      ],
-      lastMinute: [
-        'Taste everything before plating',
-        'Keep finishing salt, herbs, lemon at hand',
-        'Wipe plate rims before serving'
-      ],
-      emergency: [
-        { problem: 'Sauce too thin', fix: 'Whisk in cold butter, 1 tbsp at a time' },
-        { problem: 'Oversalted', fix: 'Add acid (lemon) or fat (butter/cream)' },
-        { problem: 'Meat overcooked', fix: 'Slice thin, serve with extra sauce' }
-      ]
-    },
-    
-    // Final checklist
-    checklist: {
-      kitchen: ['All ingredients prepped', 'Oven preheated', 'Plates warming/chilling', 'Sauces ready', 'Garnishes prepared'],
-      dining: ['Table set completely', 'Candles ready', 'Music queued', 'Wine opened/chilling', 'Water pitcher filled'],
-      mental: ['I\'ve done the prep—tonight is about enjoying guests', 'Imperfection is charming. Relax.']
-    }
-  };
-}
-
-function buildTimeline(serviceHour) {
-  const timeline = [];
-  const blocks = [
-    { hoursBack: 5, label: '5 hours before', tasks: ['Start mise en place', 'Make remaining components'] },
-    { hoursBack: 4, label: '4 hours before', tasks: ['Temper proteins', 'Finish prep work', 'Preheat oven if needed'] },
-    { hoursBack: 3, label: '3 hours before', tasks: ['Final table check', 'Chill wines', 'Prep garnishes'] },
-    { hoursBack: 2, label: '2 hours before', tasks: ['Begin long-cooking items', 'Make sauces', 'Portion amuse'] },
-    { hoursBack: 1, label: '1 hour before', tasks: ['Sear proteins', 'Open red wine', 'Light candles'] },
-    { hoursBack: 0, label: 'Service', tasks: ['Plate amuse-bouche', 'Welcome guests!'] }
-  ];
-  
-  blocks.forEach(block => {
-    const hour = serviceHour - block.hoursBack;
-    const time = hour > 12 ? `${hour - 12}:00 PM` : (hour === 12 ? '12:00 PM' : `${hour}:00 AM`);
-    timeline.push({ time, label: block.label, tasks: block.tasks });
-  });
-  
-  return timeline;
-}
+// ============================================================
+// DOCX GENERATION
+// ============================================================
 
 async function generateDocxBuffer(docx, data) {
-  const { Document, Packer, Paragraph, TextRun, Header, Footer, 
-          AlignmentType, HeadingLevel, PageBreak, PageNumber, ShadingType } = docx;
-  
-  const { eventTitle, eventDate, eventTime, guestCount, menu, cookbook } = data;
-  
-  const navy = '1E3A5F';
-  const gold = 'C9A227';
-  const green = '2D6A4F';
-  const gray = '6B7C85';
-  
-  const dateStr = eventDate ? new Date(eventDate + 'T00:00').toLocaleDateString('en-US', { 
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-  }) : 'Date TBD';
-  
-  const timeStr = eventTime || '7:00 PM';
-  
-  // Build document sections
-  const children = [];
-  
-  // === COVER PAGE ===
-  children.push(
-    new Paragraph({ spacing: { before: 2000 } }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: '🍽️', size: 72 })]
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 400, after: 200 },
-      children: [new TextRun({ text: eventTitle, bold: true, size: 56, color: navy, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: dateStr, size: 28, color: gray, font: 'Georgia', italics: true })]
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 100 },
-      children: [new TextRun({ text: `${timeStr} • ${guestCount} Guests`, size: 24, color: gray, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 400 },
-      children: [new TextRun({ text: menu.title, bold: true, size: 32, color: green, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 100 },
-      children: [new TextRun({ text: menu.theme || '', size: 22, color: gray, font: 'Georgia', italics: true })]
-    }),
-    new Paragraph({ children: [new PageBreak()] })
-  );
-  
-  // === ELEGANT TAKE-AWAY MENU ===
-  children.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 400, after: 300 },
-      children: [new TextRun({ text: '~ The Menu ~', bold: true, size: 36, color: navy, font: 'Georgia' })]
-    })
-  );
-  
-  menu.courses.forEach(course => {
-    children.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 200 },
-        children: [new TextRun({ text: course.type, bold: true, size: 20, color: gold, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 150 },
-        children: [new TextRun({ text: course.name, size: 24, font: 'Georgia', italics: true })]
-      })
-    );
-  });
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === WINE & SPIRITS ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 300 },
-      children: [new TextRun({ text: '🍷 Wine & Spirits', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      spacing: { after: 100 },
-      children: [new TextRun({ text: `Three tiers for every palate and budget`, size: 22, color: gray, font: 'Georgia', italics: true })]
-    }),
-    new Paragraph({
-      spacing: { after: 200 },
-      children: [new TextRun({ text: `Recommended budget: ${menu.wineCost || '$100-150'}`, size: 20, color: gray, font: 'Georgia' })]
-    })
-  );
-  
-  const wineLabels = { aperitif: 'Aperitif', white: 'White Wine', red: 'Red Wine', dessert: 'Dessert Wine' };
-  const tierLabels = { top: '★ Top Tier', domestic: '★ Domestic', budget: '★ Budget-Friendly' };
-  const tierColors = { top: 'C9A227', domestic: '2D6A4F', budget: '6B7C85' };
-  
-  Object.entries(cookbook.wines || {}).forEach(([key, wine]) => {
-    // Skip meta keys
-    if (key.startsWith('_') || !wine) return;
-    
-    // Section header for this wine type
-    children.push(
-      new Paragraph({
-        spacing: { before: 250, after: 100 },
-        shading: { fill: 'E8F4F8', type: ShadingType.CLEAR },
-        children: [
-          new TextRun({ text: wineLabels[key] || key.charAt(0).toUpperCase() + key.slice(1), bold: true, size: 26, color: navy, font: 'Georgia' }),
-          wine.pour ? new TextRun({ text: `  (${wine.pour} pour)`, size: 18, color: gray, font: 'Georgia' }) : new TextRun({ text: '' })
-        ]
-      })
-    );
-    
-    // Three tiers
-    ['top', 'domestic', 'budget'].forEach(tier => {
-      const tierWine = wine[tier];
-      if (!tierWine || !tierWine.name) return;
-      
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { before: 80 },
-          children: [
-            new TextRun({ text: tierLabels[tier], bold: true, size: 20, color: tierColors[tier], font: 'Georgia' })
-          ]
-        }),
-        new Paragraph({
-          indent: { left: 540 },
-          children: [
-            new TextRun({ text: tierWine.name, size: 22, font: 'Georgia' }),
-            new TextRun({ text: `  —  ${tierWine.price || ''}`, size: 20, color: gray, font: 'Georgia' })
-          ]
-        }),
-        new Paragraph({
-          indent: { left: 540 },
-          spacing: { after: 60 },
-          children: [new TextRun({ text: tierWine.notes || '', size: 18, color: gray, font: 'Georgia', italics: true })]
-        })
-      );
-    });
-  });
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === SHOPPING LIST ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 200 },
-      children: [new TextRun({ text: '🛒 Shopping List', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      spacing: { after: 300 },
-      children: [new TextRun({ text: `Scaled for ${guestCount} guests (includes 15% buffer)`, size: 22, color: gray, font: 'Georgia' })]
-    })
-  );
-  
-  Object.entries(cookbook.shopping || {}).forEach(([category, items]) => {
-    // Skip meta keys like _approach
-    if (category.startsWith('_') || !Array.isArray(items)) return;
-    
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        children: [new TextRun({ text: category.charAt(0).toUpperCase() + category.slice(1), bold: true, size: 26, color: green, font: 'Georgia' })]
-      })
-    );
-    items.forEach(item => {
-      if (!item || !item.item) return;
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 60 },
-          children: [
-            new TextRun({ text: '☐  ', size: 24, font: 'Georgia' }),
-            new TextRun({ text: item.item, size: 22, font: 'Georgia' }),
-            new TextRun({ text: `  —  ${item.qty || ''}`, size: 20, color: gray, font: 'Georgia' }),
-            item.notes ? new TextRun({ text: `  (${item.notes})`, size: 18, color: gray, font: 'Georgia', italics: true }) : new TextRun({ text: '' })
-          ]
-        })
-      );
-    });
-  });
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === DAY-BEFORE PREP ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 300 },
-      children: [new TextRun({ text: '📅 Day-Before Prep', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    })
-  );
-  
-  (cookbook.dayBeforePrep || []).forEach(task => {
-    if (!task || !task.name) return;
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        children: [
-          new TextRun({ text: '☐  ', size: 24, font: 'Georgia' }),
-          new TextRun({ text: task.name, bold: true, size: 24, font: 'Georgia' }),
-          new TextRun({ text: `  (${task.time} min)`, size: 20, color: gray, font: 'Georgia' })
-        ]
-      })
-    );
-    task.steps.forEach((step, i) => {
-      children.push(
-        new Paragraph({
-          indent: { left: 720 },
-          spacing: { after: 40 },
-          children: [new TextRun({ text: `${i + 1}. ${step}`, size: 20, font: 'Georgia' })]
-        })
-      );
-    });
-    children.push(
-      new Paragraph({
-        indent: { left: 720 },
-        spacing: { after: 150 },
-        shading: { fill: 'F5F5DC', type: ShadingType.CLEAR },
-        children: [new TextRun({ text: `💡 Storage: ${task.storage}`, size: 18, font: 'Georgia', italics: true })]
-      })
-    );
-  });
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === DAY-OF TIMELINE ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 300 },
-      children: [new TextRun({ text: '⏰ Day-Of Timeline', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      spacing: { after: 200 },
-      children: [new TextRun({ text: `Service time: ${timeStr}`, size: 22, color: gray, font: 'Georgia' })]
-    })
-  );
-  
-  (cookbook.timeline || []).forEach(block => {
-    if (!block || !block.time) return;
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        shading: { fill: 'E8F4F8', type: ShadingType.CLEAR },
-        children: [new TextRun({ text: `${block.time} — ${block.label}`, bold: true, size: 24, color: navy, font: 'Georgia' })]
-      })
-    );
-    block.tasks.forEach(task => {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 60 },
-          children: [new TextRun({ text: `☐  ${task}`, size: 22, font: 'Georgia' })]
-        })
-      );
-    });
-  });
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === TABLE SETTINGS ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 200 },
-      children: [new TextRun({ text: '🍽️ Table Settings', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      spacing: { after: 300 },
-      children: [new TextRun({ text: 'The table tells guests how to feel before the first course arrives', size: 20, color: gray, font: 'Georgia', italics: true })]
-    })
-  );
-  
-  // Place Setting - Structured Layout
-  children.push(
-    new Paragraph({
-      spacing: { after: 150 },
-      shading: { fill: 'E8F4F8', type: ShadingType.CLEAR },
-      children: [new TextRun({ text: '⚙️ Place Setting', bold: true, size: 26, color: navy, font: 'Georgia' })]
-    })
-  );
-  
-  const ps = cookbook.tableSettings?.placeSetting || {};
-  
-  // Charger & Plate
-  if (ps.charger) {
-    children.push(
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { before: 100 },
-        children: [
-          new TextRun({ text: 'Charger: ', bold: true, size: 22, font: 'Georgia' }),
-          new TextRun({ text: ps.charger, size: 22, font: 'Georgia' })
-        ]
-      })
-    );
-  }
-  if (ps.dinnerPlate) {
-    children.push(
-      new Paragraph({
-        indent: { left: 360 },
-        children: [
-          new TextRun({ text: 'Dinner Plate: ', bold: true, size: 22, font: 'Georgia' }),
-          new TextRun({ text: ps.dinnerPlate, size: 22, font: 'Georgia' })
-        ]
-      })
-    );
-  }
-  
-  // Left side - Forks
-  if (ps.left && ps.left.length > 0) {
-    children.push(
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { before: 150 },
-        children: [new TextRun({ text: '← LEFT (Forks, outside in):', bold: true, size: 22, color: green, font: 'Georgia' })]
-      })
-    );
-    ps.left.forEach((item, i) => {
-      children.push(
-        new Paragraph({
-          indent: { left: 720 },
-          children: [new TextRun({ text: `${i + 1}. ${item}`, size: 20, font: 'Georgia' })]
-        })
-      );
-    });
-  }
-  
-  // Right side - Knives & Spoons
-  if (ps.right && ps.right.length > 0) {
-    children.push(
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { before: 150 },
-        children: [new TextRun({ text: 'RIGHT (Knives & Spoons, outside in) →:', bold: true, size: 22, color: green, font: 'Georgia' })]
-      })
-    );
-    ps.right.forEach((item, i) => {
-      children.push(
-        new Paragraph({
-          indent: { left: 720 },
-          children: [new TextRun({ text: `${i + 1}. ${item}`, size: 20, font: 'Georgia' })]
-        })
-      );
-    });
-  }
-  
-  // Above - Dessert utensils
-  if (ps.above) {
-    children.push(
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { before: 150 },
-        children: [
-          new TextRun({ text: '↑ ABOVE (Dessert): ', bold: true, size: 22, color: green, font: 'Georgia' }),
-          new TextRun({ text: ps.above, size: 20, font: 'Georgia' })
-        ]
-      })
-    );
-  }
-  
-  // Glassware
-  if (ps.glassware) {
-    children.push(
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { before: 150 },
-        children: [
-          new TextRun({ text: '🍷 Glassware (L→R): ', bold: true, size: 22, color: green, font: 'Georgia' }),
-          new TextRun({ text: ps.glassware, size: 20, font: 'Georgia' })
-        ]
-      })
-    );
-  }
-  
-  // Napkin
-  if (ps.napkin) {
-    children.push(
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { before: 150 },
-        children: [
-          new TextRun({ text: 'Napkin: ', bold: true, size: 22, color: green, font: 'Georgia' }),
-          new TextRun({ text: ps.napkin, size: 20, font: 'Georgia' })
-        ]
-      })
-    );
-  }
-  
-  // Centerpiece
-  if (cookbook.tableSettings?.centerpiece) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 250, after: 100 },
-        children: [new TextRun({ text: '💐 Centerpiece', bold: true, size: 26, color: green, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { after: 60 },
-        children: [new TextRun({ text: cookbook.tableSettings.centerpiece, size: 22, font: 'Georgia' })]
-      })
-    );
-  }
-  
-  // Candles
-  if (cookbook.tableSettings?.candles) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        children: [new TextRun({ text: '🕯️ Candles', bold: true, size: 26, color: green, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { after: 60 },
-        children: [new TextRun({ text: cookbook.tableSettings.candles, size: 22, font: 'Georgia' })]
-      })
-    );
-  }
-  
-  // Additional Décor
-  const decor = cookbook.tableSettings?.additionalDecor || cookbook.tableSettings?.decor || [];
-  if (decor.length > 0) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        children: [new TextRun({ text: '✨ Additional Décor', bold: true, size: 26, color: green, font: 'Georgia' })]
-      })
-    );
-    decor.forEach(item => {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 60 },
-          children: [new TextRun({ text: `• ${item}`, size: 22, font: 'Georgia' })]
-        })
-      );
-    });
-  }
-  
-  // Lighting
-  if (cookbook.tableSettings?.lighting) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        children: [new TextRun({ text: '💡 Lighting', bold: true, size: 26, color: green, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { after: 60 },
-        children: [new TextRun({ text: cookbook.tableSettings.lighting, size: 22, font: 'Georgia' })]
-      })
-    );
-  }
-  
-  // Pro Tip
-  if (cookbook.tableSettings?.proTip) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 200 },
-        shading: { fill: 'FFF9E6', type: ShadingType.CLEAR },
-        children: [
-          new TextRun({ text: '💡 Pro Tip: ', bold: true, size: 20, font: 'Georgia' }),
-          new TextRun({ text: cookbook.tableSettings.proTip, size: 20, font: 'Georgia', italics: true })
-        ]
-      })
-    );
-  }
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === PLATING GUIDE ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 200 },
-      children: [new TextRun({ text: '🎨 Plating Guide', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      spacing: { after: 200 },
-      children: [new TextRun({ text: 'Every plate is a composition—negative space matters, height matters, sauce placement matters.', size: 20, color: gray, font: 'Georgia', italics: true })]
-    })
-  );
-  
-  (cookbook.plating || []).forEach(p => {
-    if (!p || !p.course) return;
-    
-    // Course header with portion
-    children.push(
-      new Paragraph({
-        spacing: { before: 200 },
-        shading: { fill: 'E8F4F8', type: ShadingType.CLEAR },
-        children: [
-          new TextRun({ text: p.course, bold: true, size: 24, color: navy, font: 'Georgia' }),
-          new TextRun({ text: `  —  ${p.portion || ''}`, size: 20, color: gray, font: 'Georgia' })
-        ]
-      })
-    );
-    
-    // Vessel
-    if (p.vessel) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { before: 80 },
-          children: [
-            new TextRun({ text: 'Vessel: ', bold: true, size: 20, font: 'Georgia' }),
-            new TextRun({ text: p.vessel, size: 20, font: 'Georgia' })
-          ]
-        })
-      );
-    }
-    
-    // Composition
-    if (p.composition) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          children: [
-            new TextRun({ text: 'Composition: ', bold: true, size: 20, font: 'Georgia' }),
-            new TextRun({ text: p.composition, size: 20, font: 'Georgia' })
-          ]
-        })
-      );
-    }
-    
-    // Sauce
-    if (p.sauce) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          children: [
-            new TextRun({ text: 'Sauce: ', bold: true, size: 20, font: 'Georgia' }),
-            new TextRun({ text: p.sauce, size: 20, font: 'Georgia' })
-          ]
-        })
-      );
-    }
-    
-    // Garnish
-    if (p.garnish) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          children: [
-            new TextRun({ text: 'Garnish: ', bold: true, size: 20, font: 'Georgia' }),
-            new TextRun({ text: p.garnish, size: 20, font: 'Georgia' })
-          ]
-        })
-      );
-    }
-    
-    // Temperature
-    if (p.temperature) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          children: [
-            new TextRun({ text: 'Temperature: ', bold: true, size: 20, font: 'Georgia' }),
-            new TextRun({ text: p.temperature, size: 20, font: 'Georgia' })
-          ]
-        })
-      );
-    }
-    
-    // Visual Principle
-    if (p.principle) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { before: 60 },
-          shading: { fill: 'F5F5DC', type: ShadingType.CLEAR },
-          children: [
-            new TextRun({ text: '✨ Principle: ', bold: true, size: 18, color: 'B8860B', font: 'Georgia' }),
-            new TextRun({ text: p.principle, size: 18, font: 'Georgia', italics: true })
-          ]
-        })
-      );
-    }
-    
-    // Pro Tip
-    if (p.tip) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 100 },
-          shading: { fill: 'FFF9E6', type: ShadingType.CLEAR },
-          children: [new TextRun({ text: `💡 ${p.tip}`, size: 18, font: 'Georgia', italics: true })]
-        })
-      );
-    }
-  });
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === RECIPES (Cook's Country Style) ===
-  if (cookbook.recipes && cookbook.recipes.length > 0) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 300 },
-        children: [new TextRun({ text: '📖 Recipes', bold: true, size: 32, color: navy, font: 'Georgia' })]
-      })
-    );
-    
-    cookbook.recipes.forEach((recipe, idx) => {
-      // Recipe header
-      children.push(
-        new Paragraph({
-          spacing: { before: idx > 0 ? 400 : 200, after: 100 },
-          shading: { fill: 'E8F4F8', type: ShadingType.CLEAR },
-          children: [
-            new TextRun({ text: recipe.course?.toUpperCase() || '', bold: true, size: 18, color: gold, font: 'Georgia' })
-          ]
-        }),
-        new Paragraph({
-          spacing: { after: 50 },
-          children: [new TextRun({ text: recipe.name, bold: true, size: 28, color: navy, font: 'Georgia' })]
-        }),
-        new Paragraph({
-          spacing: { after: 150 },
-          children: [
-            new TextRun({ text: `Serves ${guestCount}  •  Active: ${recipe.activeTime || '30 min'}  •  Total: ${recipe.totalTime || '1 hour'}`, size: 18, color: gray, font: 'Georgia' })
-          ]
-        })
-      );
-      
-      // WHY IT WORKS box
-      if (recipe.whyItWorks) {
-        children.push(
-          new Paragraph({
-            spacing: { before: 100, after: 50 },
-            children: [new TextRun({ text: 'WHY IT WORKS', bold: true, size: 18, color: green, font: 'Georgia' })]
-          }),
-          new Paragraph({
-            indent: { left: 360 },
-            spacing: { after: 150 },
-            shading: { fill: 'F5F5DC', type: ShadingType.CLEAR },
-            children: [new TextRun({ text: recipe.whyItWorks, size: 20, font: 'Georgia', italics: true })]
-          })
-        );
-      }
-      
-      // MAKE AHEAD
-      if (recipe.makeAhead) {
-        children.push(
-          new Paragraph({
-            spacing: { before: 100, after: 50 },
-            children: [new TextRun({ text: 'MAKE AHEAD', bold: true, size: 18, color: green, font: 'Georgia' })]
-          }),
-          new Paragraph({
-            indent: { left: 360 },
-            spacing: { after: 150 },
-            children: [new TextRun({ text: recipe.makeAhead, size: 20, font: 'Georgia' })]
-          })
-        );
-      }
-      
-      // INGREDIENTS
-      if (recipe.ingredients && recipe.ingredients.length > 0) {
-        children.push(
-          new Paragraph({
-            spacing: { before: 150, after: 100 },
-            children: [new TextRun({ text: 'INGREDIENTS', bold: true, size: 20, color: navy, font: 'Georgia' })]
-          })
-        );
-        recipe.ingredients.forEach(ing => {
-          const ingText = typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.item || ing}${ing.prep ? ', ' + ing.prep : ''}`;
-          children.push(
-            new Paragraph({
-              indent: { left: 360 },
-              spacing: { after: 40 },
-              children: [new TextRun({ text: `• ${ingText}`, size: 20, font: 'Georgia' })]
-            })
-          );
-        });
-      }
-      
-      // INSTRUCTIONS
-      if (recipe.instructions && recipe.instructions.length > 0) {
-        children.push(
-          new Paragraph({
-            spacing: { before: 150, after: 100 },
-            children: [new TextRun({ text: 'INSTRUCTIONS', bold: true, size: 20, color: navy, font: 'Georgia' })]
-          })
-        );
-        recipe.instructions.forEach((step, i) => {
-          children.push(
-            new Paragraph({
-              indent: { left: 360 },
-              spacing: { after: 80 },
-              children: [
-                new TextRun({ text: `${i + 1}. `, bold: true, size: 20, font: 'Georgia' }),
-                new TextRun({ text: step, size: 20, font: 'Georgia' })
-              ]
-            })
-          );
-        });
-      }
-      
-      // TIPS
-      if (recipe.tips && recipe.tips.length > 0) {
-        children.push(
-          new Paragraph({
-            spacing: { before: 150, after: 50 },
-            shading: { fill: 'FFF9E6', type: ShadingType.CLEAR },
-            children: [new TextRun({ text: '💡 TIPS', bold: true, size: 18, color: 'B8860B', font: 'Georgia' })]
-          })
-        );
-        recipe.tips.forEach(tip => {
-          children.push(
-            new Paragraph({
-              indent: { left: 360 },
-              spacing: { after: 40 },
-              shading: { fill: 'FFF9E6', type: ShadingType.CLEAR },
-              children: [new TextRun({ text: `• ${tip}`, size: 18, font: 'Georgia', italics: true })]
-            })
-          );
-        });
-      }
-      
-      // Page break between recipes (except last)
-      if (idx < cookbook.recipes.length - 1) {
-        children.push(new Paragraph({ children: [new PageBreak()] }));
-      }
-    });
-    
-    children.push(new Paragraph({ children: [new PageBreak()] }));
-  }
-  
-  // === SIGNATURE COCKTAIL ===
-  if (cookbook.cocktail) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 200 },
-        children: [new TextRun({ text: '🍸 Signature Cocktail', bold: true, size: 32, color: navy, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        spacing: { after: 100 },
-        children: [new TextRun({ text: cookbook.cocktail.name, bold: true, size: 28, color: green, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        spacing: { after: 150 },
-        children: [new TextRun({ text: cookbook.cocktail.description, size: 20, color: gray, font: 'Georgia', italics: true })]
-      }),
-      new Paragraph({
-        spacing: { before: 100, after: 50 },
-        children: [new TextRun({ text: 'Per Drink:', bold: true, size: 20, font: 'Georgia' })]
-      })
-    );
-    
-    if (cookbook.cocktail.ingredients) {
-      cookbook.cocktail.ingredients.forEach(ing => {
-        children.push(
-          new Paragraph({
-            indent: { left: 360 },
-            spacing: { after: 40 },
-            children: [new TextRun({ text: `• ${ing}`, size: 20, font: 'Georgia' })]
-          })
-        );
-      });
-    }
-    
-    if (cookbook.cocktail.instructions) {
-      children.push(
-        new Paragraph({
-          spacing: { before: 100, after: 50 },
-          children: [new TextRun({ text: 'Method:', bold: true, size: 20, font: 'Georgia' })]
-        }),
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 150 },
-          children: [new TextRun({ text: cookbook.cocktail.instructions, size: 20, font: 'Georgia' })]
-        })
-      );
-    }
-    
-    if (cookbook.cocktail.batchRecipe) {
-      children.push(
-        new Paragraph({
-          spacing: { before: 100 },
-          shading: { fill: 'F5F5DC', type: ShadingType.CLEAR },
-          children: [new TextRun({ text: `📦 Batch for ${guestCount}: `, bold: true, size: 18, font: 'Georgia' })]
-        }),
-        new Paragraph({
-          shading: { fill: 'F5F5DC', type: ShadingType.CLEAR },
-          spacing: { after: 100 },
-          children: [new TextRun({ text: cookbook.cocktail.batchRecipe, size: 18, font: 'Georgia' })]
-        })
-      );
-    }
-    
-    children.push(new Paragraph({ children: [new PageBreak()] }));
-  }
-  
-  // === TIPS & SECRETS ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 300 },
-      children: [new TextRun({ text: '👨‍🍳 Tips & Secrets', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    })
-  );
-  
-  ['timing', 'temperature', 'lastMinute'].forEach(category => {
-    const labels = { timing: 'Timing', temperature: 'Temperature', lastMinute: 'Last-Minute Success' };
-    const tips = cookbook.tips?.[category] || [];
-    if (tips.length === 0) return;
-    
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        children: [new TextRun({ text: labels[category], bold: true, size: 26, color: green, font: 'Georgia' })]
-      })
-    );
-    tips.forEach(tip => {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 60 },
-          children: [new TextRun({ text: `• ${tip}`, size: 22, font: 'Georgia' })]
-        })
-      );
-    });
-  });
-  
-  // Emergency fixes
-  const emergencyFixes = cookbook.tips?.emergency || [];
-  if (emergencyFixes.length > 0) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        children: [new TextRun({ text: '🚨 Emergency Fixes', bold: true, size: 26, color: green, font: 'Georgia' })]
-      })
-    );
-  
-    emergencyFixes.forEach(e => {
-    children.push(
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { after: 40 },
-        children: [
-          new TextRun({ text: `Problem: `, bold: true, size: 22, font: 'Georgia' }),
-          new TextRun({ text: e.problem, size: 22, font: 'Georgia' })
-        ]
-      }),
-      new Paragraph({
-        indent: { left: 360 },
-        spacing: { after: 100 },
-        children: [
-          new TextRun({ text: `Fix: `, bold: true, size: 22, color: green, font: 'Georgia' }),
-          new TextRun({ text: e.fix, size: 22, font: 'Georgia', italics: true })
-        ]
-      })
-    );
-  });
-  }
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === FINAL CHECKLIST ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 300 },
-      children: [new TextRun({ text: '✅ Final Checklist', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    })
-  );
-  
-  ['kitchen', 'dining', 'thirtyMinutes', 'mental'].forEach(category => {
-    const labels = { kitchen: 'Kitchen', dining: 'Dining Room', thirtyMinutes: '30 Minutes Before', mental: 'Mental Check' };
-    const items = cookbook.checklist?.[category] || [];
-    if (items.length === 0) return;
-    
-    children.push(
-      new Paragraph({
-        spacing: { before: 200, after: 100 },
-        children: [new TextRun({ text: labels[category], bold: true, size: 26, color: green, font: 'Georgia' })]
-      })
-    );
-    items.forEach(item => {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 60 },
-          children: [new TextRun({ text: `☐  ${item}`, size: 22, font: 'Georgia' })]
-        })
-      );
-    });
-  });
-  
-  children.push(new Paragraph({ children: [new PageBreak()] }));
-  
-  // === AI IMAGE PROMPTS ===
-  children.push(
-    new Paragraph({
-      spacing: { before: 200, after: 200 },
-      children: [new TextRun({ text: '📸 AI Image Prompts', bold: true, size: 32, color: navy, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      spacing: { after: 100 },
-      children: [new TextRun({ text: 'Magazine-quality prompts for Midjourney, DALL-E, or similar', size: 22, color: gray, font: 'Georgia', italics: true })]
-    }),
-    new Paragraph({
-      spacing: { after: 200 },
-      shading: { fill: 'E8F4F8', type: ShadingType.CLEAR },
-      children: [new TextRun({ text: '💡 All images should feel like ONE cohesive photoshoot in the SAME dining room', size: 20, font: 'Georgia' })]
-    })
-  );
-  
-  // Style Guide
-  if (cookbook.imagePrompts?.styleGuide) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 150, after: 100 },
-        children: [new TextRun({ text: '🎨 Style Guide (Apply to ALL images)', bold: true, size: 24, color: green, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        shading: { fill: 'FFF9E6', type: ShadingType.CLEAR },
-        indent: { left: 360, right: 360 },
-        spacing: { after: 200 },
-        children: [new TextRun({ text: cookbook.imagePrompts.styleGuide, size: 18, font: 'Georgia' })]
-      })
-    );
-  }
-  
-  // Tablescape prompt
-  const tablescapePrompt = cookbook.imagePrompts?.tablescape?.prompt || cookbook.imagePrompts?.tablescape;
-  if (tablescapePrompt) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 150, after: 100 },
-        children: [new TextRun({ text: '🍽️ Tablescape (Before Guests Arrive)', bold: true, size: 24, color: green, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        shading: { fill: 'F5F5F5', type: ShadingType.CLEAR },
-        indent: { left: 360, right: 360 },
-        spacing: { after: 50 },
-        children: [new TextRun({ text: typeof tablescapePrompt === 'string' ? tablescapePrompt : JSON.stringify(tablescapePrompt), size: 18, font: 'Georgia' })]
-      })
-    );
-    if (cookbook.imagePrompts?.tablescape?.platform?.midjourney) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 200 },
-          children: [new TextRun({ text: `Midjourney: ${cookbook.imagePrompts.tablescape.platform.midjourney}`, size: 16, color: gray, font: 'Georgia', italics: true })]
-        })
-      );
-    }
-  }
-  
-  // Main Course prompt  
-  const mainPrompt = cookbook.imagePrompts?.mainCourse?.prompt || cookbook.imagePrompts?.mainCourse;
-  if (mainPrompt) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 150, after: 100 },
-        children: [new TextRun({ text: '🥩 Main Course Hero Shot', bold: true, size: 24, color: green, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        shading: { fill: 'F5F5F5', type: ShadingType.CLEAR },
-        indent: { left: 360, right: 360 },
-        spacing: { after: 50 },
-        children: [new TextRun({ text: typeof mainPrompt === 'string' ? mainPrompt : JSON.stringify(mainPrompt), size: 18, font: 'Georgia' })]
-      })
-    );
-    if (cookbook.imagePrompts?.mainCourse?.platform?.midjourney) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 200 },
-          children: [new TextRun({ text: `Midjourney: ${cookbook.imagePrompts.mainCourse.platform.midjourney}`, size: 16, color: gray, font: 'Georgia', italics: true })]
-        })
-      );
-    }
-  }
-  
-  // Dessert prompt
-  const dessertPrompt = cookbook.imagePrompts?.dessert?.prompt || cookbook.imagePrompts?.dessert;
-  if (dessertPrompt) {
-    children.push(
-      new Paragraph({
-        spacing: { before: 150, after: 100 },
-        children: [new TextRun({ text: '🍰 Dessert Shot', bold: true, size: 24, color: green, font: 'Georgia' })]
-      }),
-      new Paragraph({
-        shading: { fill: 'F5F5F5', type: ShadingType.CLEAR },
-        indent: { left: 360, right: 360 },
-        spacing: { after: 50 },
-        children: [new TextRun({ text: typeof dessertPrompt === 'string' ? dessertPrompt : JSON.stringify(dessertPrompt), size: 18, font: 'Georgia' })]
-      })
-    );
-    if (cookbook.imagePrompts?.dessert?.platform?.midjourney) {
-      children.push(
-        new Paragraph({
-          indent: { left: 360 },
-          spacing: { after: 200 },
-          children: [new TextRun({ text: `Midjourney: ${cookbook.imagePrompts.dessert.platform.midjourney}`, size: 16, color: gray, font: 'Georgia', italics: true })]
-        })
-      );
-    }
-  }
-  
-  // === CLOSING ===
-  children.push(
-    new Paragraph({ children: [new PageBreak()] }),
-    new Paragraph({ spacing: { before: 2000 } }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: '🥂', size: 72 })]
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 200 },
-      children: [new TextRun({ text: "You've Got This!", bold: true, size: 36, color: navy, font: 'Georgia' })]
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 200 },
-      children: [new TextRun({ text: 'The prep is done. Tonight is about enjoying your guests.', size: 22, color: gray, font: 'Georgia', italics: true })]
-    })
-  );
-  
-  // Create document
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, 
+          Header, Footer, AlignmentType, BorderStyle, WidthType, 
+          HeadingLevel, PageNumber, PageBreak, LevelFormat, ShadingType } = docx;
+
+  const { eventTitle, eventDate, guestCount, menu, cookbook } = data;
+
+  const tableBorder = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
+  const cellBorders = { top: tableBorder, bottom: tableBorder, left: tableBorder, right: tableBorder };
+
   const doc = new Document({
     styles: {
-      default: { document: { run: { font: 'Georgia', size: 22 } } }
+      default: { document: { run: { font: "Georgia", size: 24 } } },
+      paragraphStyles: [
+        { id: "Title", name: "Title", basedOn: "Normal",
+          run: { size: 56, bold: true, color: "1a3a5c", font: "Georgia" },
+          paragraph: { spacing: { before: 240, after: 120 }, alignment: AlignmentType.CENTER } },
+        { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
+          run: { size: 36, bold: true, color: "1a3a5c", font: "Georgia" },
+          paragraph: { spacing: { before: 400, after: 200 }, outlineLevel: 0 } },
+        { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true,
+          run: { size: 28, bold: true, color: "2c5282", font: "Georgia" },
+          paragraph: { spacing: { before: 300, after: 150 }, outlineLevel: 1 } }
+      ]
+    },
+    numbering: {
+      config: [
+        { reference: "ingredients",
+          levels: [{ level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT,
+            style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] },
+        { reference: "instructions",
+          levels: [{ level: 0, format: LevelFormat.DECIMAL, text: "%1.", alignment: AlignmentType.LEFT,
+            style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] }
+      ]
     },
     sections: [{
       properties: {
@@ -1760,7 +359,7 @@ async function generateDocxBuffer(docx, data) {
         default: new Header({
           children: [new Paragraph({
             alignment: AlignmentType.RIGHT,
-            children: [new TextRun({ text: eventTitle, size: 18, color: gray, font: 'Georgia', italics: true })]
+            children: [new TextRun({ text: eventTitle || "Dinner Party", italics: true, size: 20, color: "666666" })]
           })]
         })
       },
@@ -1769,32 +368,571 @@ async function generateDocxBuffer(docx, data) {
           children: [new Paragraph({
             alignment: AlignmentType.CENTER,
             children: [
-              new TextRun({ text: 'Page ', size: 18, color: gray, font: 'Georgia' }),
-              new TextRun({ children: [PageNumber.CURRENT], size: 18, color: gray, font: 'Georgia' }),
-              new TextRun({ text: ' of ', size: 18, color: gray, font: 'Georgia' }),
-              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18, color: gray, font: 'Georgia' })
+              new TextRun({ text: "Page ", size: 20 }),
+              new TextRun({ children: [PageNumber.CURRENT], size: 20 }),
+              new TextRun({ text: " of ", size: 20 }),
+              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 20 })
             ]
           })]
         })
       },
-      children
+      children: buildDocumentContent({ Document, Paragraph, TextRun, Table, TableRow, TableCell, 
+        AlignmentType, BorderStyle, WidthType, HeadingLevel, PageBreak, ShadingType,
+        cellBorders, eventTitle, eventDate, guestCount, menu, cookbook })
     }]
   });
-  
+
   return Packer.toBuffer(doc);
 }
+
+function buildDocumentContent(params) {
+  const { Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, WidthType, 
+          HeadingLevel, PageBreak, ShadingType, cellBorders, 
+          eventTitle, eventDate, guestCount, menu, cookbook } = params;
+
+  const content = [];
+
+  // Title page
+  content.push(
+    new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(eventTitle || "Dinner Party Cookbook")] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200 },
+      children: [new TextRun({ text: `${eventDate || "Date TBD"} • ${guestCount} Guests`, size: 28, color: "666666" })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 },
+      children: [new TextRun({ text: menu?.name || "Custom Menu", size: 32, italics: true })] })
+  );
+
+  // Menu overview
+  if (menu?.courses) {
+    content.push(
+      new Paragraph({ children: [new PageBreak()] }),
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("The Menu")] })
+    );
+    menu.courses.forEach(course => {
+      content.push(
+        new Paragraph({ spacing: { before: 200 },
+          children: [
+            new TextRun({ text: `${course.course}: `, bold: true }),
+            new TextRun({ text: course.dish })
+          ]
+        })
+      );
+      if (course.description) {
+        content.push(new Paragraph({ children: [new TextRun({ text: course.description, italics: true, color: "666666" })] }));
+      }
+    });
+  }
+
+  // Recipes
+  if (cookbook?.recipes) {
+    content.push(
+      new Paragraph({ children: [new PageBreak()] }),
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Recipes")] })
+    );
+    cookbook.recipes.forEach((recipe, idx) => {
+      if (idx > 0) content.push(new Paragraph({ children: [new PageBreak()] }));
+      content.push(
+        new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun(`${recipe.course}: ${recipe.dish}`)] })
+      );
+      if (recipe.prepTime || recipe.cookTime) {
+        content.push(new Paragraph({
+          children: [new TextRun({ text: `Prep: ${recipe.prepTime || 'N/A'} | Cook: ${recipe.cookTime || 'N/A'}`, italics: true, color: "666666" })]
+        }));
+      }
+      content.push(new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Ingredients", bold: true })] }));
+      (recipe.ingredients || []).forEach(ing => {
+        content.push(new Paragraph({ numbering: { reference: "ingredients", level: 0 }, children: [new TextRun(ing)] }));
+      });
+      content.push(new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Instructions", bold: true })] }));
+      (recipe.instructions || []).forEach((step, i) => {
+        content.push(new Paragraph({ numbering: { reference: `instructions-${idx}`, level: 0 }, children: [new TextRun(step)] }));
+      });
+      if (recipe.chefTips?.length) {
+        content.push(new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Chef's Tips", bold: true })] }));
+        recipe.chefTips.forEach(tip => {
+          content.push(new Paragraph({ children: [new TextRun({ text: `💡 ${tip}`, italics: true })] }));
+        });
+      }
+    });
+  }
+
+  // Shopping list
+  if (cookbook?.shoppingList) {
+    content.push(
+      new Paragraph({ children: [new PageBreak()] }),
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Shopping List")] })
+    );
+    Object.entries(cookbook.shoppingList).forEach(([category, items]) => {
+      if (items?.length) {
+        content.push(new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: category.charAt(0).toUpperCase() + category.slice(1), bold: true })] }));
+        items.forEach(item => {
+          content.push(new Paragraph({ numbering: { reference: "ingredients", level: 0 }, children: [new TextRun(item)] }));
+        });
+      }
+    });
+  }
+
+  // Timeline
+  if (cookbook?.timeline?.length) {
+    content.push(
+      new Paragraph({ children: [new PageBreak()] }),
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Preparation Timeline")] })
+    );
+    cookbook.timeline.forEach(item => {
+      content.push(new Paragraph({ spacing: { before: 100 },
+        children: [
+          new TextRun({ text: `${item.time}: `, bold: true }),
+          new TextRun(item.task)
+        ]
+      }));
+    });
+  }
+
+  // Wine pairings
+  if (cookbook?.winePairings?.length) {
+    content.push(
+      new Paragraph({ children: [new PageBreak()] }),
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun("Wine Pairings")] })
+    );
+    cookbook.winePairings.forEach(pairing => {
+      content.push(
+        new Paragraph({ spacing: { before: 200 },
+          children: [
+            new TextRun({ text: `${pairing.course}: `, bold: true }),
+            new TextRun(pairing.wine)
+          ]
+        }),
+        new Paragraph({ children: [new TextRun({ text: pairing.notes, italics: true, color: "666666" })] })
+      );
+    });
+  }
+
+  // AI disclosure
+  content.push(
+    new Paragraph({ children: [new PageBreak()] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 },
+      children: [new TextRun({ text: "This cookbook was generated by AI Deep Study", italics: true, size: 20, color: "999999" })]
+    }),
+    new Paragraph({ alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: "Dinner Party Planner Beta", size: 20, color: "999999" })]
+    })
+  );
+
+  return content;
+}
+
+// ============================================================
+// EMBEDDED CLIENT HTML
+// ============================================================
+
+const CLIENT_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dinner Party Planner - Beta</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Lora', Georgia, serif; background: linear-gradient(135deg, #1a3a5c 0%, #0f2438 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; background: #faf8f3; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); overflow: hidden; }
+    .header { text-align: center; padding: 40px; background: linear-gradient(135deg, #1a3a5c 0%, #0f2438 100%); color: #faf8f3; border-bottom: 4px solid #c9a959; }
+    .header h1 { font-family: 'Playfair Display', serif; font-size: 2.4rem; margin-bottom: 8px; }
+    .header .subtitle { color: #c9a959; letter-spacing: 0.2em; font-size: 0.75rem; text-transform: uppercase; }
+    .content { padding: 40px; }
+    .login-section, .app-section { display: none; }
+    .login-section.active, .app-section.active { display: block; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 500; color: #1a3a5c; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 16px; border: 2px solid #e0ddd5; border-radius: 8px; font-family: inherit; font-size: 1rem; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #c9a959; }
+    .btn { display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #1a3a5c 0%, #0f2438 100%); color: #faf8f3; border: none; border-radius: 8px; font-family: inherit; font-size: 1rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(26,58,92,0.3); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: #c9a959; color: #1a3a5c; }
+    .error { color: #c0392b; margin-top: 10px; }
+    .success { color: #27ae60; margin-top: 10px; }
+    .menu-card { background: white; border: 2px solid #e0ddd5; border-radius: 12px; padding: 24px; margin-bottom: 20px; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; }
+    .menu-card:hover { border-color: #c9a959; box-shadow: 0 4px 12px rgba(201,169,89,0.2); }
+    .menu-card.selected { border-color: #1a3a5c; box-shadow: 0 4px 12px rgba(26,58,92,0.3); }
+    .menu-card h3 { font-family: 'Playfair Display', serif; color: #1a3a5c; margin-bottom: 8px; }
+    .menu-card p { color: #666; font-size: 0.95rem; margin-bottom: 12px; }
+    .menu-card .courses { font-size: 0.9rem; color: #444; }
+    .menu-card .meta { display: flex; gap: 16px; margin-top: 12px; font-size: 0.85rem; color: #888; }
+    .loading { text-align: center; padding: 40px; }
+    .loading-spinner { width: 40px; height: 40px; border: 3px solid #e0ddd5; border-top-color: #c9a959; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .step { display: none; }
+    .step.active { display: block; }
+    .step-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 30px; }
+    .step-dot { width: 12px; height: 12px; border-radius: 50%; background: #e0ddd5; transition: background 0.2s; }
+    .step-dot.active { background: #c9a959; }
+    .step-dot.completed { background: #1a3a5c; }
+    .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .checkbox-item { display: flex; align-items: center; gap: 8px; }
+    .checkbox-item input { width: auto; }
+    .nav-buttons { display: flex; justify-content: space-between; margin-top: 30px; }
+    h2 { font-family: 'Playfair Display', serif; color: #1a3a5c; margin-bottom: 20px; }
+    .divider { height: 1px; background: #e0ddd5; margin: 30px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🍽️ Dinner Party Planner</h1>
+      <div class="subtitle">Beta Version</div>
+    </div>
+    <div class="content">
+      <!-- Login -->
+      <div class="login-section active" id="loginSection">
+        <h2>Welcome, Beta Tester!</h2>
+        <p style="margin-bottom: 20px; color: #666;">Enter your access code to begin planning your perfect dinner party.</p>
+        <div class="form-group">
+          <label for="accessCode">Access Code</label>
+          <input type="text" id="accessCode" placeholder="Enter your beta access code">
+        </div>
+        <button class="btn" onclick="validateCode()">Enter</button>
+        <div id="loginError" class="error"></div>
+      </div>
+
+      <!-- App -->
+      <div class="app-section" id="appSection">
+        <div class="step-indicator" id="stepIndicator"></div>
+
+        <!-- Step 1: Preferences -->
+        <div class="step active" id="step1">
+          <h2>Tell Us About Your Dinner Party</h2>
+          <div class="form-group">
+            <label for="guestCount">Number of Guests</label>
+            <input type="number" id="guestCount" min="2" max="20" value="6">
+          </div>
+          <div class="form-group">
+            <label for="budget">Food Budget</label>
+            <select id="budget">
+              <option value="$75-100">$75-100</option>
+              <option value="$100-150">$100-150</option>
+              <option value="$150-200" selected>$150-200</option>
+              <option value="$200-300">$200-300</option>
+              <option value="$300+">$300+</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cuisineStyle">Cuisine Style</label>
+            <select id="cuisineStyle">
+              <option value="Chef's Choice">Chef's Choice</option>
+              <option value="French Bistro">French Bistro</option>
+              <option value="Italian">Italian</option>
+              <option value="Mediterranean">Mediterranean</option>
+              <option value="Modern American">Modern American</option>
+              <option value="Asian Fusion">Asian Fusion</option>
+              <option value="Spanish/Tapas">Spanish/Tapas</option>
+              <option value="Farm-to-Table">Farm-to-Table</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="occasion">Occasion</label>
+            <select id="occasion">
+              <option value="Casual dinner party">Casual dinner party</option>
+              <option value="Romantic dinner">Romantic dinner</option>
+              <option value="Birthday celebration">Birthday celebration</option>
+              <option value="Anniversary">Anniversary</option>
+              <option value="Holiday gathering">Holiday gathering</option>
+              <option value="Business dinner">Business dinner</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="skillLevel">Your Cooking Skill Level</label>
+            <select id="skillLevel">
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate" selected>Intermediate</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Dietary Restrictions</label>
+            <div class="checkbox-group">
+              <label class="checkbox-item"><input type="checkbox" name="dietary" value="Gluten-free"> Gluten-free</label>
+              <label class="checkbox-item"><input type="checkbox" name="dietary" value="Dairy-free"> Dairy-free</label>
+              <label class="checkbox-item"><input type="checkbox" name="dietary" value="Vegetarian"> Vegetarian</label>
+              <label class="checkbox-item"><input type="checkbox" name="dietary" value="Vegan"> Vegan</label>
+              <label class="checkbox-item"><input type="checkbox" name="dietary" value="Nut allergy"> Nut allergy</label>
+              <label class="checkbox-item"><input type="checkbox" name="dietary" value="Shellfish allergy"> Shellfish allergy</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="likes">Ingredients You Love</label>
+            <input type="text" id="likes" placeholder="e.g., seafood, chocolate, mushrooms">
+          </div>
+          <div class="form-group">
+            <label for="dislikes">Ingredients to Avoid</label>
+            <input type="text" id="dislikes" placeholder="e.g., cilantro, olives, blue cheese">
+          </div>
+          <div class="nav-buttons">
+            <div></div>
+            <button class="btn" onclick="generateMenus()">Generate Menu Options →</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Menu Selection -->
+        <div class="step" id="step2">
+          <h2>Choose Your Menu</h2>
+          <div id="menuLoading" class="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>Our AI chefs are crafting your personalized menus...</p>
+          </div>
+          <div id="menuOptions"></div>
+          <div id="menuError" class="error"></div>
+          <div class="nav-buttons">
+            <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+            <button class="btn" id="selectMenuBtn" onclick="selectMenu()" disabled>Select This Menu →</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Generate Cookbook -->
+        <div class="step" id="step3">
+          <h2>Your Cookbook is Ready!</h2>
+          <div id="cookbookLoading" class="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>Creating your complete cookbook with recipes, shopping list, and timeline...</p>
+          </div>
+          <div id="cookbookPreview"></div>
+          <div id="cookbookError" class="error"></div>
+          <div class="nav-buttons">
+            <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
+            <button class="btn" id="downloadBtn" onclick="downloadDocx()" disabled>Download Cookbook (DOCX)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let accessCode = '';
+    let currentStep = 1;
+    let selectedMenu = null;
+    let cookbook = null;
+
+    function updateStepIndicator() {
+      const indicator = document.getElementById('stepIndicator');
+      indicator.innerHTML = [1,2,3].map(n => 
+        '<div class="step-dot ' + (n < currentStep ? 'completed' : '') + (n === currentStep ? ' active' : '') + '"></div>'
+      ).join('');
+    }
+
+    function goToStep(step) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById('step' + step).classList.add('active');
+      currentStep = step;
+      updateStepIndicator();
+    }
+
+    async function validateCode() {
+      const code = document.getElementById('accessCode').value.trim();
+      const errorEl = document.getElementById('loginError');
+      errorEl.textContent = '';
+
+      if (!code) {
+        errorEl.textContent = 'Please enter an access code';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/validate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessCode: code })
+        });
+        const data = await res.json();
+
+        if (data.valid) {
+          accessCode = code;
+          document.getElementById('loginSection').classList.remove('active');
+          document.getElementById('appSection').classList.add('active');
+          updateStepIndicator();
+        } else {
+          errorEl.textContent = data.message || 'Invalid access code';
+        }
+      } catch (err) {
+        errorEl.textContent = 'Connection error. Please try again.';
+      }
+    }
+
+    async function generateMenus() {
+      const loading = document.getElementById('menuLoading');
+      const options = document.getElementById('menuOptions');
+      const error = document.getElementById('menuError');
+      
+      goToStep(2);
+      loading.style.display = 'block';
+      options.innerHTML = '';
+      error.textContent = '';
+      selectedMenu = null;
+      document.getElementById('selectMenuBtn').disabled = true;
+
+      const dietary = Array.from(document.querySelectorAll('input[name="dietary"]:checked')).map(c => c.value);
+
+      const preferences = {
+        guestCount: document.getElementById('guestCount').value,
+        budget: document.getElementById('budget').value,
+        cuisineStyle: document.getElementById('cuisineStyle').value,
+        occasion: document.getElementById('occasion').value,
+        skillLevel: document.getElementById('skillLevel').value,
+        dietaryRestrictions: dietary,
+        likes: document.getElementById('likes').value,
+        dislikes: document.getElementById('dislikes').value
+      };
+
+      try {
+        const res = await fetch('/api/generate-menus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-access-code': accessCode },
+          body: JSON.stringify({ preferences })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to generate menus');
+        }
+
+        const data = await res.json();
+        loading.style.display = 'none';
+
+        if (data.menus && data.menus.length) {
+          options.innerHTML = data.menus.map((menu, i) => 
+            '<div class="menu-card" onclick="selectMenuCard(' + i + ')" id="menuCard' + i + '">' +
+              '<h3>' + menu.name + '</h3>' +
+              '<p>' + menu.description + '</p>' +
+              '<div class="courses">' + menu.courses.map(c => '<div><strong>' + c.course + ':</strong> ' + c.dish + '</div>').join('') + '</div>' +
+              '<div class="meta"><span>💰 ' + menu.estimatedCost + '</span><span>⏱️ ' + menu.prepTime + '</span><span>📊 ' + menu.difficulty + '</span></div>' +
+            '</div>'
+          ).join('');
+          window.generatedMenus = data.menus;
+        }
+      } catch (err) {
+        loading.style.display = 'none';
+        error.textContent = err.message;
+      }
+    }
+
+    function selectMenuCard(index) {
+      document.querySelectorAll('.menu-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById('menuCard' + index).classList.add('selected');
+      selectedMenu = window.generatedMenus[index];
+      document.getElementById('selectMenuBtn').disabled = false;
+    }
+
+    async function selectMenu() {
+      if (!selectedMenu) return;
+
+      const loading = document.getElementById('cookbookLoading');
+      const preview = document.getElementById('cookbookPreview');
+      const error = document.getElementById('cookbookError');
+
+      goToStep(3);
+      loading.style.display = 'block';
+      preview.innerHTML = '';
+      error.textContent = '';
+      document.getElementById('downloadBtn').disabled = true;
+
+      try {
+        const res = await fetch('/api/build-cookbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-access-code': accessCode },
+          body: JSON.stringify({
+            menu: selectedMenu,
+            guestCount: document.getElementById('guestCount').value,
+            serviceTime: '7:00 PM'
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to generate cookbook');
+        }
+
+        const data = await res.json();
+        cookbook = data.cookbook;
+        loading.style.display = 'none';
+
+        preview.innerHTML = 
+          '<div class="menu-card">' +
+            '<h3>📖 ' + selectedMenu.name + ' Cookbook</h3>' +
+            '<p>Your complete dinner party guide is ready!</p>' +
+            '<div class="divider"></div>' +
+            '<p><strong>Includes:</strong></p>' +
+            '<ul style="margin-left: 20px; margin-top: 10px;">' +
+              '<li>' + (cookbook.recipes?.length || 0) + ' complete recipes with instructions</li>' +
+              '<li>Organized shopping list</li>' +
+              '<li>Preparation timeline</li>' +
+              '<li>Wine pairing recommendations</li>' +
+              '<li>Table setting guide</li>' +
+              '<li>Plating instructions</li>' +
+            '</ul>' +
+          '</div>';
+
+        document.getElementById('downloadBtn').disabled = false;
+
+      } catch (err) {
+        loading.style.display = 'none';
+        error.textContent = err.message;
+      }
+    }
+
+    async function downloadDocx() {
+      try {
+        const res = await fetch('/api/generate-docx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-access-code': accessCode },
+          body: JSON.stringify({
+            eventTitle: selectedMenu.name,
+            eventDate: new Date().toLocaleDateString(),
+            guestCount: document.getElementById('guestCount').value,
+            menu: selectedMenu,
+            cookbook: cookbook
+          })
+        });
+
+        if (!res.ok) throw new Error('Failed to generate document');
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = selectedMenu.name.replace(/[^a-z0-9]/gi, '_') + '_Cookbook.docx';
+        a.click();
+        URL.revokeObjectURL(url);
+
+      } catch (err) {
+        document.getElementById('cookbookError').textContent = err.message;
+      }
+    }
+
+    // Enter key handler
+    document.getElementById('accessCode').addEventListener('keypress', e => {
+      if (e.key === 'Enter') validateCode();
+    });
+  </script>
+</body>
+</html>`;
+
+// ============================================================
+// SERVE CLIENT
+// ============================================================
+
+app.get('/', (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.send(CLIENT_HTML);
+});
 
 // ============================================================
 // START SERVER
 // ============================================================
+
 app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════════════════════════╗
-║         Dinner Party Planner API - Beta Server             ║
-╠════════════════════════════════════════════════════════════╣
-║  Port: ${PORT}                                                 ║
-║  Beta ends: ${process.env.BETA_EXPIRY || process.env.BETA_END_DATE || 'Not set'}                                  ║
-║  Access codes loaded: ${validAccessCodes.length}                                 ║
-╚════════════════════════════════════════════════════════════╝
-  `);
+  console.log('');
+  console.log('🍽️  Dinner Party Planner - Beta Server');
+  console.log('=====================================');
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`✅ Access codes loaded: ${validAccessCodes.length}`);
+  console.log(`✅ Beta ends: ${process.env.BETA_EXPIRY || process.env.BETA_END_DATE || 'Not set'}`);
+  console.log('');
 });
