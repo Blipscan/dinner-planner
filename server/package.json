@@ -20,8 +20,3 @@
     "node": ">=18.0.0"
   }
 }
-```
-
-The key addition is:
-```
-"@anthropic-ai/sdk": "^0.24.0"
