@@ -3,1033 +3,584 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dinner Party Planner</title>
+  <title>Dinner Party Planner - Ultimate Edition</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
     :root {
-      --navy: #1E3A5F;
-      --gold: #C9A227;
-      --green: #2D6A4F;
-      --cream: #FDF8F3;
-      --gray: #6B7C85;
-      --light: #F5F5F0;
+      --navy: #1e3a5f;
+      --navy-dark: #152a45;
+      --gold: #c9a227;
+      --gold-light: #e8d9a0;
+      --cream: #faf8f5;
+      --cream-dark: #f0ebe3;
+      --text: #2d3a35;
+      --text-light: #6b7c85;
+      --green: #2d6a4f;
+      --wine: #722f37;
     }
-    
-    body {
-      font-family: 'Georgia', serif;
-      background: var(--cream);
-      color: #333;
-      line-height: 1.6;
-    }
-    
-    /* Login Screen */
-    .login-screen {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    
-    .login-box {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      text-align: center;
-      max-width: 400px;
-      width: 100%;
-    }
-    
-    .login-box h1 { color: var(--navy); margin-bottom: 10px; }
-    .login-box .subtitle { color: var(--gray); margin-bottom: 30px; }
-    .login-box .beta-badge {
-      display: inline-block;
-      background: var(--gold);
-      color: white;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      margin-bottom: 20px;
-    }
-    
-    .login-box input {
-      width: 100%;
-      padding: 14px;
-      font-size: 16px;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      text-align: center;
-      font-family: monospace;
-      letter-spacing: 2px;
-    }
-    
-    .login-box input:focus {
-      outline: none;
-      border-color: var(--green);
-    }
-    
-    .login-box button {
-      width: 100%;
-      padding: 14px;
-      background: var(--green);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 15px;
-    }
-    
-    .login-box button:hover { background: #245a40; }
-    
-    .login-error {
-      color: #c0392b;
-      margin-top: 15px;
-      font-size: 14px;
-    }
-    
-    .login-info {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid #eee;
-      font-size: 13px;
-      color: var(--gray);
-    }
-    
-    /* Main App */
-    .app-container {
-      display: none;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    
-    .app-container.active { display: block; }
-    
-    /* Header */
-    header {
-      text-align: center;
-      padding: 30px 0;
-      border-bottom: 2px solid var(--navy);
-      margin-bottom: 30px;
-    }
-    
-    header h1 { color: var(--navy); font-size: 28px; }
-    header .tagline { color: var(--gold); font-size: 14px; margin-top: 5px; }
-    
-    .usage-badge {
-      display: inline-block;
-      background: var(--light);
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      color: var(--gray);
-      margin-top: 10px;
-    }
-    
-    /* Progress Steps */
-    .progress-bar {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 30px;
-      padding: 0 10px;
-    }
-    
-    .progress-step {
-      flex: 1;
-      text-align: center;
-      padding: 10px 5px;
-      font-size: 12px;
-      color: var(--gray);
-      border-bottom: 3px solid #ddd;
-      cursor: pointer;
-    }
-    
-    .progress-step.active {
-      color: var(--green);
-      border-color: var(--green);
-      font-weight: bold;
-    }
-    
-    .progress-step.completed {
-      color: var(--navy);
-      border-color: var(--navy);
-    }
-    
-    /* Wizard Steps */
-    .wizard-step {
-      display: none;
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    
-    .wizard-step.active { display: block; }
-    
-    .wizard-step h2 {
-      color: var(--navy);
-      margin-bottom: 20px;
-      font-size: 22px;
-    }
-    
-    /* Form Elements */
-    label {
-      display: block;
-      margin-bottom: 15px;
-    }
-    
-    label span {
-      display: block;
-      font-weight: bold;
-      margin-bottom: 5px;
-      font-size: 14px;
-    }
-    
-    input[type="text"],
-    input[type="date"],
-    input[type="time"],
-    input[type="number"],
-    select,
-    textarea {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      font-family: inherit;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-    }
-    
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--green);
-    }
-    
-    textarea { resize: vertical; min-height: 100px; }
-    
-    /* Selection Cards */
-    .card-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 15px;
-      margin: 20px 0;
-    }
-    
-    .selection-card {
-      padding: 15px;
-      border: 2px solid #ddd;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .selection-card:hover { border-color: var(--gray); }
-    .selection-card.selected {
-      border-color: var(--green);
-      background: #f0f7f4;
-    }
-    
-    .selection-card h4 { color: var(--navy); margin-bottom: 5px; }
-    .selection-card p { font-size: 13px; color: var(--gray); }
-    
-    /* Menu Options */
-    .menu-option {
-      padding: 20px;
-      border: 2px solid #ddd;
-      border-radius: 10px;
-      margin-bottom: 15px;
-      cursor: pointer;
-    }
-    
-    .menu-option:hover { border-color: var(--gray); }
-    .menu-option.selected {
-      border-color: var(--green);
-      background: #f0f7f4;
-    }
-    
-    .menu-option h3 {
-      color: var(--navy);
-      display: flex;
-      justify-content: space-between;
-    }
-    
-    .menu-option .cost { color: var(--green); font-weight: normal; }
-    .menu-option .theme { color: var(--gray); font-size: 14px; margin: 5px 0 10px; }
-    .menu-option .courses { font-size: 13px; line-height: 1.8; }
-    .menu-option .course-type { color: var(--gold); font-weight: bold; }
-    
-    /* Buttons */
-    .btn-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 25px;
-    }
-    
-    .btn {
-      flex: 1;
-      padding: 14px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    
-    .btn-primary {
-      background: var(--green);
-      color: white;
-    }
-    
-    .btn-primary:hover { background: #245a40; }
-    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-    
-    .btn-secondary {
-      background: var(--light);
-      color: var(--navy);
-    }
-    
-    .btn-secondary:hover { background: #e5e5e0; }
-    
-    .btn-generate {
-      background: var(--navy);
-      color: white;
-      padding: 16px 30px;
-      font-size: 18px;
-    }
-    
-    .btn-generate:hover { background: #152d4a; }
-    
-    /* Loading State */
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: var(--gray);
-    }
-    
-    .loading .spinner {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      border: 4px solid #ddd;
-      border-top-color: var(--green);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 15px;
-    }
-    
-    @keyframes spin { to { transform: rotate(360deg); } }
-    
-    /* Cookbook Output */
-    .cookbook-preview {
-      background: var(--light);
-      padding: 20px;
-      border-radius: 10px;
-      margin: 20px 0;
-    }
-    
-    .cookbook-preview h3 { color: var(--navy); margin-bottom: 15px; }
-    
-    .cookbook-section {
-      background: white;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 10px;
-    }
-    
-    .cookbook-section h4 {
-      color: var(--green);
-      font-size: 14px;
-      margin-bottom: 8px;
-    }
-    
-    .cookbook-section p {
-      font-size: 13px;
-      color: var(--gray);
-      margin: 3px 0;
-    }
-    
-    .download-btn {
-      display: block;
-      width: 100%;
-      padding: 16px;
-      background: var(--navy);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 18px;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-    
-    .download-btn:hover { background: #152d4a; }
-    
-    /* Logout */
-    .logout-btn {
-      position: fixed;
-      top: 15px;
-      right: 15px;
-      padding: 8px 15px;
-      background: transparent;
-      border: 1px solid var(--gray);
-      border-radius: 20px;
-      font-size: 12px;
-      color: var(--gray);
-      cursor: pointer;
-    }
-    
-    .logout-btn:hover { background: var(--light); }
-    
-    /* Info Boxes */
-    .info-box {
-      background: #E8F4F8;
-      padding: 15px;
-      border-radius: 8px;
-      margin: 15px 0;
-      font-size: 14px;
-    }
-    
-    .info-box.warning {
-      background: #FFF3CD;
-      color: #856404;
-    }
-    
-    /* Responsive */
-    @media (max-width: 600px) {
-      .card-grid { grid-template-columns: 1fr; }
-      .btn-row { flex-direction: column; }
-      .progress-step { font-size: 10px; padding: 8px 2px; }
-    }
+    body { min-height: 100vh; background: var(--cream); font-family: 'Crimson Text', Georgia, serif; color: var(--text); line-height: 1.5; }
+    .header { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%); padding: 2rem 1rem 3rem; text-align: center; color: white; }
+    .header-icon { width: 50px; height: 50px; margin: 0 auto 0.75rem; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+    .header h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .header p { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.2em; opacity: 0.7; }
+    .container { max-width: 720px; margin: -2rem auto 2rem; padding: 0 1rem; }
+    .progress { display: flex; justify-content: center; align-items: center; gap: 0; margin-bottom: 1.5rem; padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .progress-step { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem; background: white; border: 2px solid #d0d5dd; color: #d0d5dd; transition: all 0.3s ease; }
+    .progress-step.active { background: var(--navy); border-color: var(--navy); color: white; }
+    .progress-step.complete { background: var(--navy); border-color: var(--navy); color: white; }
+    .progress-line { width: 40px; height: 2px; background: #d0d5dd; }
+    .progress-line.complete { background: var(--navy); }
+    .card { background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    .card-title { font-family: 'Playfair Display', Georgia, serif; font-size: 1.35rem; font-weight: 600; color: var(--navy); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem; }
+    .card-subtitle { font-size: 0.9rem; color: var(--text-light); margin-bottom: 1.25rem; }
+    label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text); }
+    input[type="text"], input[type="date"], input[type="time"], input[type="number"], textarea { width: 100%; padding: 0.75rem 1rem; border: 1px solid #d0d5dd; border-radius: 8px; font-family: 'Crimson Text', Georgia, serif; font-size: 1rem; color: var(--text); background: white; transition: border-color 0.2s; }
+    input:focus, textarea:focus { outline: none; border-color: var(--navy); }
+    textarea { min-height: 100px; resize: vertical; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .form-group { margin-bottom: 1rem; }
+    .style-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-top: 1rem; }
+    .style-card { border: 2px solid #e8e8e8; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s; }
+    .style-card:hover { border-color: var(--navy); }
+    .style-card.selected { border-color: var(--navy); box-shadow: 0 0 0 2px rgba(30, 58, 95, 0.2); }
+    .style-preview { aspect-ratio: 3/4; padding: 0.5rem; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 0.6rem; }
+    .style-preview.classic { background: var(--navy); color: #c9a227; }
+    .style-preview.modern { background: white; color: #333; border-bottom: 1px solid #eee; }
+    .style-preview.romantic { background: #fdf2f4; color: #8b5a6b; }
+    .style-preview.artdeco { background: #1a1a2e; color: #d4af37; }
+    .style-preview.rustic { background: #f5f0e8; color: #5d4e37; }
+    .style-preview.botanical { background: #f0f7f4; color: #2d5a47; font-style: italic; }
+    .style-preview.coastal { background: #e8f4f8; color: #2e6171; }
+    .style-preview.urban { background: #1a1a1a; color: #ffffff; }
+    .style-preview h4 { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem; }
+    .style-preview .title { font-family: 'Playfair Display', serif; font-size: 0.7rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .style-name { text-align: center; padding: 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text); }
+    .inspiration-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+    .inspiration-card { background: white; border: 2px solid #e8e8e8; border-radius: 12px; padding: 1rem 0.75rem; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .inspiration-card:hover { border-color: var(--navy); transform: translateY(-2px); }
+    .inspiration-card.selected { border-color: var(--navy); background: #f8fafc; }
+    .inspiration-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .inspiration-title { font-weight: 600; font-size: 0.85rem; color: var(--navy); margin-bottom: 0.25rem; }
+    .inspiration-desc { font-size: 0.7rem; color: var(--text-light); line-height: 1.3; }
+    .option-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+    .option-btn { padding: 0.625rem 1rem; border: 1px solid #d0d5dd; border-radius: 25px; background: white; cursor: pointer; font-family: 'Crimson Text', Georgia, serif; font-size: 0.9rem; color: var(--text); transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
+    .option-btn:hover { border-color: var(--navy); }
+    .option-btn.selected { background: var(--navy); border-color: var(--navy); color: white; }
+    .tag-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .tag { padding: 0.5rem 0.875rem; border: 1px solid #d0d5dd; border-radius: 6px; background: white; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+    .tag:hover { border-color: var(--navy); }
+    .tag.selected { background: var(--navy); border-color: var(--navy); color: white; }
+    .tag.small { padding: 0.375rem 0.625rem; font-size: 0.8rem; }
+    .menu-option { border: 1px solid #e8e8e8; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.2s; }
+    .menu-option:hover { border-color: var(--navy); }
+    .menu-option.selected { border-color: var(--navy); border-width: 2px; background: #f8fafc; }
+    .menu-option h3 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.1rem; font-weight: 600; color: var(--navy); margin-bottom: 0.25rem; }
+    .menu-option .estimate { font-size: 0.85rem; color: var(--green); font-weight: 600; margin-bottom: 0.75rem; }
+    .menu-option .course { font-size: 0.9rem; margin-bottom: 0.375rem; padding-left: 0.5rem; }
+    .menu-option .course::before { content: "•"; margin-right: 0.5rem; color: var(--gold); }
+    .staffing-card { border: 2px solid #e8e8e8; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; transition: all 0.2s; }
+    .staffing-card.selected { border-color: var(--gold); background: linear-gradient(135deg, #fdf8e8 0%, #faf3d8 100%); }
+    .staffing-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+    .staffing-info { display: flex; align-items: center; gap: 0.75rem; }
+    .staffing-icon { font-size: 2rem; }
+    .staffing-name { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; font-size: 1.1rem; color: var(--navy); }
+    .staffing-desc { font-size: 0.85rem; color: var(--text-light); }
+    .staffing-stats { text-align: right; font-size: 0.8rem; }
+    .staffing-stats strong { display: block; font-size: 1rem; color: var(--navy); }
+    .staffing-buttons { display: flex; gap: 0.5rem; }
+    .staffing-btn { flex: 1; padding: 0.625rem 1rem; border-radius: 6px; border: 1px solid #d0d5dd; background: white; cursor: pointer; font-family: 'Crimson Text', Georgia, serif; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; }
+    .staffing-btn.view { background: #f0f4f8; color: var(--navy); }
+    .staffing-btn.select { background: var(--navy); color: white; border-color: var(--navy); }
+    .staffing-btn.selected { background: var(--gold); border-color: var(--gold); color: var(--navy-dark); }
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    .btn { padding: 0.875rem 1.5rem; border-radius: 8px; border: none; font-family: 'Crimson Text', Georgia, serif; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .btn-secondary { background: white; color: var(--text); border: 1px solid #d0d5dd; }
+    .btn-primary { background: var(--navy); color: white; }
+    .btn-primary:disabled { background: #a0aec0; cursor: not-allowed; }
+    .info-box { background: #f8f5f0; border: 1px solid #e8e0d4; border-radius: 8px; padding: 0.875rem 1rem; font-size: 0.9rem; color: var(--text-light); margin-bottom: 1rem; }
+    .sub-options { margin-top: 1rem; animation: slideDown 0.3s ease; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    .sub-section { background: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid var(--navy); border-radius: 0 8px 8px 0; padding: 1rem 1.25rem; }
+    .sub-label { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; font-size: 0.95rem; color: var(--navy); margin-bottom: 0.75rem; }
+    .sub-label span { font-family: 'Crimson Text', Georgia, serif; font-weight: normal; font-size: 0.8rem; color: var(--text-light); }
+    .sub-group-label { font-size: 0.75rem; font-weight: 600; color: var(--text-light); margin-top: 0.75rem; margin-bottom: 0.375rem; }
+    .sub-group-label:first-of-type { margin-top: 0; }
+    .download-header { text-align: center; padding: 2rem 1rem; background: linear-gradient(135deg, #f0f4f8 0%, #e8eff5 100%); border-radius: 12px; margin-bottom: 1.5rem; }
+    .download-header .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .download-header h2 { font-family: 'Playfair Display', Georgia, serif; font-size: 1.5rem; color: var(--navy); }
+    .download-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 0.75rem; }
+    .download-btn { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1.25rem 1rem; background: white; border: 1px solid #d0d5dd; border-radius: 10px; cursor: pointer; transition: all 0.2s; font-family: 'Crimson Text', Georgia, serif; }
+    .download-btn:hover { border-color: var(--navy); background: #f8fafc; }
+    .download-btn .icon { font-size: 1.5rem; }
+    .download-btn span { font-size: 0.85rem; color: var(--text); text-align: center; }
+    .hidden { display: none !important; }
+    .settings-panel { margin-bottom: 1rem; }
+    .settings-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: white; border: 1px solid #d0d5dd; border-radius: 8px; cursor: pointer; font-family: 'Crimson Text', Georgia, serif; font-size: 0.95rem; color: var(--text); }
+    .settings-content { margin-top: 0.5rem; }
+    .settings-inner { background: white; border: 1px solid #d0d5dd; border-radius: 8px; padding: 1.25rem; }
+    .settings-help { font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem; }
+    .api-status { margin-top: 1rem; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; display: none; }
+    .api-status.success { display: block; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .api-status.error { display: block; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    select { width: 100%; padding: 0.75rem 1rem; border: 1px solid #d0d5dd; border-radius: 8px; font-family: 'Crimson Text', Georgia, serif; font-size: 1rem; color: var(--text); background: white; }
+    @media (max-width: 600px) { .style-grid, .inspiration-grid { grid-template-columns: repeat(2, 1fr); } .download-grid { grid-template-columns: repeat(2, 1fr); } .form-row { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <!-- LOGIN SCREEN -->
-  <div id="loginScreen" class="login-screen">
-    <div class="login-box">
-      <div class="beta-badge">BETA</div>
-      <h1>🍽️ Dinner Party Planner</h1>
-      <p class="subtitle">Professional cookbook generator</p>
-      
-      <input type="text" id="accessCodeInput" placeholder="Enter access code" maxlength="20">
-      <button onclick="validateAccess()">Enter</button>
-      
-      <div id="loginError" class="login-error" style="display:none"></div>
-      
-      <div class="login-info">
-        Beta testers: Enter the access code provided to you.
-      </div>
-    </div>
-  </div>
-  
-  <!-- MAIN APP -->
-  <div id="appContainer" class="app-container">
-    <button class="logout-btn" onclick="logout()">Logout</button>
-    
-    <header>
-      <h1>🍽️ Dinner Party Planner</h1>
-      <p class="tagline">French Portions • Make-Ahead Optimized • Professional Cookbook</p>
-      <div id="usageBadge" class="usage-badge"></div>
-    </header>
-    
-    <!-- Progress Bar -->
-    <div class="progress-bar">
-      <div class="progress-step active" data-step="1">① Event</div>
-      <div class="progress-step" data-step="2">② Preferences</div>
-      <div class="progress-step" data-step="3">③ Menu</div>
-      <div class="progress-step" data-step="4">④ Timeline</div>
-      <div class="progress-step" data-step="5">⑤ Cookbook</div>
-    </div>
-    
-    <!-- STEP 1: Event Details -->
-    <div id="step1" class="wizard-step active">
-      <h2>① Event Details</h2>
-      
-      <label>
-        <span>Event Name</span>
-        <input type="text" id="eventTitle" value="Dinner Party" placeholder="e.g., Anniversary Dinner">
-      </label>
-      
-      <label>
-        <span>Date</span>
-        <input type="date" id="eventDate">
-      </label>
-      
-      <label>
-        <span>Service Time</span>
-        <input type="time" id="eventTime" value="19:00">
-      </label>
-      
-      <label>
-        <span>Number of Guests</span>
-        <select id="guestCount">
-          <option value="4">4 guests</option>
-          <option value="6" selected>6 guests</option>
-          <option value="8">8 guests</option>
-          <option value="10">10 guests</option>
-          <option value="12">12 guests</option>
-        </select>
-      </label>
-      
-      <label>
-        <span>Guest Names (optional, one per line)</span>
-        <textarea id="guestList" placeholder="John & Jane Smith&#10;Michael Brown&#10;..."></textarea>
-      </label>
-      
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="goToStep(2)">Continue →</button>
-      </div>
-    </div>
-    
-    <!-- STEP 2: Preferences -->
-    <div id="step2" class="wizard-step">
-      <h2>② Your Preferences</h2>
-      
-      <label>
-        <span>Budget (per person, food only)</span>
-        <select id="budgetTier">
-          <option value="$15-25">$15-25 (casual)</option>
-          <option value="$30-50" selected>$30-50 (nice dinner)</option>
-          <option value="$60-100">$60-100 (special occasion)</option>
-          <option value="$100+">$100+ (luxury)</option>
-        </select>
-      </label>
-      
-      <label>
-        <span>Your Cooking Skill</span>
-        <select id="skillLevel">
-          <option value="beginner">Beginner — clear instructions please</option>
-          <option value="intermediate" selected>Intermediate — comfortable in kitchen</option>
-          <option value="advanced">Advanced — bring on the challenge</option>
-        </select>
-      </label>
-      
-      <label>
-        <span>Cuisine Preferences</span>
-        <div class="card-grid" id="cuisineGrid">
-          <div class="selection-card" data-cuisine="French" onclick="toggleCuisine(this)">
-            <h4>🇫🇷 French</h4>
-            <p>Classic techniques, elegant</p>
-          </div>
-          <div class="selection-card" data-cuisine="Italian" onclick="toggleCuisine(this)">
-            <h4>🇮🇹 Italian</h4>
-            <p>Rustic warmth, fresh flavors</p>
-          </div>
-          <div class="selection-card" data-cuisine="American" onclick="toggleCuisine(this)">
-            <h4>🇺🇸 American</h4>
-            <p>Steakhouse, regional</p>
-          </div>
-          <div class="selection-card" data-cuisine="Mediterranean" onclick="toggleCuisine(this)">
-            <h4>🌊 Mediterranean</h4>
-            <p>Seafood, olive oil, fresh</p>
-          </div>
-          <div class="selection-card" data-cuisine="Asian" onclick="toggleCuisine(this)">
-            <h4>🥢 Asian Fusion</h4>
-            <p>Modern techniques, bold</p>
-          </div>
-          <div class="selection-card" data-cuisine="Any" onclick="toggleCuisine(this)">
-            <h4>🌍 Surprise Me</h4>
-            <p>Open to anything</p>
-          </div>
-        </div>
-      </label>
-      
-      <label>
-        <span>Ingredients to Feature (loves)</span>
-        <input type="text" id="ingredientLoves" placeholder="e.g., lamb, seafood, mushrooms">
-      </label>
-      
-      <label>
-        <span>Ingredients to Avoid</span>
-        <input type="text" id="ingredientAvoids" placeholder="e.g., cilantro, blue cheese">
-      </label>
-      
-      <label>
-        <span>Dietary Restrictions</span>
-        <div class="card-grid" id="dietaryGrid">
-          <div class="selection-card small" data-dietary="none" onclick="toggleDietary(this)">None</div>
-          <div class="selection-card small" data-dietary="vegetarian" onclick="toggleDietary(this)">Vegetarian</div>
-          <div class="selection-card small" data-dietary="gluten-free" onclick="toggleDietary(this)">Gluten-Free</div>
-          <div class="selection-card small" data-dietary="dairy-free" onclick="toggleDietary(this)">Dairy-Free</div>
-          <div class="selection-card small" data-dietary="nut-free" onclick="toggleDietary(this)">Nut-Free</div>
-        </div>
-      </label>
-      
-      <div class="btn-row">
-        <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
-        <button class="btn btn-generate" onclick="generateMenus()">✨ Generate 5 Menu Options</button>
-      </div>
-    </div>
-    
-    <!-- STEP 3: Menu Selection -->
-    <div id="step3" class="wizard-step">
-      <h2>③ Choose Your Menu</h2>
-      
-      <div id="menuLoading" class="loading" style="display:none">
-        <div class="spinner"></div>
-        <p>Creating personalized menus...</p>
-        <p style="font-size:13px">This takes 15-30 seconds</p>
-      </div>
-      
-      <div id="menuResults"></div>
-      
-      <div id="menuActions" style="display:none">
-        <div class="btn-row">
-          <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
-          <button class="btn btn-secondary" onclick="generateMenus()">🔄 Regenerate</button>
-          <button class="btn btn-primary" id="selectMenuBtn" disabled onclick="goToStep(4)">Select Menu →</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- STEP 4: Timeline Selection -->
-    <div id="step4" class="wizard-step">
-      <h2>④ Choose Your Timeline</h2>
-      <p style="color:var(--gray);margin-bottom:20px">How much help do you have?</p>
-      
-      <div id="staffingOptions">
-        <div class="selection-card" data-staffing="solo" onclick="selectStaffing(this)">
-          <h4>👨‍🍳 Solo Cook</h4>
-          <p>All tasks on you — maximum prep-ahead strategy</p>
-        </div>
-        <div class="selection-card" data-staffing="helper1" onclick="selectStaffing(this)">
-          <h4>👥 +1 Helper</h4>
-          <p>You handle technique, helper preps & plates</p>
-        </div>
-        <div class="selection-card" data-staffing="helper2" onclick="selectStaffing(this)">
-          <h4>👥👤 +2 Helpers</h4>
-          <p>Full team — parallel workflows</p>
-        </div>
-        <div class="selection-card" data-staffing="chef" onclick="selectStaffing(this)">
-          <h4>👨‍🍳⭐ Hired Chef</h4>
-          <p>You host only — stay out of kitchen!</p>
-        </div>
-      </div>
-      
-      <div class="btn-row">
-        <button class="btn btn-secondary" onclick="goToStep(3)">← Back</button>
-        <button class="btn btn-primary" id="toStep5Btn" disabled onclick="buildCookbook()">Build Cookbook →</button>
-      </div>
-    </div>
-    
-    <!-- STEP 5: Cookbook Output -->
-    <div id="step5" class="wizard-step">
-      <h2>⑤ Your Cookbook</h2>
-      
-      <div id="cookbookLoading" class="loading" style="display:none">
-        <div class="spinner"></div>
-        <p>Building your cookbook...</p>
-      </div>
-      
-      <div id="cookbookPreview"></div>
-      
-      <button class="download-btn" id="downloadBtn" style="display:none" onclick="downloadDocx()">
-        📄 Download Complete Cookbook (DOCX)
+  <header class="header">
+    <div class="header-icon">🍽️</div>
+    <h1>Dinner Party Planner</h1>
+    <p>Ultimate Edition • AI-Powered Professional Cookbook Generation</p>
+  </header>
+  <div class="container">
+    <div class="settings-panel">
+      <button class="settings-toggle" onclick="toggleSettings()">
+        <span>⚙️ Settings</span>
+        <span id="settingsArrow">▼</span>
       </button>
-      
-      <div class="btn-row" style="margin-top:20px">
-        <button class="btn btn-secondary" onclick="goToStep(4)">← Change Timeline</button>
-        <button class="btn btn-secondary" onclick="startOver()">🔄 Start Over</button>
+      <div class="settings-content hidden" id="settingsContent">
+        <div class="settings-inner">
+          <div class="form-group">
+            <label>🔑 Access Code</label>
+            <input type="text" id="accessCode" placeholder="Enter your beta access code">
+            <p class="settings-help">Required for AI-generated menus.</p>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary" onclick="validateCode()">Validate</button></div>
+          <div id="apiStatus" class="api-status"></div>
+        </div>
       </div>
     </div>
+    <div class="progress">
+      <div class="progress-step active" id="pstep1">1</div><div class="progress-line" id="pline1"></div>
+      <div class="progress-step" id="pstep2">2</div><div class="progress-line" id="pline2"></div>
+      <div class="progress-step" id="pstep3">3</div><div class="progress-line" id="pline3"></div>
+      <div class="progress-step" id="pstep4">4</div><div class="progress-line" id="pline4"></div>
+      <div class="progress-step" id="pstep5">5</div><div class="progress-line" id="pline5"></div>
+      <div class="progress-step" id="pstep6">6</div>
+    </div>
+    <!-- STEP 1 -->
+    <div id="step1">
+      <div class="card">
+        <h2 class="card-title">📋 Event Details</h2>
+        <div class="form-group"><label>Event Title</label><input type="text" id="eventTitle" placeholder="Anniversary Dinner, Birthday..."></div>
+        <div class="form-row">
+          <div class="form-group"><label>Date</label><input type="date" id="eventDate"></div>
+          <div class="form-group"><label>Service Time</label><input type="time" id="eventTime" value="19:00"></div>
+        </div>
+        <div class="form-group"><label>Number of Guests</label><input type="number" id="guestCount" value="6" min="2" max="24"></div>
+      </div>
+      <div class="card">
+        <h2 class="card-title">👥 Guest List</h2>
+        <p class="card-subtitle">For personalized place cards</p>
+        <textarea id="guestList" placeholder="Enter each guest on a new line"></textarea>
+      </div>
+      <div class="card">
+        <h2 class="card-title">🎨 Menu Style</h2>
+        <p class="card-subtitle">Choose a visual style for menu cards</p>
+        <div class="style-grid">
+          <div class="style-card selected" data-style="classic" onclick="selectStyle(this)"><div class="style-preview classic"><h4>Menu</h4><div class="title">Sample</div></div><div class="style-name">Classic Formal</div></div>
+          <div class="style-card" data-style="modern" onclick="selectStyle(this)"><div class="style-preview modern"><h4>Menu</h4><div class="title">Sample</div></div><div class="style-name">Modern Minimalist</div></div>
+          <div class="style-card" data-style="romantic" onclick="selectStyle(this)"><div class="style-preview romantic"><h4>Menu</h4><div class="title">Sample</div></div><div class="style-name">Romantic</div></div>
+          <div class="style-card" data-style="artdeco" onclick="selectStyle(this)"><div class="style-preview artdeco"><h4>Menu</h4><div class="title">Sample</div></div><div class="style-name">Art Deco</div></div>
+          <div class="style-card" data-style="rustic" onclick="selectStyle(this)"><div class="style-preview rustic"><h4>Menu</h4><div class="title">Sample</div></div><div class="style-name">Rustic</div></div>
+          <div class="style-card" data-style="botanical" onclick="selectStyle(this)"><div class="style-preview botanical"><h4>Menu</h4><div class="title">Sample</div></div><div class="style-name">Botanical</div></div>
+          <div class="style-card" data-style="coastal" onclick="selectStyle(this)"><div class="style-preview coastal"><h4>Menu</h4><div class="title">Sample</div></div><div class="style-name">Coastal</div></div>
+          <div class="style-card" data-style="urban" onclick="selectStyle(this)"><div class="style-preview urban"><h4>Menu</h4><div class="title">Sample</div></div><div class="style-name">Urban Chic</div></div>
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn btn-secondary" disabled>← Back</button><button class="btn btn-primary" onclick="goToStep(2)">Next: Menu Style →</button></div>
+    </div>
+    <!-- STEP 2 -->
+    <div id="step2" class="hidden">
+      <div class="card">
+        <h2 class="card-title">🍳 Menu Inspiration</h2>
+        <p class="card-subtitle">What kind of dining experience?</p>
+        <div class="inspiration-grid">
+          <div class="inspiration-card" data-inspiration="chefs" onclick="selectInspiration(this)"><div class="inspiration-icon">👨‍🍳</div><div class="inspiration-title">Chef's Tasting</div><div class="inspiration-desc">Elegant multi-course</div></div>
+          <div class="inspiration-card" data-inspiration="adventurous" onclick="selectInspiration(this)"><div class="inspiration-icon">🌍</div><div class="inspiration-title">Adventurous</div><div class="inspiration-desc">Bold global flavors</div></div>
+          <div class="inspiration-card" data-inspiration="garden" onclick="selectInspiration(this)"><div class="inspiration-icon">🥗</div><div class="inspiration-title">Garden to Table</div><div class="inspiration-desc">Fresh, seasonal</div></div>
+          <div class="inspiration-card" data-inspiration="comfort" onclick="selectInspiration(this)"><div class="inspiration-icon">🏠</div><div class="inspiration-title">What Mom Made</div><div class="inspiration-desc">Comfort classics</div></div>
+          <div class="inspiration-card" data-inspiration="sale" onclick="selectInspiration(this)"><div class="inspiration-icon">💰</div><div class="inspiration-title">What's On Sale</div><div class="inspiration-desc">Budget-friendly</div></div>
+          <div class="inspiration-card" data-inspiration="seasonal" onclick="selectInspiration(this)"><div class="inspiration-icon">🌱</div><div class="inspiration-title">What's In Season</div><div class="inspiration-desc">Peak freshness</div></div>
+          <div class="inspiration-card" data-inspiration="restaurant" onclick="selectInspiration(this)"><div class="inspiration-icon">🍽️</div><div class="inspiration-title">From Restaurants</div><div class="inspiration-desc">Recreate favorites</div></div>
+          <div class="inspiration-card" data-inspiration="michelin" onclick="selectInspiration(this)"><div class="inspiration-icon">⭐</div><div class="inspiration-title">Michelin Inspired</div><div class="inspiration-desc">Fine dining</div></div>
+          <div class="inspiration-card" data-inspiration="holiday" onclick="selectInspiration(this)"><div class="inspiration-icon">🎄</div><div class="inspiration-title">Holiday Traditional</div><div class="inspiration-desc">Festive</div></div>
+          <div class="inspiration-card" data-inspiration="dietary" onclick="selectInspiration(this)"><div class="inspiration-icon">🥬</div><div class="inspiration-title">Dietary Focus</div><div class="inspiration-desc">Keto, vegan, etc</div></div>
+          <div class="inspiration-card" data-inspiration="street" onclick="selectInspiration(this)"><div class="inspiration-icon">🌮</div><div class="inspiration-title">World Street Food</div><div class="inspiration-desc">Elevated street fare</div></div>
+          <div class="inspiration-card" data-inspiration="custom" onclick="selectInspiration(this)"><div class="inspiration-icon">📝</div><div class="inspiration-title">I Already Know</div><div class="inspiration-desc">Enter your own</div></div>
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn btn-secondary" onclick="goToStep(1)">← Back</button><button class="btn btn-primary" onclick="goToStep(3)">Next: Preferences →</button></div>
+    </div>
+    <!-- STEP 3 -->
+    <div id="step3" class="hidden">
+      <div class="card">
+        <h2 class="card-title">💰 Budget & Skill Level</h2>
+        <label>Budget per Person</label>
+        <div class="option-group">
+          <button class="option-btn" data-value="budget" onclick="selectOption(this,'budget')">💵 Budget $15-25</button>
+          <button class="option-btn selected" data-value="moderate" onclick="selectOption(this,'budget')">💵💵 Moderate $30-50</button>
+          <button class="option-btn" data-value="upscale" onclick="selectOption(this,'budget')">💵💵💵 Upscale $60-100</button>
+          <button class="option-btn" data-value="luxury" onclick="selectOption(this,'budget')">💎 Luxury $100+</button>
+        </div>
+        <label>Your Cooking Skill</label>
+        <div class="option-group">
+          <button class="option-btn" data-value="beginner" onclick="selectOption(this,'skill')">🥄 Beginner</button>
+          <button class="option-btn selected" data-value="intermediate" onclick="selectOption(this,'skill')">🍳 Intermediate</button>
+          <button class="option-btn" data-value="advanced" onclick="selectOption(this,'skill')">👨‍🍳 Advanced</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 class="card-title">🍴 Taste Preferences</h2>
+        <label>Cuisine Preferences <span style="font-weight:normal;color:var(--text-light)">(select all)</span></label>
+        <div class="tag-group" id="cuisineGroup">
+          <button class="tag" onclick="toggleCuisine(this,'american')">American</button>
+          <button class="tag" onclick="toggleCuisine(this,'european')">European</button>
+          <button class="tag" onclick="toggleCuisine(this,'asian')">Asian</button>
+          <button class="tag" onclick="toggleCuisine(this,'mexican')">Mexican</button>
+          <button class="tag" onclick="toggleCuisine(this,'french')">French</button>
+          <button class="tag" onclick="toggleCuisine(this,'italian')">Italian</button>
+          <button class="tag" onclick="toggleCuisine(this,'mediterranean')">Mediterranean</button>
+          <button class="tag" onclick="toggleCuisine(this,'middleeastern')">Middle Eastern</button>
+          <button class="tag" onclick="toggleCuisine(this,'caribbean')">Caribbean</button>
+          <button class="tag" onclick="toggleCuisine(this,'indian')">Indian</button>
+          <button class="tag" onclick="toggleCuisine(this,'japanese')">Japanese</button>
+          <button class="tag" onclick="toggleCuisine(this,'spanish')">Spanish</button>
+        </div>
+        <!-- American Sub-options -->
+        <div id="american-sub" class="sub-options hidden">
+          <div class="sub-section">
+            <div class="sub-label">🇺🇸 American Regions <span>(optional)</span></div>
+            <div class="sub-group-label">US Regions:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Southern</button>
+              <button class="tag small" onclick="toggleTag(this)">New England</button>
+              <button class="tag small" onclick="toggleTag(this)">Pacific Northwest</button>
+              <button class="tag small" onclick="toggleTag(this)">California</button>
+              <button class="tag small" onclick="toggleTag(this)">Midwest</button>
+              <button class="tag small" onclick="toggleTag(this)">Southwest</button>
+              <button class="tag small" onclick="toggleTag(this)">Mid-Atlantic</button>
+              <button class="tag small" onclick="toggleTag(this)">Hawaiian</button>
+            </div>
+            <div class="sub-group-label">Food Culture:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">BBQ</button>
+              <button class="tag small" onclick="toggleTag(this)">Soul Food</button>
+              <button class="tag small" onclick="toggleTag(this)">Tex-Mex</button>
+              <button class="tag small" onclick="toggleTag(this)">Cajun/Creole</button>
+              <button class="tag small" onclick="toggleTag(this)">Farm-to-Table</button>
+            </div>
+          </div>
+        </div>
+        <!-- European Sub-options -->
+        <div id="european-sub" class="sub-options hidden">
+          <div class="sub-section">
+            <div class="sub-label">🇪🇺 European Regions <span>(optional)</span></div>
+            <div class="sub-group-label">France:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Provence</button>
+              <button class="tag small" onclick="toggleTag(this)">Alsace</button>
+              <button class="tag small" onclick="toggleTag(this)">Burgundy</button>
+              <button class="tag small" onclick="toggleTag(this)">Lyon</button>
+              <button class="tag small" onclick="toggleTag(this)">Normandy</button>
+            </div>
+            <div class="sub-group-label">Italy:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Tuscany</button>
+              <button class="tag small" onclick="toggleTag(this)">Sicily</button>
+              <button class="tag small" onclick="toggleTag(this)">Piedmont</button>
+              <button class="tag small" onclick="toggleTag(this)">Emilia-Romagna</button>
+              <button class="tag small" onclick="toggleTag(this)">Campania</button>
+            </div>
+            <div class="sub-group-label">Spain:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Basque</button>
+              <button class="tag small" onclick="toggleTag(this)">Catalonia</button>
+              <button class="tag small" onclick="toggleTag(this)">Andalusia</button>
+              <button class="tag small" onclick="toggleTag(this)">Valencia</button>
+            </div>
+            <div class="sub-group-label">Other:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">German</button>
+              <button class="tag small" onclick="toggleTag(this)">English</button>
+              <button class="tag small" onclick="toggleTag(this)">Greek</button>
+              <button class="tag small" onclick="toggleTag(this)">Scandinavian</button>
+            </div>
+          </div>
+        </div>
+        <!-- Asian Sub-options -->
+        <div id="asian-sub" class="sub-options hidden">
+          <div class="sub-section">
+            <div class="sub-label">🌏 Asian Regions <span>(optional)</span></div>
+            <div class="sub-group-label">China:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Cantonese</button>
+              <button class="tag small" onclick="toggleTag(this)">Sichuan</button>
+              <button class="tag small" onclick="toggleTag(this)">Shanghai</button>
+              <button class="tag small" onclick="toggleTag(this)">Beijing</button>
+            </div>
+            <div class="sub-group-label">Japan:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Tokyo</button>
+              <button class="tag small" onclick="toggleTag(this)">Osaka</button>
+              <button class="tag small" onclick="toggleTag(this)">Kyoto</button>
+            </div>
+            <div class="sub-group-label">Southeast Asia:</div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Thai</button>
+              <button class="tag small" onclick="toggleTag(this)">Vietnamese</button>
+              <button class="tag small" onclick="toggleTag(this)">Korean</button>
+              <button class="tag small" onclick="toggleTag(this)">Malaysian</button>
+              <button class="tag small" onclick="toggleTag(this)">Indonesian</button>
+            </div>
+          </div>
+        </div>
+        <!-- Mexican Sub-options -->
+        <div id="mexican-sub" class="sub-options hidden">
+          <div class="sub-section">
+            <div class="sub-label">🇲🇽 Mexican Regions <span>(optional)</span></div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Oaxaca</button>
+              <button class="tag small" onclick="toggleTag(this)">Yucatan</button>
+              <button class="tag small" onclick="toggleTag(this)">Mexico City</button>
+              <button class="tag small" onclick="toggleTag(this)">Baja</button>
+              <button class="tag small" onclick="toggleTag(this)">Street Food</button>
+            </div>
+          </div>
+        </div>
+        <!-- Middle Eastern Sub-options -->
+        <div id="middleeastern-sub" class="sub-options hidden">
+          <div class="sub-section">
+            <div class="sub-label">🕌 Middle Eastern <span>(optional)</span></div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Lebanese</button>
+              <button class="tag small" onclick="toggleTag(this)">Persian</button>
+              <button class="tag small" onclick="toggleTag(this)">Turkish</button>
+              <button class="tag small" onclick="toggleTag(this)">Israeli</button>
+              <button class="tag small" onclick="toggleTag(this)">Moroccan</button>
+            </div>
+          </div>
+        </div>
+        <!-- Caribbean Sub-options -->
+        <div id="caribbean-sub" class="sub-options hidden">
+          <div class="sub-section">
+            <div class="sub-label">🏝️ Caribbean <span>(optional)</span></div>
+            <div class="tag-group">
+              <button class="tag small" onclick="toggleTag(this)">Jamaican</button>
+              <button class="tag small" onclick="toggleTag(this)">Cuban</button>
+              <button class="tag small" onclick="toggleTag(this)">Puerto Rican</button>
+              <button class="tag small" onclick="toggleTag(this)">Trinidadian</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid #e8e8e8;">
+          <label>🥗 Dietary Focus</label>
+          <div class="tag-group">
+            <button class="tag" onclick="toggleTag(this)">Vegetarian</button>
+            <button class="tag" onclick="toggleTag(this)">Vegan</button>
+            <button class="tag" onclick="toggleTag(this)">Gluten-Free</button>
+            <button class="tag" onclick="toggleTag(this)">Keto</button>
+            <button class="tag" onclick="toggleTag(this)">Dairy-Free</button>
+            <button class="tag" onclick="toggleTag(this)">Pescatarian</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:1.25rem"><label>Ingredients You Love</label><input type="text" id="lovesInput" placeholder="Beef, chocolate, mushrooms..."></div>
+        <div class="form-group"><label>Ingredients to Avoid</label><input type="text" id="avoidsInput" placeholder="Cilantro, blue cheese..."></div>
+        <div class="form-group"><label>Dietary Restrictions</label><input type="text" id="dietaryInput" placeholder="Nut allergy, shellfish..."></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-secondary" onclick="goToStep(2)">← Back</button><button class="btn btn-primary" onclick="generateMenus()">Generate 5 Menu Options →</button></div>
+    </div>
+    <!-- STEP 4 -->
+    <div id="step4" class="hidden">
+      <div class="card">
+        <h2 class="card-title">🍽️ Choose Your Menu</h2>
+        <div class="info-box">Using curated demo menus. Connect API for AI-generated options.</div>
+        <div id="menuOptions"></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-secondary" onclick="goToStep(3)">← Back</button><button class="btn btn-primary" id="toStep5" disabled onclick="goToStep(5)">Choose Timeline →</button></div>
+    </div>
+    <!-- STEP 5 -->
+    <div id="step5" class="hidden">
+      <div class="card">
+        <h2 class="card-title">⏱️ Kitchen Team & Timeline</h2>
+        <p class="card-subtitle">Choose your staffing level</p>
+        <div class="info-box"><strong>Make-Ahead Strategy:</strong> 70% done before guests arrive.</div>
+        <div id="staffingList"></div>
+      </div>
+      <div id="timelineModal" class="hidden">
+        <div class="card" style="border:2px solid var(--navy)">
+          <div style="display:flex;justify-content:space-between;margin-bottom:1rem">
+            <div><h3 class="card-title" id="modalTitle">Timeline</h3><p class="card-subtitle" id="modalSubtitle"></p></div>
+            <button class="btn btn-secondary" onclick="closeTimeline()">✕</button>
+          </div>
+          <div id="modalTasks"></div>
+          <div class="btn-row"><button class="btn btn-secondary" onclick="closeTimeline()">← Back</button><button class="btn btn-primary" onclick="window.print()">🖨️ Print</button></div>
+        </div>
+      </div>
+      <div class="btn-row" id="step5Buttons"><button class="btn btn-secondary" onclick="goToStep(4)">← Back</button><button class="btn btn-primary" id="toStep6" disabled onclick="goToStep(6)">Create Cookbook →</button></div>
+    </div>
+    <!-- STEP 6 -->
+    <div id="step6" class="hidden">
+      <div class="card">
+        <div class="download-header">
+          <div class="icon">🍽️</div>
+          <h2 id="finalEventTitle">Your Dinner Party</h2>
+          <p id="finalEventDetails">Date • Time • Guests</p>
+          <p id="finalMenuName" style="font-weight:600;color:var(--navy);margin-top:0.5rem"></p>
+        </div>
+        <h3 class="card-title" style="margin-bottom:1rem">📥 Download Your Package</h3>
+        <div class="download-grid">
+          <button class="download-btn" onclick="downloadDocx()"><span class="icon">📄</span><span>Cookbook (DOCX)</span></button>
+          <button class="download-btn" onclick="downloadHtml()"><span class="icon">🌐</span><span>Web (HTML)</span></button>
+          <button class="download-btn" onclick="window.print()"><span class="icon">🖨️</span><span>Print / PDF</span></button>
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn btn-secondary" onclick="goToStep(5)">← Back</button><button class="btn btn-secondary" onclick="startOver()">🔄 Start Over</button></div>
+    </div>
   </div>
-  
   <script>
-    // ============================================================
-    // STATE
-    // ============================================================
-    let accessCode = null;
-    let currentStep = 1;
-    let selectedCuisines = [];
-    let selectedDietary = [];
-    let generatedMenus = [];
-    let selectedMenu = null;
-    let selectedStaffing = null;
-    let cookbookData = null;
-    
-    // ============================================================
-    // API CALLS
-    // ============================================================
-    const API_BASE = ''; // Same origin
-    
-    async function apiCall(endpoint, data = {}) {
-      const response = await fetch(API_BASE + endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Code': accessCode
-        },
-        body: JSON.stringify({ ...data, accessCode })
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || error.error || 'Request failed');
-      }
-      
-      return response;
-    }
-    
-    // ============================================================
-    // AUTH
-    // ============================================================
-    async function validateAccess() {
-      const code = document.getElementById('accessCodeInput').value.trim().toUpperCase();
-      const errorEl = document.getElementById('loginError');
-      
-      if (!code) {
-        errorEl.textContent = 'Please enter an access code';
-        errorEl.style.display = 'block';
-        return;
-      }
-      
+    function toggleSettings() { document.getElementById('settingsContent').classList.toggle('hidden'); document.getElementById('settingsArrow').textContent = document.getElementById('settingsContent').classList.contains('hidden') ? '▼' : '▲'; }
+    async function validateCode() {
+      const code = document.getElementById('accessCode').value;
+      const status = document.getElementById('apiStatus');
       try {
-        const response = await fetch(API_BASE + '/api/validate-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessCode: code })
-        });
-        
-        const data = await response.json();
-        
-        if (!data.valid) {
-          errorEl.textContent = data.message || 'Invalid access code';
-          errorEl.style.display = 'block';
-          return;
-        }
-        
-        // Success
-        accessCode = code;
-        localStorage.setItem('dinnerPlannerCode', code);
-        
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContainer').classList.add('active');
-        
-        updateUsageBadge(data.usage);
-        setDefaultDate();
-        
-      } catch (err) {
-        errorEl.textContent = 'Connection error. Please try again.';
-        errorEl.style.display = 'block';
-      }
+        const res = await fetch('/api/validate-code', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({code}) });
+        const data = await res.json();
+        if (data.valid) { status.className = 'api-status success'; status.textContent = '✓ Code validated!'; }
+        else { status.className = 'api-status error'; status.textContent = '⚠️ ' + (data.error || 'Invalid code'); }
+      } catch(e) { status.className = 'api-status error'; status.textContent = '⚠️ Connection error'; }
     }
-    
-    function logout() {
-      accessCode = null;
-      localStorage.removeItem('dinnerPlannerCode');
-      document.getElementById('appContainer').classList.remove('active');
-      document.getElementById('loginScreen').style.display = 'flex';
-      document.getElementById('accessCodeInput').value = '';
-      startOver();
-    }
-    
-    function updateUsageBadge(usage) {
-      const badge = document.getElementById('usageBadge');
-      if (usage.remaining === 'unlimited') {
-        badge.textContent = 'Admin Access';
-      } else {
-        badge.textContent = `${usage.remaining} generations remaining`;
-      }
-    }
-    
-    // Check for saved code on load
-    async function checkSavedCode() {
-      const saved = localStorage.getItem('dinnerPlannerCode');
-      if (saved) {
-        document.getElementById('accessCodeInput').value = saved;
-        await validateAccess();
-      }
-    }
-    
-    // ============================================================
-    // NAVIGATION
-    // ============================================================
+    const STAFFING = [
+      { id: 'solo', name: 'Solo Cook', icon: '👨‍🍳', desc: 'All tasks yours', activeMin: 185 },
+      { id: 'helper1', name: 'With 1 Helper', icon: '👥', desc: 'Helper preps & plates', activeMin: 95 },
+      { id: 'helper2', name: 'With 2 Helpers', icon: '👥👤', desc: 'Full team', activeMin: 65 },
+      { id: 'chef', name: 'Hired Chef', icon: '⭐', desc: 'You host only', activeMin: 25 }
+    ];
+    const DEMO_MENUS = [
+      { title: "Modern European Steakhouse", foodCost: "$55-65/person", wineCost: "$150", courses: [
+        { type: "Amuse-Bouche", name: "Steak Tartare on Crispy Potato Rounds" },
+        { type: "First Course", name: "Roasted Beet & Goat Cheese Salad" },
+        { type: "Second Course", name: "Wild Mushroom Bisque" },
+        { type: "Main Course", name: "Pan-Seared Filet Mignon with Red Wine Reduction" },
+        { type: "Dessert", name: "Molten Chocolate Lava Cake" }
+      ]},
+      { title: "Elegant Seafood Soirée", foodCost: "$50-60/person", wineCost: "$130", courses: [
+        { type: "Amuse-Bouche", name: "Smoked Salmon on Cucumber Rounds" },
+        { type: "First Course", name: "Classic Lobster Bisque" },
+        { type: "Second Course", name: "Baby Spinach Salad" },
+        { type: "Main Course", name: "Pan-Seared Scallops with Cauliflower Purée" },
+        { type: "Dessert", name: "Classic Lemon Tart" }
+      ]},
+      { title: "Mediterranean Garden Party", foodCost: "$45-55/person", wineCost: "$120", courses: [
+        { type: "Amuse-Bouche", name: "Marinated Olives & Manchego" },
+        { type: "First Course", name: "Grilled Halloumi with Fig Jam" },
+        { type: "Second Course", name: "Greek Salad" },
+        { type: "Main Course", name: "Herb-Crusted Lamb Chops" },
+        { type: "Dessert", name: "Honey Baklava" }
+      ]},
+      { title: "Asian Fusion Experience", foodCost: "$55-65/person", wineCost: "$140", courses: [
+        { type: "Amuse-Bouche", name: "Tuna Tartare on Wonton Crisps" },
+        { type: "First Course", name: "Miso Soup with Silken Tofu" },
+        { type: "Second Course", name: "Seaweed Salad" },
+        { type: "Main Course", name: "Miso-Glazed Black Cod" },
+        { type: "Dessert", name: "Matcha Panna Cotta" }
+      ]},
+      { title: "Classic French Bistro", foodCost: "$50-60/person", wineCost: "$135", courses: [
+        { type: "Amuse-Bouche", name: "Gougères" },
+        { type: "First Course", name: "French Onion Soup" },
+        { type: "Second Course", name: "Salade Lyonnaise" },
+        { type: "Main Course", name: "Coq au Vin" },
+        { type: "Dessert", name: "Tarte Tatin" }
+      ]}
+    ];
+    let currentStep = 1, selectedStyle = 'classic', selectedInspiration = null, selectedBudget = 'moderate', selectedSkill = 'intermediate', selectedMenuIndex = null, selectedStaffing = null;
     function goToStep(step) {
+      for (let i = 1; i <= 6; i++) { const el = document.getElementById('step' + i); if (el) el.classList.add('hidden'); }
+      document.getElementById('step' + step).classList.remove('hidden');
+      for (let i = 1; i <= 6; i++) {
+        const dot = document.getElementById('pstep' + i), line = document.getElementById('pline' + i);
+        if (dot) { dot.classList.remove('active', 'complete'); if (i < step) dot.classList.add('complete'); else if (i === step) dot.classList.add('active'); }
+        if (line) line.classList.toggle('complete', i < step);
+      }
       currentStep = step;
-      
-      document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
-      document.getElementById('step' + step).classList.add('active');
-      
-      document.querySelectorAll('.progress-step').forEach((s, i) => {
-        s.classList.remove('active', 'completed');
-        if (i + 1 < step) s.classList.add('completed');
-        if (i + 1 === step) s.classList.add('active');
-      });
-      
+      if (step === 4) renderMenuOptions();
+      if (step === 5) renderStaffingList();
+      if (step === 6) updateFinalDetails();
       window.scrollTo(0, 0);
     }
-    
-    function startOver() {
-      selectedCuisines = [];
-      selectedDietary = [];
-      generatedMenus = [];
-      selectedMenu = null;
-      selectedStaffing = null;
-      cookbookData = null;
-      
-      document.querySelectorAll('.selection-card').forEach(c => c.classList.remove('selected'));
-      document.querySelectorAll('.menu-option').forEach(c => c.classList.remove('selected'));
-      document.getElementById('selectMenuBtn').disabled = true;
-      document.getElementById('toStep5Btn').disabled = true;
-      
-      goToStep(1);
-    }
-    
-    // ============================================================
-    // PREFERENCES
-    // ============================================================
-    function toggleCuisine(el) {
-      const cuisine = el.dataset.cuisine;
+    function selectStyle(el) { document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); selectedStyle = el.dataset.style; }
+    function selectInspiration(el) { document.querySelectorAll('.inspiration-card').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); selectedInspiration = el.dataset.inspiration; }
+    function selectOption(el, group) { el.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); if (group === 'budget') selectedBudget = el.dataset.value; if (group === 'skill') selectedSkill = el.dataset.value; }
+    function toggleTag(el) { el.classList.toggle('selected'); }
+    function toggleCuisine(el, id) {
       el.classList.toggle('selected');
-      
-      if (el.classList.contains('selected')) {
-        if (!selectedCuisines.includes(cuisine)) selectedCuisines.push(cuisine);
-      } else {
-        selectedCuisines = selectedCuisines.filter(c => c !== cuisine);
-      }
+      const sub = document.getElementById(id + '-sub');
+      if (sub) { if (el.classList.contains('selected')) sub.classList.remove('hidden'); else { sub.classList.add('hidden'); sub.querySelectorAll('.tag.selected').forEach(t => t.classList.remove('selected')); } }
     }
-    
-    function toggleDietary(el) {
-      const dietary = el.dataset.dietary;
-      el.classList.toggle('selected');
-      
-      if (el.classList.contains('selected')) {
-        if (!selectedDietary.includes(dietary)) selectedDietary.push(dietary);
-      } else {
-        selectedDietary = selectedDietary.filter(d => d !== dietary);
-      }
-    }
-    
-    // ============================================================
-    // MENU GENERATION
-    // ============================================================
-    async function generateMenus() {
-      goToStep(3);
-      
-      document.getElementById('menuLoading').style.display = 'block';
-      document.getElementById('menuResults').innerHTML = '';
-      document.getElementById('menuActions').style.display = 'none';
-      
-      const preferences = {
-        guestCount: document.getElementById('guestCount').value,
-        budget: document.getElementById('budgetTier').value,
-        skillLevel: document.getElementById('skillLevel').value,
-        cuisines: selectedCuisines.length ? selectedCuisines : ['Any'],
-        loves: document.getElementById('ingredientLoves').value,
-        avoids: document.getElementById('ingredientAvoids').value,
-        dietary: selectedDietary.filter(d => d !== 'none')
-      };
-      
-      try {
-        const response = await apiCall('/api/generate-menus', { preferences });
-        const data = await response.json();
-        
-        generatedMenus = data.menus;
-        renderMenus();
-        
-        document.getElementById('menuLoading').style.display = 'none';
-        document.getElementById('menuActions').style.display = 'block';
-        
-      } catch (err) {
-        document.getElementById('menuLoading').style.display = 'none';
-        document.getElementById('menuResults').innerHTML = `
-          <div class="info-box warning">
-            <strong>Error:</strong> ${err.message}<br>
-            <button class="btn btn-secondary" style="margin-top:10px" onclick="generateMenus()">Try Again</button>
-          </div>
-        `;
-      }
-    }
-    
-    function renderMenus() {
-      const container = document.getElementById('menuResults');
-      container.innerHTML = generatedMenus.map((menu, i) => `
-        <div class="menu-option" data-index="${i}" onclick="selectMenu(${i})">
-          <h3>
-            ${menu.title}
-            <span class="cost">${menu.foodCost}</span>
-          </h3>
-          <div class="theme">${menu.theme || ''}</div>
-          <div class="courses">
-            ${menu.courses.map(c => `
-              <div><span class="course-type">${c.type}:</span> ${c.name}</div>
-            `).join('')}
-          </div>
-          <div style="margin-top:10px;font-size:12px;color:var(--gray)">
-            Wine budget: ${menu.wineCost || 'TBD'}
-          </div>
-        </div>
-      `).join('');
-    }
-    
-    function selectMenu(index) {
-      selectedMenu = generatedMenus[index];
-      
-      document.querySelectorAll('.menu-option').forEach((m, i) => {
-        m.classList.toggle('selected', i === index);
+    function selectMenu(index) { document.querySelectorAll('.menu-option').forEach((m, i) => m.classList.toggle('selected', i === index)); selectedMenuIndex = index; document.getElementById('toStep5').disabled = false; }
+    function generateMenus() { goToStep(4); }
+    function renderMenuOptions() {
+      const container = document.getElementById('menuOptions');
+      container.innerHTML = '';
+      DEMO_MENUS.forEach((menu, index) => {
+        const div = document.createElement('div');
+        div.className = 'menu-option';
+        div.onclick = () => selectMenu(index);
+        div.innerHTML = '<h3>Option ' + (index + 1) + ': ' + menu.title + '</h3><div class="estimate">Estimated: ' + menu.foodCost + ' • ' + menu.wineCost + ' (Wine)</div>' + menu.courses.map(c => '<div class="course"><strong>' + c.type + ':</strong> ' + c.name + '</div>').join('');
+        container.appendChild(div);
       });
-      
-      document.getElementById('selectMenuBtn').disabled = false;
     }
-    
-    // ============================================================
-    // STAFFING
-    // ============================================================
-    function selectStaffing(el) {
-      selectedStaffing = el.dataset.staffing;
-      
-      document.querySelectorAll('#staffingOptions .selection-card').forEach(c => {
-        c.classList.remove('selected');
+    function renderStaffingList() {
+      const container = document.getElementById('staffingList');
+      container.innerHTML = '';
+      STAFFING.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'staffing-card' + (selectedStaffing === s.id ? ' selected' : '');
+        div.innerHTML = '<div class="staffing-header"><div class="staffing-info"><span class="staffing-icon">' + s.icon + '</span><div><div class="staffing-name">' + s.name + '</div><div class="staffing-desc">' + s.desc + '</div></div></div><div class="staffing-stats"><strong>~' + s.activeMin + ' min</strong><span>your time</span></div></div><div class="staffing-buttons"><button class="staffing-btn view" onclick="viewTimeline(\'' + s.id + '\')">👁️ View Timeline</button><button class="staffing-btn select ' + (selectedStaffing === s.id ? 'selected' : '') + '" onclick="selectStaffing(\'' + s.id + '\')">' + (selectedStaffing === s.id ? '✓ Selected' : 'Select') + '</button></div>';
+        container.appendChild(div);
       });
-      el.classList.add('selected');
-      
-      document.getElementById('toStep5Btn').disabled = false;
     }
-    
-    // ============================================================
-    // COOKBOOK
-    // ============================================================
-    async function buildCookbook() {
-      goToStep(5);
-      
-      document.getElementById('cookbookLoading').style.display = 'block';
-      document.getElementById('cookbookPreview').innerHTML = '';
-      document.getElementById('downloadBtn').style.display = 'none';
-      
-      try {
-        const response = await apiCall('/api/build-cookbook', {
-          menu: selectedMenu,
-          guestCount: parseInt(document.getElementById('guestCount').value),
-          serviceTime: document.getElementById('eventTime').value,
-          staffing: selectedStaffing
-        });
-        
-        const data = await response.json();
-        cookbookData = data.cookbook;
-        
-        renderCookbookPreview();
-        
-        document.getElementById('cookbookLoading').style.display = 'none';
-        document.getElementById('downloadBtn').style.display = 'block';
-        
-      } catch (err) {
-        document.getElementById('cookbookLoading').style.display = 'none';
-        document.getElementById('cookbookPreview').innerHTML = `
-          <div class="info-box warning">
-            <strong>Error:</strong> ${err.message}
-          </div>
-        `;
-      }
+    function selectStaffing(id) { selectedStaffing = id; renderStaffingList(); document.getElementById('toStep6').disabled = false; }
+    function viewTimeline(id) {
+      const staff = STAFFING.find(s => s.id === id);
+      document.getElementById('modalTitle').innerHTML = staff.icon + ' ' + staff.name;
+      document.getElementById('modalSubtitle').textContent = staff.desc + ' • ~' + staff.activeMin + ' min';
+      document.getElementById('modalTasks').innerHTML = '<p style="padding:1rem;background:#f8f5f0;border-radius:8px">Full timeline with role assignments will appear here based on your menu selection.</p>';
+      document.getElementById('staffingList').classList.add('hidden');
+      document.getElementById('step5Buttons').classList.add('hidden');
+      document.getElementById('timelineModal').classList.remove('hidden');
     }
-    
-    function renderCookbookPreview() {
-      const cb = cookbookData;
-      const preview = document.getElementById('cookbookPreview');
-      
-      preview.innerHTML = `
-        <div class="cookbook-preview">
-          <h3>📖 Your Complete Cookbook Includes:</h3>
-          
-          <div class="cookbook-section">
-            <h4>🍽️ The Menu</h4>
-            ${selectedMenu.courses.map(c => `<p><strong>${c.type}:</strong> ${c.name}</p>`).join('')}
-          </div>
-          
-          <div class="cookbook-section">
-            <h4>🍷 Wine & Spirits</h4>
-            ${Object.entries(cb.wines).map(([k, w]) => `<p><strong>${k}:</strong> ${w.name} (${w.price})</p>`).join('')}
-          </div>
-          
-          <div class="cookbook-section">
-            <h4>🛒 Shopping List</h4>
-            <p>${Object.values(cb.shopping).flat().length} items across ${Object.keys(cb.shopping).length} categories</p>
-            <p>Scaled for ${document.getElementById('guestCount').value} guests</p>
-          </div>
-          
-          <div class="cookbook-section">
-            <h4>📅 Day-Before Prep</h4>
-            ${cb.dayBeforePrep.slice(0, 3).map(t => `<p>☐ ${t.name} (${t.time} min)</p>`).join('')}
-            <p>...and ${cb.dayBeforePrep.length - 3} more tasks</p>
-          </div>
-          
-          <div class="cookbook-section">
-            <h4>⏰ Day-Of Timeline</h4>
-            ${cb.timeline.map(t => `<p><strong>${t.time}:</strong> ${t.tasks[0]}</p>`).join('')}
-          </div>
-          
-          <div class="cookbook-section">
-            <h4>📦 Also Included</h4>
-            <p>✓ Table setting guide</p>
-            <p>✓ Plating guide with portions</p>
-            <p>✓ Tips & emergency fixes</p>
-            <p>✓ Final checklist</p>
-            <p>✓ AI image prompts</p>
-          </div>
-        </div>
-      `;
+    function closeTimeline() { document.getElementById('timelineModal').classList.add('hidden'); document.getElementById('staffingList').classList.remove('hidden'); document.getElementById('step5Buttons').classList.remove('hidden'); }
+    function updateFinalDetails() {
+      const title = document.getElementById('eventTitle').value || 'Your Dinner Party';
+      const date = document.getElementById('eventDate').value;
+      const time = document.getElementById('eventTime').value;
+      const guests = document.getElementById('guestCount').value;
+      const dateStr = date ? new Date(date + 'T00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Date TBD';
+      const timeStr = time ? new Date('2000-01-01T' + time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+      document.getElementById('finalEventTitle').textContent = title;
+      document.getElementById('finalEventDetails').textContent = dateStr + ' at ' + timeStr + ' • ' + guests + ' Guests';
+      if (selectedMenuIndex !== null) document.getElementById('finalMenuName').textContent = DEMO_MENUS[selectedMenuIndex].title;
+      if (selectedStaffing) document.getElementById('finalMenuName').textContent += ' • ' + STAFFING.find(s => s.id === selectedStaffing).name;
     }
-    
-    // ============================================================
-    // DOCX DOWNLOAD
-    // ============================================================
     async function downloadDocx() {
-      const btn = document.getElementById('downloadBtn');
-      btn.textContent = '⏳ Generating...';
-      btn.disabled = true;
-      
+      const eventDetails = { title: document.getElementById('eventTitle').value || 'Dinner Party', date: document.getElementById('eventDate').value, time: document.getElementById('eventTime').value, guests: document.getElementById('guestCount').value };
+      const menu = selectedMenuIndex !== null ? DEMO_MENUS[selectedMenuIndex] : DEMO_MENUS[0];
       try {
-        const response = await fetch(API_BASE + '/api/generate-docx', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Access-Code': accessCode
-          },
-          body: JSON.stringify({
-            accessCode,
-            eventTitle: document.getElementById('eventTitle').value || 'Dinner Party',
-            eventDate: document.getElementById('eventDate').value,
-            eventTime: document.getElementById('eventTime').value,
-            guestCount: parseInt(document.getElementById('guestCount').value),
-            menu: selectedMenu,
-            staffing: selectedStaffing,
-            cookbook: cookbookData
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to generate document');
-        }
-        
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = (document.getElementById('eventTitle').value || 'Dinner_Party').replace(/[^a-z0-9]/gi, '_') + '_Cookbook.docx';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-      } catch (err) {
-        alert('Error: ' + err.message);
-      }
-      
-      btn.textContent = '📄 Download Complete Cookbook (DOCX)';
-      btn.disabled = false;
+        const res = await fetch('/api/generate-docx', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ eventDetails, selectedMenu: menu, staffingId: selectedStaffing }) });
+        if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (eventDetails.title.replace(/[^a-z0-9]/gi, '_') || 'Cookbook') + '.docx'; a.click(); URL.revokeObjectURL(url); }
+        else alert('Error generating cookbook');
+      } catch(e) { alert('Error: ' + e.message); }
     }
-    
-    // ============================================================
-    // UTILITIES
-    // ============================================================
-    function setDefaultDate() {
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('eventDate').value = today;
+    function downloadHtml() {
+      const eventTitle = document.getElementById('eventTitle').value || 'Dinner Party';
+      const menu = selectedMenuIndex !== null ? DEMO_MENUS[selectedMenuIndex] : DEMO_MENUS[0];
+      const html = '<!DOCTYPE html><html><head><title>' + eventTitle + '</title><style>body{font-family:Georgia;max-width:800px;margin:0 auto;padding:2rem}h1{color:#1e3a5f}h2{border-bottom:2px solid #c9a227;padding-bottom:0.5rem}</style></head><body><h1>' + eventTitle + '</h1><h2>Menu: ' + menu.title + '</h2>' + menu.courses.map(c => '<p><strong>' + c.type + ':</strong> ' + c.name + '</p>').join('') + '</body></html>';
+      const blob = new Blob([html], {type:'text/html'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = eventTitle.replace(/[^a-z0-9]/gi,'_') + '.html'; a.click(); URL.revokeObjectURL(url);
     }
-    
-    // ============================================================
-    // INIT
-    // ============================================================
-    checkSavedCode();
+    function startOver() { selectedMenuIndex = null; selectedStaffing = null; document.getElementById('toStep5').disabled = true; document.getElementById('toStep6').disabled = true; goToStep(1); }
+    document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
   </script>
 </body>
 </html>
