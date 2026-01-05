@@ -985,7 +985,7 @@
             'X-Access-Code': accessCode
           },
           body: JSON.stringify({
-            accessCode,
+            code: accessCode,
             eventTitle: document.getElementById('eventTitle').value || 'Dinner Party',
             eventDate: document.getElementById('eventDate').value,
             eventTime: document.getElementById('eventTime').value,
