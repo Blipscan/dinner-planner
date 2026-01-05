@@ -3,6 +3,9 @@
 // Full 15-section cookbook with AI-powered generation using personas
 // ============================================================================
 
+require("dotenv").config();
+console.log("=== RUNNING server/server.js : deploy-clean : 2026-01-05 ===");
+
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const { Document, Packer, Paragraph, TextRun, Header, Footer, AlignmentType, 
