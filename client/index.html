@@ -687,7 +687,7 @@
         const response = await fetch(API_BASE + '/api/validate-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessCode: code })
+          body: JSON.stringify({ code })
         });
         
         const data = await response.json();
