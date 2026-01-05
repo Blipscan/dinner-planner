@@ -659,7 +659,7 @@
           'Content-Type': 'application/json',
           'X-Access-Code': accessCode
         },
-        body: JSON.stringify({ ...data, accessCode })
+        body: JSON.stringify({ ...data, code: accessCode })
       });
       
       if (!response.ok) {
