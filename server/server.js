@@ -3,8 +3,8 @@
  *
  * Fixes:
  * - Accepts BOTH `code` and `accessCode` in /api/validate-code and auth middleware
- * - Serves frontend from ../public (canonical)
- * - Adds SPA fallback: GET * -> public/index.html
+ * - Serves frontend from ../client (canonical in this repo)
+ * - Adds SPA fallback: GET * -> client/index.html
  */
 
 require("dotenv").config();
@@ -68,8 +68,8 @@ app.use(
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
-// Serve static client files (canonical: ../public)
-const CLIENT_DIR = path.join(__dirname, "../public");
+// Serve static client files (canonical: ../client)
+const CLIENT_DIR = path.join(__dirname, "../client");
 app.use(express.static(CLIENT_DIR));
 
 // Rate limiting on /api/*
