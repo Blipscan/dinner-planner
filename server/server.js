@@ -12,7 +12,12 @@ const { buildCookbook } = require('./cookbook');
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 const CLIENT_DIR = path.join(__dirname, "..", "client");
+const CLIENT_DIR = path.join(__dirname, "..", "client");
 app.use(express.static(CLIENT_DIR));
+ 
+app.get("/", (req, res) => {
+  res.sendFile(path.join(CLIENT_DIR, "index.html"));
+});
  
 app.get("/", (req, res) => {
   res.sendFile(path.join(CLIENT_DIR, "index.html"));
