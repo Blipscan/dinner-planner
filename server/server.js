@@ -8,6 +8,13 @@ const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED REJECTION:", err?.stack || err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err?.stack || err);
+});
+
 
 // --------------------
 // Middleware
@@ -149,6 +156,10 @@ app.post("/api/validate-code", (req, res) => {
 });
 
 // Generate menus (Claude)
+console.log("ANTHROPIC_API_KEY length:", (process.env.ANTHROPIC_API_KEY || "").length);
+console.log("ANTHROPIC_API_KEY prefix:", (process.env.ANTHROPIC_API_KEY || "").slice(0, 12));
+console.log("ANTHROPIC_API_KEY last4:", (process.env.ANTHROPIC_API_KEY || "").slice(-4));
+
 app.post("/api/generate-menus", validateBeta, async (req, res) => {
   try {
     const preferences = req.body?.preferences || {};
@@ -159,6 +170,17 @@ app.post("/api/generate-menus", validateBeta, async (req, res) => {
       return res.status(500).json({ error: "Server missing ANTHROPIC_API_KEY" });
     }
 
+    const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+
+    const payload = {
+      model,
+      max_tokens: 4000,
+      temperature: 0.7, // lower = far more reliable JSON
+      messages: [{ role: "user", content: prompt }],
+      // Ask for strict JSON output (supported by newer Anthropic APIs; harmless if ignored)
+      response_format: { type: "json" }
+    };
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -166,36 +188,76 @@ app.post("/api/generate-menus", validateBeta, async (req, res) => {
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
-        max_tokens: 4000,
-        temperature: 1.15,
-        messages: [{ role: "user", content: prompt }],
-      }),
+      body: JSON.stringify(payload),
     });
 
+    const rawText = await response.text();
+
     if (!response.ok) {
-      const txt = await response.text();
-      console.error("Anthropic error:", txt);
-      return res.status(500).json({ error: "Menu generation failed" });
+      console.error("Anthropic error status:", response.status);
+      console.error("Anthropic error body:", rawText.slice(0, 2000));
+
+      // Return the real reason (helps debugging locally)
+      return res.status(500).json({
+        error: "Menu generation failed",
+        detail: rawText.slice(0, 2000),
+        status: response.status,
+        model,
+      });
     }
 
-    const data = await response.json();
+    // Parse JSON response body safely
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      console.error("Anthropic returned non-JSON body:", rawText.slice(0, 2000));
+      return res.status(500).json({
+        error: "Menu generation failed",
+        detail: "Anthropic returned non-JSON response body",
+      });
+    }
+
     const content = data?.content?.[0]?.text || "";
 
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error("Menu parse failed. Head:", content.slice(0, 400));
-      return res.status(500).json({ error: "Failed to parse menu response" });
+    // Prefer strict JSON parse if model complied
+    let menus;
+    try {
+      menus = JSON.parse(content);
+    } catch {
+      // Fallback: extract first JSON array in the text
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.error("Menu parse failed. Head:", content.slice(0, 800));
+        return res.status(500).json({
+          error: "Failed to parse menu response",
+          detail: content.slice(0, 800),
+        });
+      }
+
+      try {
+        menus = JSON.parse(jsonMatch[0]);
+      } catch (e) {
+        console.error("Menu JSON.parse failed:", e);
+        return res.status(500).json({
+          error: "Failed to parse menu response",
+          detail: e.message,
+        });
+      }
     }
 
-    const menus = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(menus) || menus.length === 0) {
+      return res.status(500).json({
+        error: "Failed to parse menu response",
+        detail: "Parsed menus was not a non-empty array",
+      });
+    }
 
     trackUsage(req.accessCode);
-    res.json({ menus, source: "ai" });
+    return res.json({ menus, source: "ai" });
   } catch (err) {
-    console.error("Generate menus error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Generate menus error:", err?.stack || err);
+    return res.status(500).json({ error: "Internal server error", detail: err?.message || String(err) });
   }
 });
 

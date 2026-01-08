@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
+
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -650,7 +652,10 @@
     // ============================================================
     // API CALLS
     // ============================================================
-    const API_BASE = ''; // Same origin
+    const API_BASE =
+  (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000'
+    : '';
     
     async function apiCall(endpoint, data = {}) {
       const response = await fetch(API_BASE + endpoint, {
@@ -659,7 +664,7 @@
           'Content-Type': 'application/json',
           'X-Access-Code': accessCode
         },
-        body: JSON.stringify({ ...data, accessCode })
+        body: JSON.stringify({ ...data, accessCode, code: accessCode })
       });
       
       if (!response.ok) {
@@ -687,7 +692,7 @@
         const response = await fetch(API_BASE + '/api/validate-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessCode: code })
+          body: JSON.stringify({ accessCode: code, code })
         });
         
         const data = await response.json();
