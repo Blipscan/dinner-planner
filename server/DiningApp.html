@@ -1,0 +1,676 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dinner Party Planner — Safe Frontend (Backend-Driven)</title>
+
+  <!-- Optional helpers used only for downloads -->
+  <script src="https://unpkg.com/docx@8.2.0/build/index.umd.js"></script>
+  <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0f2438;
+      --panel:#ffffff;
+      --accent:#c9a959;
+      --ink:#1a3a5c;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --danger:#b91c1c;
+      --ok:#166534;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #1a3a5c 0%, #0f2438 100%);
+      color:#111827;
+      padding:18px;
+    }
+    .container{
+      max-width:1000px;
+      margin:0 auto;
+      background: #faf8f3;
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow:0 25px 80px rgba(0,0,0,.35);
+    }
+    header{
+      padding:26px 28px;
+      background: linear-gradient(135deg, #1a3a5c 0%, #0f2438 100%);
+      color:#faf8f3;
+      border-bottom:4px solid var(--accent);
+    }
+    header h1{margin:0;font-weight:700;letter-spacing:.5px}
+    header .sub{margin-top:6px;color:var(--accent);font-size:.9rem;letter-spacing:.18em;text-transform:uppercase}
+    main{padding:26px 28px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media(max-width:780px){.row{grid-template-columns:1fr}}
+    label{display:block;font-weight:600;margin:12px 0 6px;color:#1f2937}
+    input,select,textarea{
+      width:100%;
+      padding:12px 12px;
+      border:2px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+      font-size:15px;
+      outline:none;
+    }
+    textarea{min-height:110px;resize:vertical}
+    input:focus,select:focus,textarea:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(26,58,92,.12)}
+    .card{
+      background:#fff;
+      border-radius:14px;
+      border-left:4px solid var(--accent);
+      padding:18px 18px;
+      margin:16px 0;
+      box-shadow:0 4px 18px rgba(0,0,0,.06);
+    }
+    .card h2{margin:0 0 10px;color:var(--ink);font-size:1.1rem}
+    .hint{color:var(--muted);font-size:.92rem;line-height:1.45;margin:6px 0 0}
+    .btnbar{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+    button{
+      border:0;
+      padding:12px 16px;
+      border-radius:10px;
+      font-weight:700;
+      cursor:pointer;
+      letter-spacing:.02em;
+    }
+    .primary{background:linear-gradient(135deg,#1a3a5c,#0f2438);color:var(--accent)}
+    .secondary{background:#eef2f7;color:#111827}
+    .gold{background:linear-gradient(135deg,#c9a959,#a08030);color:#0f2438}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:700;font-size:.82rem}
+    .pill.ok{background:#dcfce7;color:var(--ok)}
+    .pill.warn{background:#fef3c7;color:#92400e}
+    .pill.bad{background:#fee2e2;color:var(--danger)}
+    .menus{display:grid;grid-template-columns:1fr;gap:12px;margin-top:10px}
+    .menu{
+      border:2px solid var(--border);
+      border-radius:12px;
+      padding:14px 14px;
+      cursor:pointer;
+      background:#fff;
+    }
+    .menu.sel{border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+    .menu h3{margin:0 0 6px;color:var(--ink)}
+    .menu .meta{color:#16a34a;font-weight:800;margin-bottom:6px}
+    .menu .src{color:var(--muted);font-style:italic;margin-bottom:8px}
+    .menu .courses{color:#374151;line-height:1.55}
+    .log{
+      background:#0b1220;
+      color:#e5e7eb;
+      border-radius:12px;
+      padding:12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size:12.5px;
+      line-height:1.5;
+      max-height:250px;
+      overflow:auto;
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .err{
+      margin-top:10px;
+      padding:12px 12px;
+      border-radius:12px;
+      border:1px solid #fecaca;
+      background:#fff1f2;
+      color:#7f1d1d;
+      font-weight:650;
+    }
+    .okbox{
+      margin-top:10px;
+      padding:12px 12px;
+      border-radius:12px;
+      border:1px solid #bbf7d0;
+      background:#ecfdf5;
+      color:#065f46;
+      font-weight:650;
+    }
+    .small{font-size:.92rem;color:var(--muted)}
+    .hr{height:1px;background:var(--border);margin:16px 0}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🍽️ Dinner Party Planner</h1>
+      <div class="sub">Safe Frontend • Calls Your Local Backend</div>
+    </header>
+    <main>
+      <div class="card">
+        <h2>1) Backend Connection</h2>
+        <div class="row">
+          <div>
+            <label>Backend Base URL</label>
+            <input id="baseUrl" type="text" value="http://localhost:5000" />
+            <div class="hint">If your backend is running on a different port, change this.</div>
+          </div>
+          <div>
+            <label>Status</label>
+            <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
+              <span id="healthPill" class="pill warn">Not checked</span>
+              <button class="secondary" id="btnHealth">Check /health</button>
+            </div>
+            <div class="hint">This frontend never stores API keys. The backend reads ANTHROPIC_API_KEY from its environment.</div>
+          </div>
+        </div>
+        <div id="healthMsg" class="small" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>2) Event + Preferences</h2>
+
+        <label>Event Title</label>
+        <input id="eventTitle" type="text" placeholder="Anniversary Dinner, Birthday Celebration…" />
+
+        <div class="row">
+          <div>
+            <label>Date</label>
+            <input id="eventDate" type="date" />
+          </div>
+          <div>
+            <label>Service Time</label>
+            <input id="eventTime" type="time" value="19:00" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Guests</label>
+            <input id="guestCount" type="number" min="2" max="24" value="6" />
+          </div>
+          <div>
+            <label>Menu Style</label>
+            <select id="menuStyle">
+              <option value="classic">Classic Formal</option>
+              <option value="modern">Modern Minimalist</option>
+              <option value="romantic">Romantic Elegance</option>
+              <option value="artdeco">Art Deco</option>
+              <option value="rustic">Rustic Elegant</option>
+              <option value="vintage">Vintage Botanical</option>
+              <option value="coastal">Coastal Elegance</option>
+              <option value="urban">Urban Chic</option>
+            </select>
+          </div>
+        </div>
+
+
+        <label>Guest List (optional, one per line)</label>
+        <textarea id="guestList" placeholder="Avery\nJordan\nCasey"></textarea>
+        <div class="hint">Optional. If blank, the app will just use guest count.</div>
+
+        <label>Category</label>
+        <select id="category">
+          <option value="">— choose —</option>
+          <option value="chefs-tasting">Chef's Tasting</option>
+          <option value="adventurous">Adventurous</option>
+          <option value="garden-to-table">Garden to Table</option>
+          <option value="comfort">What Mom Made</option>
+          <option value="budget">What's On Sale</option>
+          <option value="seasonal">What's In Season</option>
+          <option value="restaurant">From Restaurants</option>
+          <option value="michelin">Michelin Inspired</option>
+          <option value="holiday">Holiday Traditional</option>
+          <option value="dietary">Dietary Focus</option>
+          <option value="street-food">World Street Food</option>
+          <option value="manual">I Already Know (manual menu)</option>
+        </select>
+
+        <div id="categoryExtras" style="margin-top:8px;display:none;">
+          <div id="extrasRestaurant" style="display:none;">
+            <label>Restaurant Name(s)</label>
+            <input id="restaurantName" type="text" placeholder="The French Laundry, Eleven Madison Park…" />
+          </div>
+          <div id="extrasBudget" style="display:none;">
+            <label>Sale Items</label>
+            <textarea id="saleItems" placeholder="Filet mignon $9.99/lb&#10;Salmon $7.99/lb&#10;Asparagus 2 for $5"></textarea>
+          </div>
+          <div id="extrasHoliday" style="display:none;">
+            <label>Holiday</label>
+            <input id="holidayType" type="text" placeholder="Christmas, New Year's Eve…" />
+          </div>
+          <div id="extrasDietary" style="display:none;">
+            <label>Dietary Type</label>
+            <input id="dietaryType" type="text" placeholder="Vegan, Gluten-Free, Keto…" />
+          </div>
+          <div id="extrasManual" style="display:none;">
+            <label>Manual Menu (one course per line)</label>
+            <textarea id="manualMenu" placeholder="Amuse-Bouche: …&#10;First Course: …&#10;Second Course: …&#10;Main Course: …&#10;Dessert: …"></textarea>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Budget</label>
+            <select id="budget">
+              <option value="budget">Budget</option>
+              <option value="moderate" selected>Moderate</option>
+              <option value="upscale">Upscale</option>
+              <option value="luxury">Luxury</option>
+            </select>
+          </div>
+          <div>
+            <label>Skill Level</label>
+            <select id="skillLevel">
+              <option value="beginner">Beginner</option>
+              <option value="intermediate" selected>Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Cuisines (comma-separated)</label>
+        <input id="cuisines" type="text" placeholder="French, Italian, Japanese…" />
+
+        <label>Ingredients You Love</label>
+        <input id="likes" type="text" placeholder="mushrooms, garlic, chocolate…" />
+
+        <label>Ingredients to Avoid</label>
+        <input id="dislikes" type="text" placeholder="cilantro, blue cheese…" />
+
+        <label>Dietary Restrictions</label>
+        <input id="restrictions" type="text" placeholder="nut allergy, shellfish allergy…" />
+
+        <div class="btnbar">
+          <button class="primary" id="btnMenus">Generate 5 Menus</button>
+          <button class="secondary" id="btnClear">Clear Menus</button>
+        </div>
+
+        <div id="menusStatus" class="small" style="margin-top:10px;"></div>
+        <div id="menusError"></div>
+      </div>
+
+      <div class="card">
+        <h2>3) Choose a Menu</h2>
+        <div class="small">Click an option below, then generate the cookbook.</div>
+        <div id="menus" class="menus"></div>
+        <div class="btnbar">
+          <button class="gold" id="btnCookbook" disabled>Create Cookbook</button>
+          <button class="secondary" id="btnDownloadDocx" disabled>Download DOCX</button>
+          <button class="secondary" id="btnDownloadJson" disabled>Download Cookbook JSON</button>
+        </div>
+        <div id="cookbookStatus" class="small" style="margin-top:10px;"></div>
+        <div id="cookbookError"></div>
+      </div>
+
+      <div class="card">
+        <h2>Progress Log</h2>
+        <div class="hint">If you see Failed to fetch, this log helps diagnose whether the backend is reachable.</div>
+        <div class="hr"></div>
+        <div id="log" class="log"></div>
+      </div>
+    </main>
+  </div>
+
+<script>
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
+
+  const state = {
+    job_id: null,
+    menus: [],
+    selectedMenuIndex: null,
+    cookbook: null,
+    using_demo: null
+  };
+
+  function setPill(el, kind, text){
+    el.className = "pill " + kind;
+    el.textContent = text;
+  }
+
+  function logLine(obj){
+    const box = $("log");
+    const ts = obj?.t ? new Date(obj.t).toLocaleTimeString() : new Date().toLocaleTimeString();
+    const step = obj?.step ? ` [${obj.step}]` : "";
+    const pct = (obj?.pct !== undefined) ? ` (${obj.pct}%)` : "";
+    const msg = obj?.message || String(obj);
+    box.textContent += `${ts}${step}${pct}  ${msg}\n`;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function fetchJson(url, opts){
+    // Adds better error text than plain "Failed to fetch"
+    let res;
+    try{
+      res = await fetch(url, {
+        ...opts,
+        headers: {
+          "Content-Type":"application/json",
+          ...(opts && opts.headers ? opts.headers : {})
+        }
+      });
+    }catch(e){
+      throw new Error(`Failed to fetch (${url}). Is the backend running? If yes, check the base URL and that Windows Firewall allows Python/Flask. Original: ${e.message}`);
+    }
+    const text = await res.text();
+    let data = null;
+    try{ data = text ? JSON.parse(text) : null; }catch(_){ /* keep as text */ }
+    if(!res.ok){
+      const detail = data ? JSON.stringify(data) : text;
+      throw new Error(`HTTP ${res.status} from backend: ${detail?.slice(0,800)}`);
+    }
+    return data;
+  }
+
+  function payloadFromForm(){
+    const cuisinesRaw = $("cuisines").value.trim();
+    const cuisines = cuisinesRaw ? cuisinesRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+    return {
+      eventTitle: $("eventTitle").value.trim(),
+      eventDate: $("eventDate").value,
+      eventTime: $("eventTime").value,
+      guestCount: parseInt($("guestCount").value || "6", 10),
+      menuStyle: $("menuStyle").value,
+      category: $("category").value,
+      budget: $("budget").value,
+      skillLevel: $("skillLevel").value,
+      cuisines,
+      cuisineRegions: {}, // optional; keep empty in this simple frontend
+      likes: $("likes").value.trim(),
+      dislikes: $("dislikes").value.trim(),
+      restrictions: $("restrictions").value.trim(),
+
+      restaurantName: ($("restaurantName") && $("restaurantName").value.trim()) || "",
+      saleItems: ($("saleItems") && $("saleItems").value.trim()) || "",
+      holidayType: ($("holidayType") && $("holidayType").value.trim()) || "",
+      dietaryType: ($("dietaryType") && $("dietaryType").value.trim()) || "",
+      manualMenu: ($("manualMenu") && $("manualMenu").value.trim()) || "",
+    };
+  }
+
+  function showError(whereId, msg){
+    const el = $(whereId);
+    el.innerHTML = `<div class="err">${msg}</div>`;
+  }
+  function showOk(whereId, msg){
+    const el = $(whereId);
+    el.innerHTML = `<div class="okbox">${msg}</div>`;
+  }
+  function clearBox(whereId){
+    $(whereId).innerHTML = "";
+  }
+
+  function base(){
+    return $("baseUrl").value.trim().replace(/\/+$/,"");
+  }
+
+  // ---------- UI wiring ----------
+  function refreshExtras(){
+    const cat = $("category").value;
+    $("categoryExtras").style.display = cat ? "block" : "none";
+    ["extrasRestaurant","extrasBudget","extrasHoliday","extrasDietary","extrasManual"].forEach(id => $(id).style.display="none");
+    if(cat === "restaurant") $("extrasRestaurant").style.display="block";
+    if(cat === "budget") $("extrasBudget").style.display="block";
+    if(cat === "holiday") $("extrasHoliday").style.display="block";
+    if(cat === "dietary") $("extrasDietary").style.display="block";
+    if(cat === "manual") $("extrasManual").style.display="block";
+  }
+
+  function clearMenus(){
+    state.job_id = null;
+    state.menus = [];
+    state.selectedMenuIndex = null;
+    state.cookbook = null;
+    $("menus").innerHTML = "";
+    $("menusStatus").textContent = "";
+    $("cookbookStatus").textContent = "";
+    clearBox("menusError");
+    clearBox("cookbookError");
+    $("btnCookbook").disabled = true;
+    $("btnDownloadDocx").disabled = true;
+    $("btnDownloadJson").disabled = true;
+  }
+
+  function renderMenus(){
+    const wrap = $("menus");
+    wrap.innerHTML = "";
+    state.menus.forEach((m, i) => {
+      const div = document.createElement("div");
+      div.className = "menu" + (state.selectedMenuIndex === i ? " sel" : "");
+      const src = m.source ? `<div class="src">Inspired by ${escapeHtml(m.source)}</div>` : "";
+      div.innerHTML = `
+        <h3>Option ${i+1}: ${escapeHtml(m.name || "Menu")}</h3>
+        <div class="meta">Estimated: ${escapeHtml(m.cost || "")} ${m.wineCost ? " • " + escapeHtml(m.wineCost) + " (Wine)" : ""}</div>
+        ${src}
+        <div class="courses">${(m.courses||[]).map(c => "• " + escapeHtml(c)).join("<br>")}</div>
+      `;
+      div.addEventListener("click", () => {
+        state.selectedMenuIndex = i;
+        state.cookbook = null;
+        $("btnCookbook").disabled = false;
+        $("btnDownloadDocx").disabled = true;
+        $("btnDownloadJson").disabled = true;
+        renderMenus();
+        $("cookbookStatus").textContent = "Menu selected. Ready to generate cookbook.";
+        clearBox("cookbookError");
+      });
+      wrap.appendChild(div);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+  }
+
+  // ---------- health ----------
+  async function checkHealth(){
+    clearBox("menusError");
+    clearBox("cookbookError");
+    $("healthMsg").textContent = "";
+    setPill($("healthPill"), "warn", "Checking…");
+    try{
+      const data = await fetchJson(`${base()}/health`, { method:"GET" });
+      if(data?.ok){
+        setPill($("healthPill"), "ok", "OK");
+      }else{
+        setPill($("healthPill"), "bad", "Bad");
+      }
+      $("healthMsg").textContent = `Backend says: ok=${data.ok} • anthropic_key_present=${data.anthropic_key_present} • model=${data.anthropic_model}`;
+      logLine({message:`/health: ${JSON.stringify(data)}`});
+    }catch(e){
+      setPill($("healthPill"), "bad", "Error");
+      $("healthMsg").textContent = "";
+      showError("menusError", e.message);
+      logLine({message:`/health failed: ${e.message}`});
+    }
+  }
+
+  // ---------- progress polling ----------
+  async function pollProgress(jobId){
+    const start = Date.now();
+    let lastLen = 0;
+    while(Date.now() - start < 120000){
+      try{
+        const data = await fetchJson(`${base()}/api/progress/${jobId}`, { method:"GET" });
+        const log = data?.log || [];
+        if(log.length > lastLen){
+          for(let i = lastLen; i < log.length; i++) logLine(log[i]);
+          lastLen = log.length;
+        }
+      }catch(e){
+        logLine({message:`progress poll warning: ${e.message}`});
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
+  // ---------- menus ----------
+  async function generateMenus(){
+    clearBox("menusError");
+    clearBox("cookbookError");
+    $("menusStatus").textContent = "Requesting menus…";
+    $("cookbookStatus").textContent = "";
+    $("btnMenus").disabled = true;
+    $("btnCookbook").disabled = true;
+
+    $("log").textContent = "";
+
+    const payload = payloadFromForm();
+
+    try{
+      const job_id = state.job_id || null;
+      const data = await fetchJson(`${base()}/api/menus`, {
+        method:"POST",
+        body: JSON.stringify({ ...payload, job_id })
+      });
+
+      state.job_id = data.job_id;
+      state.using_demo = !!data.using_demo;
+      state.menus = data.menus || [];
+      state.selectedMenuIndex = null;
+      state.cookbook = null;
+
+      (data.progress_log || []).forEach(logLine);
+
+      $("menusStatus").textContent = `Received ${state.menus.length} menu(s). Mode: ${state.using_demo ? "DEMO" : "LIVE AI"}.`;
+      if(state.using_demo){
+        showOk("menusError", "Menus loaded in DEMO mode. If you expected LIVE AI, set ANTHROPIC_API_KEY in the backend environment and restart the backend.");
+      }
+
+      renderMenus();
+      $("btnCookbook").disabled = true;
+
+      pollProgress(state.job_id);
+
+    }catch(e){
+      showError("menusError", e.message);
+      $("menusStatus").textContent = "Menu generation failed.";
+      logLine({message:`menus error: ${e.message}`});
+    }finally{
+      $("btnMenus").disabled = false;
+    }
+  }
+
+  // ---------- cookbook ----------
+  async function generateCookbook(){
+    clearBox("cookbookError");
+    $("cookbookStatus").textContent = "Requesting cookbook…";
+    $("btnCookbook").disabled = true;
+
+    const payload = payloadFromForm();
+    const menu = state.menus[state.selectedMenuIndex];
+
+    try{
+      const data = await fetchJson(`${base()}/api/cookbook`, {
+        method:"POST",
+        body: JSON.stringify({ ...payload, job_id: state.job_id, menu })
+      });
+
+      state.job_id = data.job_id;
+      state.cookbook = data.cookbook || null;
+
+      (data.progress_log || []).forEach(logLine);
+
+      $("cookbookStatus").textContent = `Cookbook ready. Mode: ${data.using_demo ? "DEMO" : "LIVE AI"}.`;
+      $("btnDownloadDocx").disabled = false;
+      $("btnDownloadJson").disabled = false;
+
+      pollProgress(state.job_id);
+
+    }catch(e){
+      showError("cookbookError", e.message);
+      $("cookbookStatus").textContent = "Cookbook generation failed.";
+      logLine({message:`cookbook error: ${e.message}`});
+    }finally{
+      $("btnCookbook").disabled = false;
+    }
+  }
+
+  // ---------- downloads ----------
+  async function downloadDocx(){
+    if(!state.cookbook) return;
+
+    const docx = window.docx;
+    if(!docx){
+      alert("docx library not loaded. Check your internet connection or remove DOCX export.");
+      return;
+    }
+
+    const { Document, Packer, Paragraph, HeadingLevel, AlignmentType } = docx;
+
+    const payload = payloadFromForm();
+    const menu = state.menus[state.selectedMenuIndex];
+    const cb = state.cookbook;
+
+    const children = [];
+
+    children.push(new Paragraph({
+      text: payload.eventTitle || "Dinner Party Cookbook",
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER
+    }));
+    children.push(new Paragraph({
+      text: `${payload.eventDate || ""}  •  ${payload.eventTime || ""}  •  ${payload.guestCount} guests`,
+      alignment: AlignmentType.CENTER
+    }));
+    children.push(new Paragraph({ text: "" }));
+
+    children.push(new Paragraph({ text: menu.name || "Menu", heading: HeadingLevel.HEADING1 }));
+    children.push(new Paragraph({ text: "The Menu", heading: HeadingLevel.HEADING2 }));
+    (menu.courses || []).forEach(c => children.push(new Paragraph({ text: c })));
+
+    children.push(new Paragraph({ text: "" }));
+    children.push(new Paragraph({ text: "Shopping List", heading: HeadingLevel.HEADING2 }));
+    (cb.shopping || []).forEach(section => {
+      children.push(new Paragraph({ text: section.title || "", heading: HeadingLevel.HEADING3 }));
+      (section.items || []).forEach(item => children.push(new Paragraph({ text: `• ${item}` })));
+    });
+
+    children.push(new Paragraph({ text: "" }));
+    children.push(new Paragraph({ text: "Day-Of Timeline (Solo)", heading: HeadingLevel.HEADING2 }));
+    (cb.timelineSolo || []).forEach(block => {
+      children.push(new Paragraph({ text: `${block.time} — ${block.title}`, heading: HeadingLevel.HEADING3 }));
+      (block.tasks || []).forEach(t => children.push(new Paragraph({ text: `• ${t}` })));
+    });
+
+    const doc = new Document({ sections: [{ children }] });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${(payload.eventTitle || "Dinner-Party").replace(/\s+/g,"-")}-Cookbook.docx`);
+  }
+
+  function downloadJson(){
+    if(!state.cookbook) return;
+    const payload = payloadFromForm();
+    const menu = state.menus[state.selectedMenuIndex];
+    const out = {
+      event: payload,
+      selectedMenu: menu,
+      cookbook: state.cookbook,
+      using_demo: state.using_demo,
+      job_id: state.job_id
+    };
+    const blob = new Blob([JSON.stringify(out, null, 2)], {type:"application/json"});
+    saveAs(blob, `${(payload.eventTitle || "Dinner-Party").replace(/\s+/g,"-")}-Cookbook.json`);
+  }
+
+  // ---------- init ----------
+  function init(){
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,"0");
+    const dd = String(today.getDate()).padStart(2,"0");
+    $("eventDate").value = `${yyyy}-${mm}-${dd}`;
+
+    $("btnHealth").addEventListener("click", checkHealth);
+    $("btnMenus").addEventListener("click", generateMenus);
+    $("btnCookbook").addEventListener("click", generateCookbook);
+    $("btnClear").addEventListener("click", clearMenus);
+    $("btnDownloadDocx").addEventListener("click", downloadDocx);
+    $("btnDownloadJson").addEventListener("click", downloadJson);
+
+    $("category").addEventListener("change", refreshExtras);
+    refreshExtras();
+
+    $("log").textContent = "Tip: Click “Check /health” first. If it fails, your backend is not reachable from the browser.\n";
+  }
+
+  init();
+</script>
+</body>
+</html>
