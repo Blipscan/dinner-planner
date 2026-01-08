@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: dinner-planner-cadillac
+    env: node
+    buildCommand: npm ci
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
