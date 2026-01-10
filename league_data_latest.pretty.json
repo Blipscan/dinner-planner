@@ -1,0 +1,2141 @@
+[
+  {
+    "league_id": "thames_2025",
+    "updated_at": "2026-01-09T19:08:40.134691+00:00",
+    "data": {
+      "teams": {
+        "mens": [
+          {
+            "id": 1,
+            "name": "Team 1",
+            "players": [
+              "dougT",
+              "robS"
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Team 2",
+            "players": [
+              "billK",
+              "ramonM"
+            ]
+          },
+          {
+            "id": 3,
+            "name": "Team 3",
+            "players": [
+              "billW",
+              "willC"
+            ]
+          },
+          {
+            "id": 5,
+            "name": "Team 5",
+            "players": [
+              "russC",
+              "ivanO"
+            ]
+          }
+        ],
+        "doubles": [
+          {
+            "id": 1,
+            "name": "Team 1",
+            "players": [
+              "billK",
+              "brendaK",
+              "willC",
+              "bonnieK"
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Team 2",
+            "players": [
+              "billL",
+              "nancyM",
+              "dougT",
+              "phyllisT"
+            ]
+          },
+          {
+            "id": 3,
+            "name": "Team 3",
+            "players": [
+              "conradS",
+              "maryLouC",
+              "jimW",
+              "judyW"
+            ]
+          },
+          {
+            "id": 4,
+            "name": "Team 4",
+            "players": [
+              "billR",
+              "donnaR",
+              "robS",
+              "camiO"
+            ]
+          },
+          {
+            "id": 5,
+            "name": "Team 5",
+            "players": [
+              "jennL",
+              "armeldeP",
+              "roseH",
+              "krisM"
+            ]
+          }
+        ]
+      },
+      "players": [
+        {
+          "id": "janM",
+          "name": "Jan Magnussen",
+          "mensStart": 85,
+          "doublesStart": 85
+        },
+        {
+          "id": "donR",
+          "name": "Don Ringuette",
+          "mensStart": 85,
+          "doublesStart": 85
+        },
+        {
+          "id": "dougT",
+          "name": "Doug Teeson",
+          "mensStart": 103,
+          "doublesStart": 94
+        },
+        {
+          "id": "robS",
+          "name": "Robert Salmonson",
+          "mensStart": 72,
+          "doublesStart": 85
+        },
+        {
+          "id": "billK",
+          "name": "Bill Kramer",
+          "mensStart": 86,
+          "doublesStart": 95
+        },
+        {
+          "id": "ramonM",
+          "name": "Ramon Masso-Flores",
+          "mensStart": 84,
+          "doublesStart": 0
+        },
+        {
+          "id": "billW",
+          "name": "Bill Willetts",
+          "mensStart": 74,
+          "doublesStart": 0
+        },
+        {
+          "id": "willC",
+          "name": "Will Clarkson",
+          "mensStart": 107,
+          "doublesStart": 89
+        },
+        {
+          "id": "russC",
+          "name": "Russ Carr",
+          "mensStart": 104,
+          "doublesStart": 0
+        },
+        {
+          "id": "ivanO",
+          "name": "Ivan Otterness",
+          "mensStart": 85,
+          "doublesStart": 0
+        },
+        {
+          "id": "brendaK",
+          "name": "Brenda Kramer",
+          "mensStart": 0,
+          "doublesStart": 82
+        },
+        {
+          "id": "bonnieK",
+          "name": "Bonnie Kuvalanka",
+          "mensStart": 0,
+          "doublesStart": 74
+        },
+        {
+          "id": "billL",
+          "name": "Bill Leuze",
+          "mensStart": 0,
+          "doublesStart": 85
+        },
+        {
+          "id": "nancyM",
+          "name": "Nancy Murray",
+          "mensStart": 0,
+          "doublesStart": 83
+        },
+        {
+          "id": "phyllisT",
+          "name": "Phyllis Teeson",
+          "mensStart": 0,
+          "doublesStart": 77
+        },
+        {
+          "id": "conradS",
+          "name": "Conrad Seifert",
+          "mensStart": 0,
+          "doublesStart": 80
+        },
+        {
+          "id": "maryLouC",
+          "name": "Mary Lou Chichester",
+          "mensStart": 0,
+          "doublesStart": 70
+        },
+        {
+          "id": "jimW",
+          "name": "Jim Williams",
+          "mensStart": 0,
+          "doublesStart": 85
+        },
+        {
+          "id": "judyW",
+          "name": "Judy Williams",
+          "mensStart": 0,
+          "doublesStart": 74
+        },
+        {
+          "id": "billR",
+          "name": "Bill Richmond",
+          "mensStart": 0,
+          "doublesStart": 80
+        },
+        {
+          "id": "donnaR",
+          "name": "Donna Richmond",
+          "mensStart": 0,
+          "doublesStart": 83
+        },
+        {
+          "id": "camiO",
+          "name": "Cami O'Donnell",
+          "mensStart": 0,
+          "doublesStart": 71
+        },
+        {
+          "id": "jennL",
+          "name": "Jennifer Leonard",
+          "mensStart": 0,
+          "doublesStart": 74
+        },
+        {
+          "id": "armeldeP",
+          "name": "Armelde Pitre",
+          "mensStart": 0,
+          "doublesStart": 74
+        },
+        {
+          "id": "roseH",
+          "name": "Rosemond Haseltine",
+          "mensStart": 0,
+          "doublesStart": 74
+        },
+        {
+          "id": "krisM",
+          "name": "Kris Magnussen",
+          "mensStart": 0,
+          "doublesStart": 66
+        },
+        {
+          "id": "fredG",
+          "name": "Fred Graf",
+          "mensStart": 85,
+          "doublesStart": 0
+        },
+        {
+          "id": "tedN",
+          "name": "Ted Nelson",
+          "mensStart": 85,
+          "doublesStart": 0
+        },
+        {
+          "id": "jimG",
+          "name": "Jim Giordano",
+          "mensStart": 89,
+          "doublesStart": 0
+        },
+        {
+          "id": "voniceC",
+          "name": "Vonice Carr",
+          "isSub": true,
+          "mensStart": 0,
+          "doublesStart": 74
+        }
+      ],
+      "results": [
+        {
+          "id": "res_2025-10-23-d-1v4",
+          "date": "2025-10-23",
+          "games": [
+            {
+              "aTotal": 352,
+              "bTotal": 327,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 343,
+              "bTotal": 300,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 4,
+          "league": "doubles",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                102,
+                85
+              ],
+              "teamId": 1,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                75,
+                74
+              ],
+              "teamId": 1,
+              "playerId": "brendaK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                96,
+                99
+              ],
+              "teamId": 1,
+              "playerId": "willC"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                79,
+                85
+              ],
+              "teamId": 1,
+              "playerId": "bonnieK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                87,
+                76
+              ],
+              "teamId": 4,
+              "playerId": "billR"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                88,
+                80
+              ],
+              "teamId": 4,
+              "playerId": "donnaR"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                78,
+                78
+              ],
+              "teamId": 4,
+              "playerId": "robS"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                74,
+                66
+              ],
+              "teamId": 4,
+              "playerId": "camiO"
+            }
+          ],
+          "lowerTeam": "B",
+          "handicapPins": 14,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-10-28-m-2v5",
+          "date": "2025-10-28",
+          "games": [
+            {
+              "aTotal": 158,
+              "bTotal": 177,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 164,
+              "bTotal": 207,
+              "aPoints": 0,
+              "bPoints": 1
+            }
+          ],
+          "teamA": 2,
+          "teamB": 5,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                79,
+                86
+              ],
+              "teamId": 2,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                79,
+                78
+              ],
+              "teamId": 2,
+              "playerId": "ramonM"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                82,
+                90
+              ],
+              "teamId": 5,
+              "playerId": "russC"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                95,
+                117
+              ],
+              "teamId": 5,
+              "playerId": "ivanO"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 16,
+          "seriesPointsA": 0,
+          "seriesPointsB": 1
+        },
+        {
+          "id": "res_2025-10-30-d-3v5",
+          "date": "2025-10-30",
+          "games": [
+            {
+              "aTotal": 280,
+              "bTotal": 295,
+              "aPoints": 0,
+              "bPoints": 1
+            },
+            {
+              "aTotal": 325,
+              "bTotal": 309,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 3,
+          "teamB": 5,
+          "league": "doubles",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                71,
+                121
+              ],
+              "teamId": 3,
+              "playerId": "conradS"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                44,
+                66
+              ],
+              "teamId": 3,
+              "playerId": "donR"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                97,
+                79
+              ],
+              "teamId": 3,
+              "playerId": "jimW"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                68,
+                59
+              ],
+              "teamId": 3,
+              "playerId": "judyW"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                42,
+                68
+              ],
+              "teamId": 5,
+              "playerId": "jennL"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                86,
+                90
+              ],
+              "teamId": 5,
+              "playerId": "donnaR"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                67,
+                68
+              ],
+              "teamId": 5,
+              "playerId": "roseH"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                100,
+                83
+              ],
+              "teamId": 5,
+              "playerId": "janM"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 14,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-11-04-m-1v5",
+          "date": "2025-11-04",
+          "games": [
+            {
+              "aTotal": 187,
+              "bTotal": 229,
+              "aPoints": 0,
+              "bPoints": 1
+            },
+            {
+              "aTotal": 174,
+              "bTotal": 175,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 5,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                114,
+                111
+              ],
+              "teamId": 1,
+              "playerId": "dougT"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                73,
+                63
+              ],
+              "teamId": 1,
+              "playerId": "robS"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                98,
+                98
+              ],
+              "teamId": 5,
+              "playerId": "russC"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                131,
+                77
+              ],
+              "teamId": 5,
+              "playerId": "ivanO"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 9,
+          "seriesPointsA": 0,
+          "seriesPointsB": 1
+        },
+        {
+          "id": "res_2025-11-05-m-2v3",
+          "date": "2025-11-05",
+          "games": [
+            {
+              "aTotal": 197,
+              "bTotal": 185,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 177,
+              "bTotal": 157,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 2,
+          "teamB": 3,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                98,
+                93
+              ],
+              "teamId": 2,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                99,
+                84
+              ],
+              "teamId": 2,
+              "playerId": "ramonM"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                68,
+                62
+              ],
+              "teamId": 3,
+              "playerId": "billW"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                117,
+                95
+              ],
+              "teamId": 3,
+              "playerId": "willC"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 9,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-11-06-d-1v2",
+          "date": "2025-11-06",
+          "games": [
+            {
+              "aTotal": 320,
+              "bTotal": 346,
+              "aPoints": 0,
+              "bPoints": 1
+            },
+            {
+              "aTotal": 326,
+              "bTotal": 299,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 2,
+          "league": "doubles",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                82,
+                74
+              ],
+              "teamId": 1,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                73,
+                83
+              ],
+              "teamId": 1,
+              "playerId": "brendaK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                83,
+                95
+              ],
+              "teamId": 1,
+              "playerId": "willC"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                82,
+                74
+              ],
+              "teamId": 1,
+              "playerId": "bonnieK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                63,
+                63
+              ],
+              "teamId": 2,
+              "playerId": "billL"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                93,
+                76
+              ],
+              "teamId": 2,
+              "playerId": "nancyM"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                102,
+                79
+              ],
+              "teamId": 2,
+              "playerId": "dougT"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                88,
+                81
+              ],
+              "teamId": 2,
+              "playerId": "maryLouC"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 3,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-11-12-m-1v2",
+          "date": "2025-11-12",
+          "games": [
+            {
+              "aTotal": 174,
+              "bTotal": 149,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 188,
+              "bTotal": 160,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 2,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                109,
+                103
+              ],
+              "teamId": 1,
+              "playerId": "dougT"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                65,
+                85
+              ],
+              "teamId": 1,
+              "playerId": "billR"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                85,
+                85
+              ],
+              "teamId": 2,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                64,
+                75
+              ],
+              "teamId": 2,
+              "playerId": "ramonM"
+            }
+          ],
+          "lowerTeam": "B",
+          "handicapPins": 11,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-11-18-m-1v3",
+          "date": "2025-11-18",
+          "games": [
+            {
+              "aTotal": 184,
+              "bTotal": 150,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 171,
+              "bTotal": 159,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 3,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                100,
+                107
+              ],
+              "teamId": 1,
+              "playerId": "dougT"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                84,
+                64
+              ],
+              "teamId": 1,
+              "playerId": "robS"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                65,
+                68
+              ],
+              "teamId": 3,
+              "playerId": "billW"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                85,
+                91
+              ],
+              "teamId": 3,
+              "playerId": "willC"
+            }
+          ],
+          "lowerTeam": "B",
+          "handicapPins": 2,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-10-21-m-3v5",
+          "date": "2025-10-21",
+          "games": [
+            {
+              "aTotal": 158,
+              "bTotal": 170,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 159,
+              "bTotal": 164,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 3,
+          "teamB": 5,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                75,
+                62
+              ],
+              "teamId": 3,
+              "playerId": "billW"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                83,
+                97
+              ],
+              "teamId": 3,
+              "playerId": "willC"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                85,
+                82
+              ],
+              "teamId": 5,
+              "playerId": "russC"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                85,
+                82
+              ],
+              "teamId": 5,
+              "playerId": "billR"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 3,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-10-07-m-2v3",
+          "date": "2025-10-07",
+          "games": [
+            {
+              "aTotal": 159,
+              "bTotal": 165,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 140,
+              "bTotal": 167,
+              "aPoints": 0,
+              "bPoints": 1
+            }
+          ],
+          "teamA": 2,
+          "teamB": 3,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                82,
+                77
+              ],
+              "teamId": 2,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                77,
+                63
+              ],
+              "teamId": 2,
+              "playerId": "ramonM"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                70,
+                70
+              ],
+              "teamId": 3,
+              "playerId": "billW"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                95,
+                97
+              ],
+              "teamId": 3,
+              "playerId": "willC"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 14,
+          "seriesPointsA": 0,
+          "seriesPointsB": 1
+        },
+        {
+          "id": "res_2025-10-14-m-2v5",
+          "date": "2025-10-14",
+          "games": [
+            {
+              "aTotal": 161,
+              "bTotal": 170,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 164,
+              "bTotal": 173,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 2,
+          "teamB": 5,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                78,
+                90
+              ],
+              "teamId": 2,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                83,
+                74
+              ],
+              "teamId": 2,
+              "playerId": "ramonM"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                85,
+                99
+              ],
+              "teamId": 5,
+              "playerId": "russC"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                85,
+                74
+              ],
+              "teamId": 5,
+              "playerId": "ivanO"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 16,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-11-19-m-2v5",
+          "date": "2025-11-19",
+          "games": [
+            {
+              "aTotal": 165,
+              "bTotal": 196,
+              "aPoints": 0,
+              "bPoints": 1
+            },
+            {
+              "aTotal": 159,
+              "bTotal": 188,
+              "aPoints": 0,
+              "bPoints": 1
+            }
+          ],
+          "teamA": 2,
+          "teamB": 5,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                89,
+                91
+              ],
+              "teamId": 2,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                76,
+                68
+              ],
+              "teamId": 2,
+              "playerId": "ramonM"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                104,
+                97
+              ],
+              "teamId": 5,
+              "playerId": "russC"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                92,
+                91
+              ],
+              "teamId": 5,
+              "playerId": "ivanO"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 16,
+          "seriesPointsA": 0,
+          "seriesPointsB": 1
+        },
+        {
+          "id": "res_2025-11-20-d-1v3",
+          "date": "2025-11-20",
+          "games": [
+            {
+              "aTotal": 386,
+              "bTotal": 296,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 347,
+              "bTotal": 266,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 3,
+          "league": "doubles",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                116,
+                101
+              ],
+              "teamId": 1,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                86,
+                85
+              ],
+              "teamId": 1,
+              "playerId": "brendaK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                95,
+                85
+              ],
+              "teamId": 1,
+              "playerId": "willC"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                89,
+                76
+              ],
+              "teamId": 1,
+              "playerId": "bonnieK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                79,
+                67
+              ],
+              "teamId": 3,
+              "playerId": "conradS"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                70,
+                60
+              ],
+              "teamId": 3,
+              "playerId": "maryLouC"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                85,
+                77
+              ],
+              "teamId": 3,
+              "playerId": "jimW"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                62,
+                62
+              ],
+              "teamId": 3,
+              "playerId": "judyW"
+            }
+          ],
+          "lowerTeam": "B",
+          "handicapPins": 13,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-11-25-m-1v5",
+          "date": "2025-11-25",
+          "games": [
+            {
+              "aTotal": 184,
+              "bTotal": 149,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 202,
+              "bTotal": 179,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 5,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                104,
+                88
+              ],
+              "teamId": 1,
+              "playerId": "dougT"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                80,
+                114
+              ],
+              "teamId": 1,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                72,
+                83
+              ],
+              "teamId": 5,
+              "playerId": "billR"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                77,
+                96
+              ],
+              "teamId": 5,
+              "playerId": "ivanO"
+            }
+          ],
+          "lowerTeam": "B",
+          "handicapPins": 14,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-12-11-d-1v4",
+          "date": "2025-12-11",
+          "games": [
+            {
+              "aTotal": 351,
+              "bTotal": 293,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 0,
+              "bTotal": 0,
+              "aPoints": 0,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 4,
+          "league": "doubles",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                87,
+                0
+              ],
+              "teamId": 1,
+              "playerId": "russC"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                73,
+                0
+              ],
+              "teamId": 1,
+              "playerId": "voniceC"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                106,
+                0
+              ],
+              "teamId": 1,
+              "playerId": "willC"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                85,
+                0
+              ],
+              "teamId": 1,
+              "playerId": "bonnieK"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                78,
+                0
+              ],
+              "teamId": 4,
+              "playerId": "billR"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                78,
+                0
+              ],
+              "teamId": 4,
+              "playerId": "donnaR"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                64,
+                0
+              ],
+              "teamId": 4,
+              "playerId": "robS"
+            },
+            {
+              "isSub": false,
+              "league": "doubles",
+              "scores": [
+                73,
+                0
+              ],
+              "teamId": 4,
+              "playerId": "camiO"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 32,
+          "seriesPointsA": 0,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-12-02-m-1v2",
+          "date": "2025-12-02",
+          "games": [
+            {
+              "aTotal": 147,
+              "bTotal": 170,
+              "aPoints": 0,
+              "bPoints": 1
+            },
+            {
+              "aTotal": 126,
+              "bTotal": 134,
+              "aPoints": 0,
+              "bPoints": 1
+            }
+          ],
+          "teamA": 1,
+          "teamB": 2,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                71,
+                79
+              ],
+              "teamId": 1,
+              "playerId": "robS"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                76,
+                47
+              ],
+              "teamId": 1,
+              "playerId": "tedN"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                80,
+                67
+              ],
+              "teamId": 2,
+              "playerId": "billR"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                90,
+                67
+              ],
+              "teamId": 2,
+              "playerId": "ramonM"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 10,
+          "seriesPointsA": 0,
+          "seriesPointsB": 1
+        },
+        {
+          "id": "res_2025-12-03-m-3v5",
+          "date": "2025-12-03",
+          "games": [
+            {
+              "aTotal": 181,
+              "bTotal": 174,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 174,
+              "bTotal": 175,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 3,
+          "teamB": 5,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                90,
+                76
+              ],
+              "teamId": 3,
+              "playerId": "billW"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                91,
+                98
+              ],
+              "teamId": 3,
+              "playerId": "willC"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                78,
+                70
+              ],
+              "teamId": 5,
+              "playerId": "robS"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                96,
+                105
+              ],
+              "teamId": 5,
+              "playerId": "ivanO"
+            }
+          ],
+          "lowerTeam": "A",
+          "handicapPins": 2,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-12-10-m-3v5",
+          "date": "2025-12-10",
+          "games": [
+            {
+              "aTotal": 183,
+              "bTotal": 143,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 171,
+              "bTotal": 186,
+              "aPoints": 0,
+              "bPoints": 1
+            }
+          ],
+          "teamA": 3,
+          "teamB": 5,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                97,
+                77
+              ],
+              "teamId": 3,
+              "playerId": "billW"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                86,
+                94
+              ],
+              "teamId": 3,
+              "playerId": "willC"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                57,
+                82
+              ],
+              "teamId": 5,
+              "playerId": "robS"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                86,
+                104
+              ],
+              "teamId": 5,
+              "playerId": "russC"
+            }
+          ],
+          "lowerTeam": "B",
+          "handicapPins": 2,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        },
+        {
+          "id": "res_2025-12-16-m-1v2",
+          "date": "2025-12-16",
+          "games": [
+            {
+              "aTotal": 191,
+              "bTotal": 175,
+              "aPoints": 1,
+              "bPoints": 0
+            },
+            {
+              "aTotal": 176,
+              "bTotal": 146,
+              "aPoints": 1,
+              "bPoints": 0
+            }
+          ],
+          "teamA": 1,
+          "teamB": 2,
+          "league": "mens",
+          "bowlers": [
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                110,
+                96
+              ],
+              "teamId": 1,
+              "playerId": "dougT"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                81,
+                80
+              ],
+              "teamId": 1,
+              "playerId": "robS"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                98,
+                80
+              ],
+              "teamId": 2,
+              "playerId": "billK"
+            },
+            {
+              "isSub": false,
+              "league": "mens",
+              "scores": [
+                77,
+                66
+              ],
+              "teamId": 2,
+              "playerId": "billR"
+            }
+          ],
+          "lowerTeam": "B",
+          "handicapPins": 7,
+          "seriesPointsA": 1,
+          "seriesPointsB": 0
+        }
+      ],
+      "schedule": [
+        {
+          "id": "2025-10-07-m-2v3",
+          "date": "2025-10-07",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 2
+        },
+        {
+          "id": "2025-10-14-m-2v5",
+          "date": "2025-10-14",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 2
+        },
+        {
+          "id": "2025-10-21-m-3v5",
+          "date": "2025-10-21",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 3
+        },
+        {
+          "id": "2025-10-23-d-1v4",
+          "date": "2025-10-23",
+          "league": "doubles",
+          "awayTeam": 4,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-10-28-m-2v5",
+          "date": "2025-10-28",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 2
+        },
+        {
+          "id": "2025-10-30-d-3v5",
+          "date": "2025-10-30",
+          "league": "doubles",
+          "awayTeam": 5,
+          "homeTeam": 3
+        },
+        {
+          "id": "2025-11-04-m-1v5",
+          "date": "2025-11-04",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-11-05-m-2v3",
+          "date": "2025-11-05",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 2
+        },
+        {
+          "id": "2025-11-06-d-1v2",
+          "date": "2025-11-06",
+          "league": "doubles",
+          "awayTeam": 2,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-11-12-m-1v2",
+          "date": "2025-11-12",
+          "league": "mens",
+          "awayTeam": 2,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-11-18-m-1v3",
+          "date": "2025-11-18",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-11-19-m-2v5",
+          "date": "2025-11-19",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 2
+        },
+        {
+          "id": "2025-11-20-d-1v3",
+          "date": "2025-11-20",
+          "league": "doubles",
+          "awayTeam": 3,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-11-25-m-1v5",
+          "date": "2025-11-25",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-11-26-m-2v3",
+          "date": "2025-11-26",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 2
+        },
+        {
+          "id": "2025-12-02-m-1v2",
+          "date": "2025-12-02",
+          "league": "mens",
+          "awayTeam": 2,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-12-03-m-3v5",
+          "date": "2025-12-03",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 3
+        },
+        {
+          "id": "2025-12-04-d-2v5",
+          "date": "2025-12-04",
+          "league": "doubles",
+          "awayTeam": 5,
+          "homeTeam": 2
+        },
+        {
+          "id": "2025-12-10-m-3v5",
+          "date": "2025-12-10",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 3
+        },
+        {
+          "id": "2025-12-11-d-1v4",
+          "date": "2025-12-11",
+          "league": "doubles",
+          "awayTeam": 4,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-12-16-m-1v2",
+          "date": "2025-12-16",
+          "league": "mens",
+          "awayTeam": 2,
+          "homeTeam": 1
+        },
+        {
+          "id": "2025-12-18-d-2v3",
+          "date": "2025-12-18",
+          "league": "doubles",
+          "awayTeam": 3,
+          "homeTeam": 2
+        },
+        {
+          "id": "2025-12-23-m-1v3",
+          "date": "2025-12-23",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-01-06-m-1v3",
+          "date": "2026-01-06",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-01-08-d-1v5",
+          "date": "2026-01-08",
+          "league": "doubles",
+          "awayTeam": 5,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-01-15-d-3v4",
+          "date": "2026-01-15",
+          "league": "doubles",
+          "awayTeam": 4,
+          "homeTeam": 3
+        },
+        {
+          "id": "2026-01-22-d-2v4",
+          "date": "2026-01-22",
+          "league": "doubles",
+          "awayTeam": 4,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-01-27-m-1v3",
+          "date": "2026-01-27",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-01-28-m-2v5",
+          "date": "2026-01-28",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-01-29-d-3v5",
+          "date": "2026-01-29",
+          "league": "doubles",
+          "awayTeam": 5,
+          "homeTeam": 3
+        },
+        {
+          "id": "2026-02-03-m-1v5",
+          "date": "2026-02-03",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-02-04-m-2v3",
+          "date": "2026-02-04",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-02-05-d-1v2",
+          "date": "2026-02-05",
+          "league": "doubles",
+          "awayTeam": 2,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-02-10-m-1v2",
+          "date": "2026-02-10",
+          "league": "mens",
+          "awayTeam": 2,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-02-11-m-3v5",
+          "date": "2026-02-11",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 3
+        },
+        {
+          "id": "2026-02-12-d-3v4",
+          "date": "2026-02-12",
+          "league": "doubles",
+          "awayTeam": 4,
+          "homeTeam": 3
+        },
+        {
+          "id": "2026-02-17-m-1v3",
+          "date": "2026-02-17",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-02-18-m-2v5",
+          "date": "2026-02-18",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-02-19-d-1v5",
+          "date": "2026-02-19",
+          "league": "doubles",
+          "awayTeam": 5,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-02-24-m-1v5",
+          "date": "2026-02-24",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-02-25-m-2v3",
+          "date": "2026-02-25",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-02-26-d-2v3",
+          "date": "2026-02-26",
+          "league": "doubles",
+          "awayTeam": 3,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-03-03-m-1v2",
+          "date": "2026-03-03",
+          "league": "mens",
+          "awayTeam": 2,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-03-04-m-3v5",
+          "date": "2026-03-04",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 3
+        },
+        {
+          "id": "2026-03-05-d-4v5",
+          "date": "2026-03-05",
+          "league": "doubles",
+          "awayTeam": 5,
+          "homeTeam": 4
+        },
+        {
+          "id": "2026-03-10-m-1v3",
+          "date": "2026-03-10",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-03-11-m-2v5",
+          "date": "2026-03-11",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-03-12-d-1v3",
+          "date": "2026-03-12",
+          "league": "doubles",
+          "awayTeam": 3,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-03-17-m-1v5",
+          "date": "2026-03-17",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-03-18-m-2v3",
+          "date": "2026-03-18",
+          "league": "mens",
+          "awayTeam": 3,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-03-19-d-2v4",
+          "date": "2026-03-19",
+          "league": "doubles",
+          "awayTeam": 4,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-03-24-m-1v2",
+          "date": "2026-03-24",
+          "league": "mens",
+          "awayTeam": 2,
+          "homeTeam": 1
+        },
+        {
+          "id": "2026-03-25-m-3v5",
+          "date": "2026-03-25",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 3
+        },
+        {
+          "id": "2026-03-26-d-2v5",
+          "date": "2026-03-26",
+          "league": "doubles",
+          "awayTeam": 5,
+          "homeTeam": 2
+        },
+        {
+          "id": "2026-03-31-m-1v5",
+          "date": "2026-03-31",
+          "league": "mens",
+          "awayTeam": 5,
+          "homeTeam": 1
+        }
+      ]
+    }
+  }
+]
