@@ -32,7 +32,8 @@ app.use(express.static(CLIENT_DIR));
  
 // Avoid noisy 404s in the browser console for favicon requests.
 app.get("/favicon.ico", (req, res) => {
-  res.status(204).end();
+  // Browsers often hardcode /favicon.ico; serve our SVG favicon instead.
+  res.redirect(302, "/favicon.svg");
 });
 
 app.get("/", (req, res) => {
