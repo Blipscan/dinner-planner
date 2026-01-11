@@ -30,6 +30,11 @@ app.use(express.json({ limit: "10mb" }));
 const CLIENT_DIR = path.join(__dirname, "..", "client");
 app.use(express.static(CLIENT_DIR));
  
+// Avoid noisy 404s in the browser console for favicon requests.
+app.get("/favicon.ico", (req, res) => {
+  res.status(204).end();
+});
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(CLIENT_DIR, "index.html"));
 });
