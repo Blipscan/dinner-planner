@@ -14,6 +14,29 @@
   --error:#dc2626; --error-light:#fee2e2;
 }
 body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}    
+    /* ===== AI STATUS PILL ===== */
+    .ai-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 0.75rem;
+      border: 1px solid var(--cream-dark);
+      background: rgba(255,255,255,0.9);
+      color: var(--text);
+    }
+    .ai-status .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #9ca3af;
+    }
+    .ai-status.ok .dot { background: var(--success); }
+    .ai-status.warn .dot { background: var(--gold); }
+    .ai-status.bad .dot { background: var(--error); }
     /* ===== INSPIRATION CARDS ===== */
     .inspiration-grid {
       display: grid;
@@ -546,6 +569,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div class="header-icon">🍽️</div>
       <h1>Dinner Party Planner</h1>
       <p>Create Unforgettable Experiences</p>
+      <div id="aiStatus" class="ai-status"><span class="dot"></span><span>AI: Checking…</span></div>
     </div>
   </header>
   
@@ -886,6 +910,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // INITIALIZATION
     // ============================================================
     async function init() {
+      initAiStatus();
       try {
         const res = await fetch('/api/data');
         DATA = await res.json();
@@ -911,6 +936,42 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       document.getElementById('accessCode').addEventListener('keypress', e => {
         if (e.key === 'Enter') validateCode();
       });
+    }
+
+    async function initAiStatus() {
+      const el = document.getElementById('aiStatus');
+      if (!el) return;
+
+      function render(kind, text) {
+        el.classList.remove('ok', 'warn', 'bad');
+        if (kind) el.classList.add(kind);
+        const label = el.querySelector('span:last-child');
+        if (label) label.textContent = text;
+      }
+
+      try {
+        const res = await fetch('/api/health?probe=1');
+        const health = await res.json();
+
+        if (!health.apiConfigured) {
+          render('warn', 'AI: Demo mode (no API key)');
+          return;
+        }
+
+        if (health.aiReachable === true) {
+          render('ok', 'AI: Connected');
+          return;
+        }
+
+        if (health.aiReachable === false) {
+          render('bad', 'AI: Not connected (demo responses)');
+          return;
+        }
+
+        render('warn', 'AI: Configured (not probed)');
+      } catch (e) {
+        render('bad', 'AI: Status unavailable');
+      }
     }
     
     document.addEventListener('DOMContentLoaded', init);
