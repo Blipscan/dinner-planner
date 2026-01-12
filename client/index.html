@@ -1329,9 +1329,26 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       dot.classList.add('off'); text.textContent = 'Idle';
     }
 
+    function sanitizeSpeechText(text) {
+      let t = String(text || '');
+      // Remove markdown/code
+      t = t.replace(/```[\s\S]*?```/g, ' ');
+      t = t.replace(/\*\*(.*?)\*\*/g, '$1');
+      t = t.replace(/\*(.*?)\*/g, '$1');
+      t = t.replace(/`([^`]+)`/g, '$1');
+      // Replace punctuation so it's not "read out"
+      t = t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+      t = t.replace(/[(){}\[\]:;]/g, ' ');
+      t = t.replace(/[—–]/g, ' ');
+      t = t.replace(/[!?]+/g, '. ');
+      // Collapse whitespace
+      t = t.replace(/\s+/g, ' ').trim();
+      return t;
+    }
+
     async function speak(text, voiceRole) {
       // Avoid speaking empty or placeholder responses.
-      const t = String(text || '').trim();
+      const t = sanitizeSpeechText(text);
       if (!t || t === '...') return;
       try {
         // If audio isn't unlocked, playing may be blocked by the browser.
@@ -1365,7 +1382,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     function speakWithDeviceVoice(text) {
       try {
         if (!('speechSynthesis' in window)) return;
-        const u = new SpeechSynthesisUtterance(text);
+        const u = new SpeechSynthesisUtterance(sanitizeSpeechText(text));
         u.rate = 1.0;
         u.pitch = 1.0;
         u.volume = 1.0;
@@ -1386,17 +1403,18 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) return null;
       const rec = new SR();
-      rec.continuous = true;
+      rec.continuous = false;
       rec.interimResults = true;
       rec.lang = 'en-US';
       let silenceTimer = null;
       let noSpeechTimer = null;
+      let lastTranscript = '';
       const resetSilence = () => {
         clearTimeout(silenceTimer);
-        // Heuristic: stop after ~900ms of no new recognition updates
+        // Faster turn-taking: stop after ~450ms of no new recognition updates
         silenceTimer = setTimeout(() => {
           try { rec.stop(); } catch {}
-        }, 900);
+        }, 450);
       };
       const clearNoSpeech = () => {
         clearTimeout(noSpeechTimer);
@@ -1404,12 +1422,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       };
       rec.onresult = (e) => {
         clearNoSpeech();
-        let combined = '';
-        for (let i = 0; i < (e.results?.length || 0); i++) {
-          combined += e.results[i][0].transcript;
+        const result = e.results?.[e.results.length - 1];
+        const text = (result?.[0]?.transcript || '').trim();
+        if (text) {
+          lastTranscript = text;
+          onText(text);
         }
-        const text = (combined || '').trim();
-        if (text) onText(text);
         resetSilence();
       };
       rec.onstart = () => {
@@ -1426,16 +1444,16 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         clearTimeout(silenceTimer);
         silenceTimer = setTimeout(() => {
           try { rec.stop(); } catch {}
-        }, 250);
+        }, 120);
       };
       rec.onend = () => {
         clearNoSpeech();
-        onEnd();
+        onEnd(lastTranscript);
       };
       rec.onerror = (e) => {
         clearNoSpeech();
         showToast(`Speech error: ${e?.error || 'unknown'}`);
-        onEnd();
+        onEnd(lastTranscript);
       };
       return rec;
     }
