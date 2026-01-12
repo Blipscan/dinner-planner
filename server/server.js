@@ -285,7 +285,8 @@ app.post("/api/generate-menus", async (req, res) => {
   const upperCode = code?.trim?.().toUpperCase?.();
  
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ menus: DEMO_MENUS });
+    const validation = validateMenusAgainstPreferences(DEMO_MENUS, context);
+    return res.json({ menus: DEMO_MENUS, validation, demo: true });
   }
  
   try {
@@ -330,6 +331,10 @@ Event Context:
 - Dietary Restrictions: ${context?.restrictions?.join(", ") || "none"}
 ${chatContext}
  
+Hard constraints (must follow):
+- Do NOT include ingredients or dishes that conflict with Avoids or Dietary Restrictions.
+- If a restriction implies substitutions (e.g., gluten-free), choose naturally compliant dishes or explicitly gluten-free variants.
+
 Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - id: number (1-5)
 - title: Creative, evocative menu name
@@ -361,12 +366,108 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
       return res.json({ menus: DEMO_MENUS });
     }
  
-    res.json({ menus });
+    const validation = validateMenusAgainstPreferences(menus, context);
+    res.json({ menus, validation });
   } catch (err) {
     console.error("Menu generation error:", err);
-    res.json({ menus: DEMO_MENUS });
+    const validation = validateMenusAgainstPreferences(DEMO_MENUS, context);
+    res.json({ menus: DEMO_MENUS, validation, demo: true });
   }
 });
+
+function validateMenusAgainstPreferences(menus, context) {
+  const issues = [];
+  const notes = [];
+
+  const dislikes = Array.isArray(context?.dislikes) ? context.dislikes : [];
+  const restrictions = Array.isArray(context?.restrictions) ? context.restrictions : [];
+
+  const normalize = (s) => String(s || "").toLowerCase();
+  const hasAny = (text, keywords) => keywords.some((k) => text.includes(k));
+
+  // Keyword heuristics (course names only). This is a best-effort validator.
+  const keywordSets = [];
+
+  const dislikeSet = new Set(dislikes.map((d) => normalize(d)));
+  const restrictionSet = new Set(restrictions.map((r) => normalize(r)));
+
+  if (dislikeSet.has("shellfish") || restrictionSet.has("shellfish")) {
+    keywordSets.push({
+      reason: "Shellfish avoided/restricted",
+      keywords: ["shrimp", "prawn", "lobster", "crab", "scallop", "oyster", "mussel", "clam"],
+    });
+  }
+  if (dislikeSet.has("raw fish")) {
+    keywordSets.push({
+      reason: "Raw fish avoided",
+      keywords: ["crudo", "sashimi", "tartare", "ceviche", "poke", "carpaccio (fish)", "raw"],
+    });
+  }
+  if (restrictionSet.has("gluten-free")) {
+    keywordSets.push({
+      reason: "Gluten-free restriction (heuristic scan)",
+      keywords: ["bread", "breadcrumbs", "pasta", "flour", "wheat", "crouton", "brioche", "baguette", "noodles"],
+    });
+  }
+  if (restrictionSet.has("dairy-free")) {
+    keywordSets.push({
+      reason: "Dairy-free restriction (heuristic scan)",
+      keywords: ["butter", "cream", "crème", "cheese", "yogurt", "milk", "gelato", "panna cotta"],
+    });
+  }
+  if (restrictionSet.has("vegetarian") || restrictionSet.has("vegan")) {
+    keywordSets.push({
+      reason: "Vegetarian/Vegan restriction (heuristic scan)",
+      keywords: ["beef", "steak", "lamb", "pork", "chicken", "duck", "turkey", "veal", "fish", "salmon", "tuna", "shrimp", "lobster", "crab"],
+    });
+  }
+
+  // Generic dislikes: use the label directly as a keyword when it’s meaningful.
+  dislikes.forEach((d) => {
+    const key = normalize(d);
+    const skip = ["very spicy", "low sugar", "low sodium", "kosher", "halal"].includes(key);
+    if (skip) return;
+    // e.g., "Lamb" -> "lamb", "Olives" -> "olive"
+    keywordSets.push({ reason: `Avoids: ${d}`, keywords: [key.replace(/\s+/g, " ")] });
+  });
+
+  const uniqueKey = (menuId, courseType, reason) => `${menuId}::${courseType}::${reason}`;
+  const seen = new Set();
+
+  (menus || []).forEach((menu) => {
+    const menuId = menu?.id ?? menu?.title ?? "menu";
+    (menu?.courses || []).forEach((course) => {
+      const text = normalize(course?.name);
+      keywordSets.forEach((set) => {
+        if (!set.keywords?.length) return;
+        // Avoid double-reporting when the reason is a duplicate from generic dislikes.
+        const matched = set.keywords.filter((k) => k && text.includes(k));
+        if (!matched.length) return;
+        const key = uniqueKey(menuId, course?.type || "", set.reason);
+        if (seen.has(key)) return;
+        seen.add(key);
+        issues.push({
+          menuId,
+          courseType: course?.type || null,
+          courseName: course?.name || null,
+          reason: set.reason,
+          matched,
+        });
+      });
+    });
+  });
+
+  notes.push(
+    "Validation is best-effort (keyword-based) and may miss or falsely flag items; it only scans dish names."
+  );
+
+  return {
+    passed: issues.length === 0,
+    issueCount: issues.length,
+    issues,
+    notes,
+  };
+}
 
 async function generateWineTiers({ menu, context, chatHistory }) {
   const courses = Array.isArray(menu?.courses) ? menu.courses : [];
