@@ -1952,7 +1952,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       if (!raw) return null;
 
       // Couples: "Fred/Alice Smith", "Fred & Alice Smith"
-      const coupleMatch = raw.match(/^(.+?)(?:\\s*\\/\\s*|\\s*&\\s*)(.+)$/);
+      const coupleMatch = raw.match(/^(.+?)(?:\s*\/\s*|\s*&\s*)(.+)$/);
       if (coupleMatch) {
         const left = coupleMatch[1].trim();
         const right = coupleMatch[2].trim();
