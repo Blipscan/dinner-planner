@@ -26,6 +26,7 @@ const {
   PERSONAS,
   DEMO_MENUS,
   COOKBOOK_SECTIONS,
+  COPYRIGHT_TEXT,
 } = require("./data");
  
 const { buildCookbook } = require("./cookbook");
@@ -510,6 +511,11 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
   if (!cookbookData) return res.status(404).send("Cookbook not found");
 
   const { menu, context, staffing, recipes } = cookbookData;
+  const staffingInfo = STAFFING.find((s) => s.id === staffing) || STAFFING[0];
+  const guestNames = String(context?.guestList || "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const title = (context?.eventTitle || "Dinner Party").replace(/[<>]/g, "");
   const menuTitle = (menu?.title || "Menu").replace(/[<>]/g, "");
 
@@ -521,7 +527,17 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
 
-  const courseHtml = (menu?.courses || [])
+  const section = (id, heading, bodyHtml) => `<section class="section" id="${escapeHtml(id)}">
+  <div class="section-header">
+    <div class="section-kicker">${escapeHtml(heading)}</div>
+  </div>
+  ${bodyHtml}
+</section>`;
+
+  const courses = Array.isArray(menu?.courses) ? menu.courses : [];
+  const wines = courses.filter((c) => c?.wine);
+
+  const courseHtml = courses
     .map(
       (c) => `<div class="course">
   <div class="course-type">${escapeHtml(c?.type || "")}</div>
@@ -558,6 +574,123 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
 </section>`;
   }).join("\n");
 
+  // Shopping list from recipes (same categorization logic as DOCX)
+  const categorizeIngredient = (raw) => {
+    const s = String(raw || "").toLowerCase();
+    if (!s.trim()) return { cat: "Pantry", item: "" };
+
+    const cleaned = String(raw)
+      .replace(/^\s*[\d\s\/\.\-–—]+/g, "")
+      .replace(
+        /^\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|ounces?|oz|grams?|g|kg|ml|l|liters?|pounds?|lb|cloves?|pinch|handful|bunch|sprigs?)\b\s*/i,
+        ""
+      )
+      .trim();
+
+    const seafood = ["fish", "salmon", "tuna", "cod", "halibut", "bass", "shrimp", "prawn", "lobster", "crab", "scallop", "oyster", "mussel", "clam"];
+    const proteins = ["beef", "steak", "lamb", "pork", "chicken", "duck", "turkey", "veal", "sausage", "bacon", "prosciutto"];
+    const produce = ["onion", "shallot", "garlic", "leek", "tomato", "pepper", "spinach", "lettuce", "arugula", "herb", "parsley", "cilantro", "basil", "thyme", "rosemary", "mint", "lemon", "lime", "orange", "apple", "pear", "mushroom", "carrot", "celery", "potato", "radish", "pea", "asparagus"];
+    const dairy = ["butter", "milk", "cream", "crème", "creme", "cheese", "yogurt", "egg", "parmesan", "gruyere", "ricotta", "mascarpone"];
+    const beverages = ["wine", "champagne", "sancerre", "riesling", "port", "vermouth", "beer", "cider", "sparkling water", "soda", "coffee", "tea"];
+    const pantry = ["salt", "pepper", "olive oil", "oil", "vinegar", "mustard", "flour", "sugar", "honey", "stock", "broth", "rice", "pasta", "breadcrumbs", "spice", "paprika", "cumin", "coriander", "vanilla", "cocoa", "chocolate"];
+
+    const includesAny = (arr) => arr.some((k) => s.includes(k));
+    if (includesAny(seafood)) return { cat: "Seafood", item: cleaned };
+    if (includesAny(proteins)) return { cat: "Proteins", item: cleaned };
+    if (includesAny(dairy)) return { cat: "Dairy & Eggs", item: cleaned };
+    if (includesAny(beverages)) return { cat: "Wine & Beverages", item: cleaned };
+    if (includesAny(produce)) return { cat: "Produce", item: cleaned };
+    if (includesAny(pantry)) return { cat: "Pantry", item: cleaned };
+    return { cat: "Special Ingredients", item: cleaned };
+  };
+
+  const categories = ["Proteins", "Seafood", "Produce", "Dairy & Eggs", "Pantry", "Wine & Beverages", "Special Ingredients"];
+  const byCategory = Object.fromEntries(categories.map((c) => [c, new Set()]));
+  if (Array.isArray(recipes) && recipes.length) {
+    recipes.forEach((r) => {
+      (r?.ingredients || []).forEach((ing) => {
+        const { cat, item } = categorizeIngredient(ing);
+        if (item) byCategory[cat]?.add(item);
+      });
+    });
+  }
+  const shoppingHtml = categories
+    .map((cat) => {
+      const items = Array.from(byCategory[cat] || []);
+      const list = items.length
+        ? `<ul class="checklist">${items.map((i) => `<li><span class="box"></span>${escapeHtml(i)}</li>`).join("")}</ul>`
+        : `<div class="muted">List unavailable (generate recipes to populate this section).</div>`;
+      return `<div class="subsection">
+  <h3>${escapeHtml(cat)}</h3>
+  ${list}
+</div>`;
+    })
+    .join("\n");
+
+  const serviceTime = context?.serviceTime || "7:00 PM";
+  const dayBeforeTasks = [
+    "Review all recipes and confirm you have all ingredients",
+    "Prep stocks and sauces that improve overnight",
+    "Marinate proteins as needed",
+    "Wash and prep vegetables (store properly)",
+    "Make dessert components that hold well",
+    "Set the table completely",
+    "Chill wine and set out serving pieces",
+    "Write out your day-of timeline",
+    "Prep any garnishes that hold",
+    "Do a final equipment check",
+  ];
+
+  const timeline = [
+    { time: "-6 hours", task: "Final shopping for any last-minute items" },
+    { time: "-5 hours", task: "Begin slow-cooking items (braises, stocks)" },
+    { time: "-4 hours", task: "Prep remaining vegetables and garnishes" },
+    { time: "-3 hours", task: "Start sauces and reductions" },
+    { time: "-2 hours", task: "Set out cheese and butter to temper" },
+    { time: "-90 min", task: "Open and decant red wines" },
+    { time: "-1 hour", task: "Final protein prep, bring to room temp" },
+    { time: "-45 min", task: "Preheat oven, warm plates" },
+    { time: "-30 min", task: "Light candles, start music, final touches" },
+    { time: "-15 min", task: "Plate amuse-bouche, pour welcome drinks" },
+    { time: "0", task: "Guests arrive — service begins" },
+    { time: "+15 min", task: "Serve amuse-bouche" },
+    { time: "+30 min", task: "Fire first course" },
+    { time: "+50 min", task: "Clear, serve second course" },
+    { time: "+80 min", task: "Fire main course" },
+    { time: "+110 min", task: "Clear, prepare dessert" },
+    { time: "+130 min", task: "Serve dessert and dessert wine" },
+  ];
+
+  const imagePromptsHtml = courses
+    .map((c) => {
+      const prompt = `Professional food photography of ${c?.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
+      return `<div class="subsection">
+  <h3>${escapeHtml(c?.type || "Course")}</h3>
+  <pre class="prompt">${escapeHtml(prompt)}</pre>
+</div>`;
+    })
+    .join("\n");
+
+  const tocItems = [
+    ["cover", "Cover Page"],
+    ["menu", "Menu Overview"],
+    ["wine", "Wine Program"],
+    ["recipes", "Recipes"],
+    ["shopping", "Shopping List"],
+    ["daybefore", "Day-Before Prep"],
+    ["dayof", "Day-Of Timeline"],
+    ["plating", "Plating Guides"],
+    ["tablesetting", "Table Setting"],
+    ["servicenotes", "Service Notes"],
+    ["ambiance", "Ambiance & Music"],
+    ["checklist", "Final Checklist"],
+    ["images", "AI Image Prompts"],
+    ["notes", "Notes Pages"],
+    ["copyright", "Copyright"],
+  ]
+    .map(([id, label]) => `<a class="toc-link" href="#${escapeHtml(id)}">${escapeHtml(label)}</a>`)
+    .join("");
+
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -583,19 +716,36 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     .meta { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
     .muted { color: var(--muted); }
     .cols { display:grid; grid-template-columns: 1fr 1.2fr; gap: 18px; }
-    h3 { margin: 10px 0 8px; color: var(--gold); font-size: 14px; letter-spacing: .06em; text-transform: uppercase; }
+    h3 { margin: 12px 0 8px; color: var(--gold); font-size: 14px; letter-spacing: .06em; text-transform: uppercase; }
     ul,ol { margin: 0; padding-left: 18px; }
     li { margin: 6px 0; line-height: 1.35; }
     .printbar { display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px; }
     button { border: 0; border-radius: 10px; padding: 10px 14px; font-weight: 700; cursor:pointer; }
     .btn { background: var(--navy); color: white; }
     .btn2 { background: white; color: var(--navy); border: 2px solid var(--navy); }
+    .toc { display:flex; flex-wrap:wrap; gap:10px; margin-top: 14px; }
+    .toc-link { display:inline-flex; padding: 6px 10px; border: 1px solid rgba(17,24,39,0.14); border-radius: 999px; text-decoration:none; color: var(--navy); font-size: 13px; }
+    .toc-link:hover { border-color: var(--gold); }
+    .section { padding-top: 8px; }
+    .section + .section { margin-top: 22px; }
+    .section-kicker { font-size: 22px; color: var(--navy); font-weight: 700; }
+    .subsection { margin-top: 14px; }
+    .checklist { list-style: none; padding-left: 0; margin: 0; }
+    .checklist li { display:flex; gap:10px; align-items:flex-start; }
+    .box { width: 14px; height: 14px; border: 1.5px solid rgba(17,24,39,0.5); border-radius: 3px; margin-top: 2px; flex: 0 0 auto; }
+    .timeline { width: 100%; border-collapse: collapse; }
+    .timeline td { padding: 8px 0; border-bottom: 1px dashed rgba(17,24,39,0.12); vertical-align: top; }
+    .timeline td:first-child { width: 110px; color: var(--gold); font-weight: 700; }
+    pre.prompt { background: rgba(17,24,39,0.04); border: 1px solid rgba(17,24,39,0.10); padding: 10px 12px; border-radius: 10px; overflow: auto; }
     @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } }
     @media print {
       body { background: white; }
       .wrap { max-width: none; padding: 0; }
       .card { box-shadow:none; border:0; border-radius:0; padding: 0; }
       .printbar { display:none; }
+      .toc { display:none; }
+      .section { break-before: page; }
+      #cover { break-before: auto; }
       .recipe { break-inside: avoid; }
     }
   </style>
@@ -609,20 +759,243 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
         <div><strong>Date:</strong> ${escapeHtml(context?.eventDate || "TBD")}</div>
         <div><strong>Guests:</strong> ${escapeHtml(context?.guestCount || 6)}</div>
         <div><strong>Service:</strong> ${escapeHtml(context?.serviceTime || "7:00 PM")}</div>
-        <div><strong>Staffing:</strong> ${escapeHtml(staffing || "solo")}</div>
+        <div><strong>Staffing:</strong> ${escapeHtml(staffingInfo?.name || staffing || "solo")}</div>
       </div>
       <div class="printbar">
         <button class="btn" onclick="window.print()">Print / Save as PDF</button>
         <button class="btn2" onclick="location.href='/'">Back to planner</button>
       </div>
+      <div class="toc">
+        ${tocItems}
+      </div>
 
       <div class="divider"></div>
-      <h2 style="color:var(--navy); margin:0 0 10px; font-size:22px;">Menu</h2>
-      ${courseHtml}
-
-      <div class="divider"></div>
-      <h2 style="color:var(--navy); margin:0 0 10px; font-size:22px;">Recipes</h2>
-      ${recipesHtml}
+      ${section(
+        "cover",
+        "Cover Page",
+        `<div class="subsection">
+  <div class="muted">${escapeHtml(menu?.personality || "")}</div>
+</div>`
+      )}
+      ${section("menu", "Menu Overview", courseHtml || `<div class="muted">No menu found.</div>`)}
+      ${section(
+        "wine",
+        "Wine Program",
+        wines.length
+          ? `<div class="subsection">
+  <div class="muted">Budget: ${escapeHtml(context?.wineBudget || "$80-120")}</div>
+</div>
+${wines
+  .map(
+    (c) => `<div class="subsection">
+  <h3>${escapeHtml(c.type)}</h3>
+  <div><strong>${escapeHtml(c.wine)}</strong></div>
+  <div class="muted">Pairs with: ${escapeHtml(c.name)}</div>
+  <div class="muted">Serve at 55–60°F. Decant 30 minutes before service if red.</div>
+</div>`
+  )
+  .join("\n")}
+<div class="subsection">
+  <h3>Wine Service Notes</h3>
+  <ul>
+    <li>Chill white wines 2 hours before guests arrive</li>
+    <li>Open and decant red wines 30–60 minutes before serving</li>
+    <li>Have backup bottles ready — estimate 1 bottle per 2–3 guests per course</li>
+    <li>Pour 4–5 oz per glass for tasting portions</li>
+  </ul>
+</div>`
+          : `<div class="muted">No wine pairings in this menu.</div>`
+      )}
+      ${section("recipes", "Recipes", recipesHtml || `<div class="muted">No recipes found.</div>`)}
+      ${section(
+        "shopping",
+        "Shopping List",
+        `<div class="subsection"><div class="muted">For ${escapeHtml(context?.guestCount || 6)} guests</div></div>
+${shoppingHtml}
+<div class="subsection">
+  <h3>Shopping Notes</h3>
+  <ul>
+    <li>Shop for proteins and seafood 1–2 days before</li>
+    <li>Buy produce day-before for peak freshness</li>
+    <li>Wine can be purchased a week ahead</li>
+  </ul>
+</div>`
+      )}
+      ${section(
+        "daybefore",
+        "Day-Before Prep",
+        `<div class="subsection"><div class="muted">Staffing: ${escapeHtml(staffingInfo?.name || "Solo")}</div></div>
+<ul class="checklist">
+  ${dayBeforeTasks.map((t) => `<li><span class="box"></span>${escapeHtml(t)}</li>`).join("")}
+</ul>`
+      )}
+      ${section(
+        "dayof",
+        "Day-Of Timeline",
+        `<div class="subsection"><div class="muted">Service Time: ${escapeHtml(serviceTime)} · Your active time: ~${escapeHtml(
+          staffingInfo?.activeMin || ""
+        )} minutes</div></div>
+<table class="timeline">
+  <tbody>
+    ${timeline
+      .map(
+        (t) => `<tr><td>${escapeHtml(t.time)}</td><td>${escapeHtml(t.task)}</td></tr>`
+      )
+      .join("")}
+  </tbody>
+</table>`
+      )}
+      ${section(
+        "plating",
+        "Plating Guides",
+        courses.length
+          ? courses
+              .map(
+                (c) => `<div class="subsection">
+  <h3>${escapeHtml(c.type)}</h3>
+  <div><strong>${escapeHtml(c.name)}</strong></div>
+  <ul>
+    <li>Plate: choose an appropriate size for the portion</li>
+    <li>Placement: center the focal component; sauce underneath or alongside</li>
+    <li>Garnish: fresh herbs, microgreens, or edible flowers</li>
+    <li>Temperature: warm plates for hot courses; chilled for cold</li>
+  </ul>
+</div>`
+              )
+              .join("\n")
+          : `<div class="muted">No courses found.</div>`
+      )}
+      ${section(
+        "tablesetting",
+        "Table Setting",
+        `<div class="subsection"><div class="muted">${escapeHtml(context?.guestCount || 6)} place settings</div></div>
+<div class="subsection">
+  <h3>Per Place Setting</h3>
+  <ul>
+    <li>Charger plate (remove before main)</li>
+    <li>Dinner fork, salad fork (outside in)</li>
+    <li>Dinner knife, soup spoon</li>
+    <li>Dessert spoon above plate</li>
+    <li>Water glass, white wine glass, red wine glass</li>
+    <li>Cloth napkin, folded or in ring</li>
+    <li>Place card</li>
+  </ul>
+</div>
+${
+  guestNames.length
+    ? `<div class="subsection"><h3>Guest List</h3><ul>${guestNames.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul></div>`
+    : ""
+}`
+      )}
+      ${section(
+        "servicenotes",
+        "Service Notes",
+        `<div class="subsection">
+  <h3>Pacing</h3>
+  <ul>
+    <li>Allow 15–20 minutes between courses</li>
+    <li>Watch for guests finishing — clear when ~80% done</li>
+    <li>Never rush; better to slow down than speed up</li>
+  </ul>
+</div>
+<div class="subsection">
+  <h3>Wine Service</h3>
+  <ul>
+    <li>Pour from guest’s right side</li>
+    <li>Fill glasses 1/3 to 1/2 full</li>
+    <li>Offer water throughout</li>
+  </ul>
+</div>
+<div class="subsection">
+  <h3>Clearing</h3>
+  <ul>
+    <li>Clear from right, serve from left</li>
+    <li>Remove all plates before bringing next course</li>
+    <li>Crumb table before dessert</li>
+  </ul>
+</div>`
+      )}
+      ${section(
+        "ambiance",
+        "Ambiance & Music",
+        `<div class="subsection">
+  <h3>Lighting</h3>
+  <ul>
+    <li>Dim overhead lights to 40–50%</li>
+    <li>Use candles as primary table lighting</li>
+    <li>Unscented candles only near food</li>
+  </ul>
+</div>
+<div class="subsection">
+  <h3>Music Suggestions</h3>
+  <ul>
+    <li>Arrival: upbeat jazz or bossa nova</li>
+    <li>Dinner: soft jazz, classical, or acoustic</li>
+    <li>Dessert: slightly more energy, still conversational</li>
+    <li>Volume: background only</li>
+  </ul>
+</div>
+<div class="subsection">
+  <h3>Temperature</h3>
+  <ul>
+    <li>Set thermostat 2–3° cooler than normal</li>
+    <li>Room will warm with guests and cooking</li>
+  </ul>
+</div>`
+      )}
+      ${section(
+        "checklist",
+        "Final Checklist",
+        `<div class="subsection">
+  <h3>One Week Before</h3>
+  <ul class="checklist">
+    ${[
+      "Confirm guest count and dietary restrictions",
+      "Order specialty ingredients",
+      "Purchase wines",
+      "Test any new recipes",
+    ]
+      .map((t) => `<li><span class="box"></span>${escapeHtml(t)}</li>`)
+      .join("")}
+  </ul>
+</div>
+<div class="subsection">
+  <h3>Day Before</h3>
+  <ul class="checklist">
+    ${["Complete all make-ahead prep", "Set table completely", "Chill white wines", "Clean kitchen and clear workspace"]
+      .map((t) => `<li><span class="box"></span>${escapeHtml(t)}</li>`)
+      .join("")}
+  </ul>
+</div>
+<div class="subsection">
+  <h3>Day Of</h3>
+  <ul class="checklist">
+    ${["Follow timeline", "Final taste and season all dishes", "Light candles 10 minutes before arrival", "Start music", "Take a breath — you’ve got this!"]
+      .map((t) => `<li><span class="box"></span>${escapeHtml(t)}</li>`)
+      .join("")}
+  </ul>
+</div>`
+      )}
+      ${section(
+        "images",
+        "AI Image Prompts",
+        `<div class="subsection"><div class="muted">Use these prompts with Midjourney, DALL·E, or similar tools to visualize your dishes.</div></div>
+${imagePromptsHtml || `<div class="muted">No courses found.</div>`}`
+      )}
+      ${section(
+        "notes",
+        "Notes Pages",
+        `<div class="subsection"><div class="muted">Space for your personal notes, adjustments, and memories from the evening.</div></div>
+${Array.from({ length: 18 })
+  .map(() => `<div style="border-bottom:1px solid rgba(17,24,39,0.18); height: 24px; margin-top: 10px;"></div>`)
+  .join("")}`
+      )}
+      ${section(
+        "copyright",
+        "Copyright",
+        `<div class="subsection"><div class="muted">${escapeHtml(COPYRIGHT_TEXT)}</div></div>
+<div class="subsection"><div class="muted">© ${escapeHtml(new Date().getFullYear())} Generated for personal use.</div></div>`
+      )}
     </div>
   </div>
 </body>
