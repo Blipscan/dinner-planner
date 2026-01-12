@@ -317,7 +317,23 @@ app.post("/api/generate-menus", async (req, res) => {
         rejectionHistory.map((m) => `${m.role}: ${m.content}`).join("\n");
     }
  
-    const systemPrompt = `You are an expert culinary team creating dinner party menus.
+    const maxBatches = parseInt(process.env.MENU_REGEN_MAX_BATCHES || "8", 10);
+    const collected = [];
+    const seen = new Set();
+
+    const fingerprint = (m) =>
+      `${String(m?.title || "").toLowerCase()}|${(m?.courses || []).map((c) => String(c?.name || "").toLowerCase()).join("|")}`;
+
+    const validateOne = (m) => validateMenusAgainstPreferences([m], context);
+
+    const preferenceMode =
+      String(context?.cuisine || "").toLowerCase() === "religion" || String(context?.subCuisine || "").toLowerCase().includes("kosher") || String(context?.subCuisine || "").toLowerCase().includes("ramadan") || String(context?.subCuisine || "").toLowerCase().includes("lent")
+        ? "\nReligious menu mode:\n- If Jewish/Kosher: avoid pork/shellfish, do not mix meat and dairy, use kosher-friendly preparations.\n- If Muslim/Ramadan: avoid pork and alcohol in cooking; emphasize shareable, evening-appropriate dishes.\n- If Catholic/Lent: avoid meat on fasting days; lean into seafood/vegetarian.\n"
+        : "";
+
+    let lastFailureSummary = "";
+    for (let attempt = 1; attempt <= maxBatches && collected.length < 5; attempt++) {
+      const systemPrompt = `You are an expert culinary team creating dinner party menus.
  
 Event Context:
 - Event: ${context?.eventTitle || "Dinner Party"}
@@ -334,6 +350,12 @@ ${chatContext}
 Hard constraints (must follow):
 - Do NOT include ingredients or dishes that conflict with Avoids or Dietary Restrictions.
 - If a restriction implies substitutions (e.g., gluten-free), choose naturally compliant dishes or explicitly gluten-free variants.
+${preferenceMode}
+
+Validation enforcement:
+- Your output will be automatically checked. If any dish violates constraints, it will be rejected and you will be asked again.
+${lastFailureSummary ? `\nPreviously rejected issues to avoid:\n${lastFailureSummary}\n` : ""}
+${collected.length ? `\nAlready accepted menus (do NOT repeat these concepts/titles/courses):\n${collected.map((m) => `- ${m.title}: ${(m.courses || []).map((c) => c.name).join(" | ")}`).join("\n")}\n` : ""}
 
 Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - id: number (1-5)
@@ -348,26 +370,59 @@ Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
  
 RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
  
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: "Generate 5 personalized menu options based on the context provided." }],
-    });
- 
-    let menus;
-    try {
-      const text = response.content[0].text.trim();
-      const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
-      menus = JSON.parse(jsonText);
-    } catch (parseErr) {
-      console.error("JSON parse error:", parseErr);
-      console.error("Raw response:", response.content[0].text);
-      return res.json({ menus: DEMO_MENUS });
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: "user", content: "Generate 5 personalized menu options based on the context provided." }],
+      });
+
+      let menus;
+      try {
+        const text = response.content[0].text.trim();
+        const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
+        menus = JSON.parse(jsonText);
+      } catch (parseErr) {
+        console.error("JSON parse error:", parseErr);
+        console.error("Raw response:", response.content[0].text);
+        lastFailureSummary = `- Model output was not valid JSON on attempt ${attempt}.`;
+        continue;
+      }
+
+      const batchIssues = [];
+      (menus || []).forEach((m) => {
+        const fp = fingerprint(m);
+        if (seen.has(fp)) return;
+        const v = validateOne(m);
+        if (v.passed) {
+          seen.add(fp);
+          collected.push(m);
+        } else {
+          batchIssues.push(...(v.issues || []).slice(0, 12));
+        }
+      });
+
+      // Build a compact "do not do this again" summary for next attempt
+      if (batchIssues.length) {
+        const lines = batchIssues
+          .slice(0, 18)
+          .map((i) => `- ${i.reason}: "${i.courseName}" (matched: ${i.matched?.join(", ") || "n/a"})`);
+        lastFailureSummary = lines.join("\n");
+      } else {
+        lastFailureSummary = "";
+      }
     }
- 
-    const validation = validateMenusAgainstPreferences(menus, context);
-    res.json({ menus, validation });
+
+    const finalMenus = collected.slice(0, 5);
+    const validation = validateMenusAgainstPreferences(finalMenus, context);
+    if (!validation.passed) {
+      return res.status(502).json({
+        error: "Unable to generate 5 valid menus within retry limit",
+        menus: finalMenus,
+        validation,
+      });
+    }
+    res.json({ menus: finalMenus, validation, enforced: true });
   } catch (err) {
     console.error("Menu generation error:", err);
     const validation = validateMenusAgainstPreferences(DEMO_MENUS, context);
