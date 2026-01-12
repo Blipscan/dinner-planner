@@ -1092,15 +1092,38 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     { time: "+130 min", task: "Serve dessert and dessert wine" },
   ];
 
-  const imagePromptsHtml = courses
-    .map((c) => {
-      const prompt = `Professional food photography of ${c?.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
+  const pollinationsUrl = (prompt, seed) =>
+    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=768&seed=${seed}&nologo=true`;
+
+  const renderLinksHtml = (prompt) => {
+    const seeds = [11, 22, 33, 44, 55];
+    return `<div class="render-links">
+  ${seeds
+    .map(
+      (s, i) =>
+        `<a class="render-link" href="${pollinationsUrl(prompt, s)}" target="_blank" rel="noopener noreferrer">Render ${i + 1}</a>`
+    )
+    .join("")}
+</div>`;
+  };
+
+  const tablePrompt = `Elegant dinner table tablescape for "${context?.eventTitle || "Dinner Party"}" in ${context?.menuStyle || "classic"} style, warm candlelight, layered linens, place cards, menu cards, wine glasses and water glasses, seasonal centerpiece, sophisticated and inviting, editorial photography, 35mm, soft shadows, high detail`;
+
+  const imagePromptsHtml = [
+    `<div class="subsection">
+  <h3>Table / Tablescape</h3>
+  <pre class="prompt">${escapeHtml(tablePrompt)}</pre>
+  ${renderLinksHtml(tablePrompt)}
+</div>`,
+    ...courses.map((c) => {
+      const prompt = `Professional food photography of ${c?.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality`;
       return `<div class="subsection">
   <h3>${escapeHtml(c?.type || "Course")}</h3>
   <pre class="prompt">${escapeHtml(prompt)}</pre>
+  ${renderLinksHtml(prompt)}
 </div>`;
-    })
-    .join("\n");
+    }),
+  ].join("\n");
 
   const tocItems = [
     ["cover", "Cover Page"],
@@ -1168,6 +1191,9 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     .timeline td { padding: 8px 0; border-bottom: 1px dashed rgba(17,24,39,0.12); vertical-align: top; }
     .timeline td:first-child { width: 110px; color: var(--gold); font-weight: 700; }
     pre.prompt { background: rgba(17,24,39,0.04); border: 1px solid rgba(17,24,39,0.10); padding: 10px 12px; border-radius: 10px; overflow: auto; }
+    .render-links { display:flex; flex-wrap:wrap; gap:10px; margin-top: 10px; }
+    .render-link { display:inline-flex; padding: 6px 10px; border: 1px solid rgba(17,24,39,0.14); border-radius: 999px; text-decoration:none; color: var(--navy); font-size: 13px; }
+    .render-link:hover { border-color: var(--gold); }
     body.format-cards .section { break-before: auto; }
     body.format-cards .toc { display:none; }
     body.format-cards .divider { display:none; }
