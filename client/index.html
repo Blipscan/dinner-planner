@@ -274,6 +274,42 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       font-size: 0.85rem;
     }
     .mic-banner strong { color: white; }
+    .mic-status {
+      display: inline-flex;
+      gap: 0.5rem;
+      align-items: center;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.92);
+    }
+    .mic-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 0 rgba(201,162,39,0.0);
+    }
+    .mic-dot.on {
+      background: var(--gold);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(201,162,39,0.55); }
+      100% { box-shadow: 0 0 0 10px rgba(201,162,39,0); }
+    }
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 9999;
+      background: rgba(17,24,39,0.92);
+      color: white;
+      padding: 12px 14px;
+      border-radius: 12px;
+      max-width: min(520px, calc(100vw - 32px));
+      font-size: 0.92rem;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }
+    .toast.hidden { display:none; }
     .chat-header .icon { font-size: 1.75rem; }
     .chat-header .name {
       font-family: 'Playfair Display', serif;
@@ -709,10 +745,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <span class="name">The Planner</span>
             <span class="spacer"></span>
             <div class="chat-controls">
+              <span class="mic-status"><span class="mic-dot" id="plannerMicDot"></span><span id="plannerMicText">Mic off</span></span>
               <label><input type="checkbox" id="plannerVoiceToggle"> Voice</label>
+              <label><input type="checkbox" id="plannerAutoSendToggle" checked> Auto-send</label>
             </div>
           </div>
-          <div class="mic-banner hidden" id="plannerMicBanner"><strong>Microphone ON</strong> — speak now, then click “Stop Mic” to turn it off.</div>
+          <div class="mic-banner hidden" id="plannerMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
           <div class="chat-messages" id="plannerMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="plannerInput" placeholder="Ask the Planner..." onkeypress="if(event.key==='Enter')sendPlannerChat()">
@@ -890,10 +928,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <span class="name" id="chatName">The Chef</span>
             <span class="spacer"></span>
             <div class="chat-controls">
+              <span class="mic-status"><span class="mic-dot" id="expertMicDot"></span><span id="expertMicText">Mic off</span></span>
               <label><input type="checkbox" id="expertVoiceToggle"> Voice</label>
+              <label><input type="checkbox" id="expertAutoSendToggle" checked> Auto-send</label>
             </div>
           </div>
-          <div class="mic-banner hidden" id="expertMicBanner"><strong>Microphone ON</strong> — speak now, then click “Stop Mic” to turn it off.</div>
+          <div class="mic-banner hidden" id="expertMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
           <div class="chat-messages" id="chatMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Ask a question or share your vision..." onkeypress="if(event.key==='Enter')sendChat()">
@@ -971,10 +1011,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <span class="name">The Sommelier</span>
             <span class="spacer"></span>
             <div class="chat-controls">
+              <span class="mic-status"><span class="mic-dot" id="sommMicDot"></span><span id="sommMicText">Mic off</span></span>
               <label><input type="checkbox" id="sommVoiceToggle"> Voice</label>
+              <label><input type="checkbox" id="sommAutoSendToggle" checked> Auto-send</label>
             </div>
           </div>
-          <div class="mic-banner hidden" id="sommMicBanner"><strong>Microphone ON</strong> — speak now, then click “Stop Mic” to turn it off.</div>
+          <div class="mic-banner hidden" id="sommMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
           <div class="chat-messages" id="sommMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="sommInput" placeholder="Ask the Sommelier..." onkeypress="if(event.key==='Enter')sendSommChat()">
@@ -1059,6 +1101,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <p style="font-size:0.75rem;margin-top:0.35rem;opacity:0.7">AI-assisted recipe development. Recipes are original adaptations inspired by classic techniques.</p>
     </footer>
   </div>
+
+  <div class="toast hidden" id="toast"></div>
   
   <script>
     // ============================================================
@@ -1089,6 +1133,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let plannerHistory = [];
     let sommHistory = [];
     let speech = { planner: null, expert: null, somm: null };
+    let mic = { planner: false, expert: false, somm: false };
     
     // ============================================================
     // INITIALIZATION
@@ -1147,6 +1192,32 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       return !!el && el.checked;
     }
 
+    function autoSendEnabled(id) {
+      const el = document.getElementById(id);
+      return !!el && el.checked;
+    }
+
+    function showToast(message, ms=2600) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = message;
+      t.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
+    }
+
+    function setMicUi(role, isOn) {
+      mic[role] = !!isOn;
+      const dot = document.getElementById(role + 'MicDot');
+      const text = document.getElementById(role + 'MicText');
+      const banner = document.getElementById(role + 'MicBanner');
+      const btn = document.getElementById(role + 'MicBtn');
+      if (dot) dot.classList.toggle('on', !!isOn);
+      if (text) text.textContent = isOn ? 'Listening…' : 'Mic off';
+      if (banner) banner.classList.toggle('hidden', !isOn);
+      if (btn) btn.textContent = isOn ? 'Stop Mic' : 'Start Mic';
+    }
+
     async function speak(text, voiceRole) {
       // Avoid speaking empty or placeholder responses.
       const t = String(text || '').trim();
@@ -1157,7 +1228,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ voice: voiceRole, text: t })
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          const j = await res.json().catch(()=>null);
+          showToast(j?.error ? `Voice unavailable: ${j.error}` : 'Voice unavailable.');
+          return;
+        }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
@@ -1179,10 +1254,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       if (!SR) return null;
       const rec = new SR();
       rec.continuous = false;
-      rec.interimResults = false;
+      rec.interimResults = true;
       rec.lang = 'en-US';
       rec.onresult = (e) => {
-        const text = e.results?.[0]?.[0]?.transcript || '';
+        let combined = '';
+        for (let i = 0; i < (e.results?.length || 0); i++) {
+          combined += e.results[i][0].transcript;
+        }
+        const text = (combined || '').trim();
         if (text) onText(text);
       };
       rec.onend = () => onEnd();
@@ -1244,28 +1323,25 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
 
     async function togglePlannerMic() {
-      const btn = document.getElementById('plannerMicBtn');
-      const banner = document.getElementById('plannerMicBanner');
       if (!speech.planner) {
         try {
           await ensureMicPermission();
         } catch {
-          alert('Microphone permission denied or not available.');
+          showToast('Microphone permission denied or not available.');
           return;
         }
         const rec = createRecognizer((text) => {
           document.getElementById('plannerInput').value = text;
         }, () => {
           speech.planner = null;
-          btn.textContent = 'Start Mic';
-          banner.classList.add('hidden');
-          alert('Microphone off.');
+          setMicUi('planner', false);
+          if (autoSendEnabled('plannerAutoSendToggle')) sendPlannerChat();
+          showToast('Microphone off.');
         });
-        if (!rec) { alert('Speech recognition not supported in this browser.'); return; }
+        if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
         speech.planner = rec;
-        btn.textContent = 'Stop Mic';
-        banner.classList.remove('hidden');
-        alert('Microphone on. Speak now, then click “Stop Mic” when finished.');
+        setMicUi('planner', true);
+        showToast('Microphone on. Speak now, then click Stop Mic.');
         rec.start();
       } else {
         speech.planner.stop();
@@ -1276,28 +1352,25 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // Expert mic + voice (Step 4)
     // =========================
     async function toggleExpertMic() {
-      const btn = document.getElementById('expertMicBtn');
-      const banner = document.getElementById('expertMicBanner');
       if (!speech.expert) {
         try {
           await ensureMicPermission();
         } catch {
-          alert('Microphone permission denied or not available.');
+          showToast('Microphone permission denied or not available.');
           return;
         }
         const rec = createRecognizer((text) => {
           document.getElementById('chatInput').value = text;
         }, () => {
           speech.expert = null;
-          btn.textContent = 'Start Mic';
-          banner.classList.add('hidden');
-          alert('Microphone off.');
+          setMicUi('expert', false);
+          if (autoSendEnabled('expertAutoSendToggle')) sendChat();
+          showToast('Microphone off.');
         });
-        if (!rec) { alert('Speech recognition not supported in this browser.'); return; }
+        if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
         speech.expert = rec;
-        btn.textContent = 'Stop Mic';
-        banner.classList.remove('hidden');
-        alert('Microphone on. Speak now, then click “Stop Mic” when finished.');
+        setMicUi('expert', true);
+        showToast('Microphone on. Speak now, then click Stop Mic.');
         rec.start();
       } else {
         speech.expert.stop();
@@ -1876,28 +1949,25 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
 
     async function toggleSommMic() {
-      const btn = document.getElementById('sommMicBtn');
-      const banner = document.getElementById('sommMicBanner');
       if (!speech.somm) {
         try {
           await ensureMicPermission();
         } catch {
-          alert('Microphone permission denied or not available.');
+          showToast('Microphone permission denied or not available.');
           return;
         }
         const rec = createRecognizer((text) => {
           document.getElementById('sommInput').value = text;
         }, () => {
           speech.somm = null;
-          btn.textContent = 'Start Mic';
-          banner.classList.add('hidden');
-          alert('Microphone off.');
+          setMicUi('somm', false);
+          if (autoSendEnabled('sommAutoSendToggle')) sendSommChat();
+          showToast('Microphone off.');
         });
-        if (!rec) { alert('Speech recognition not supported in this browser.'); return; }
+        if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
         speech.somm = rec;
-        btn.textContent = 'Stop Mic';
-        banner.classList.remove('hidden');
-        alert('Microphone on. Speak now, then click “Stop Mic” when finished.');
+        setMicUi('somm', true);
+        showToast('Microphone on. Speak now, then click Stop Mic.');
         rec.start();
       } else {
         speech.somm.stop();
