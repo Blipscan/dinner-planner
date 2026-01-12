@@ -691,10 +691,24 @@ app.post("/api/print-product", async (req, res) => {
 // START SERVER
 // ============================================================
  
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Dinner Planner listening on port ${PORT} (${ANTHROPIC_API_KEY ? "API key set" : "demo mode"})`);
-});
+function startServer() {
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(
+      `Dinner Planner listening on port ${PORT} (${ANTHROPIC_API_KEY ? "API key set" : "demo mode"})`
+    );
+  });
 
-// Periodic cookbook retention cleanup (best-effort)
-runCookbookCleanup();
-setInterval(runCookbookCleanup, Math.max(1, COOKBOOK_CLEANUP_INTERVAL_HOURS) * 60 * 60 * 1000);
+  // Periodic cookbook retention cleanup (best-effort)
+  runCookbookCleanup();
+  const maxTimerMs = 2 ** 31 - 1; // Node timers use signed 32-bit
+  const intervalMs = Math.max(1, COOKBOOK_CLEANUP_INTERVAL_HOURS) * 60 * 60 * 1000;
+  setInterval(runCookbookCleanup, Math.min(intervalMs, maxTimerMs));
+
+  return server;
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, startServer };
