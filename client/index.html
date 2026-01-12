@@ -1645,33 +1645,15 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       // Hands-free toggles: start/stop listening automatically
       const plannerHF = document.getElementById('plannerHandsFreeToggle');
       if (plannerHF) plannerHF.addEventListener('change', () => {
-        if (plannerHF.checked) {
-          enableAudio();
-          togglePlannerMic();
-        } else {
-          if (speech.planner) speech.planner.stop();
-          setStatus('planner', 'idle');
-        }
+        setHandsFree('planner', plannerHF.checked);
       });
       const expertHF = document.getElementById('expertHandsFreeToggle');
       if (expertHF) expertHF.addEventListener('change', () => {
-        if (expertHF.checked) {
-          enableAudio();
-          toggleExpertMic();
-        } else {
-          if (speech.expert) speech.expert.stop();
-          setStatus('expert', 'idle');
-        }
+        setHandsFree('expert', expertHF.checked);
       });
       const sommHF = document.getElementById('sommHandsFreeToggle');
       if (sommHF) sommHF.addEventListener('change', () => {
-        if (sommHF.checked) {
-          enableAudio();
-          toggleSommMic();
-        } else {
-          if (speech.somm) speech.somm.stop();
-          setStatus('somm', 'idle');
-        }
+        setHandsFree('somm', sommHF.checked);
       });
 
       // Build the in-step nav on first load (Step 1).
@@ -1797,23 +1779,139 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     }
 
     function speakWithDeviceVoice(text) {
-      try {
-        if (!('speechSynthesis' in window)) return;
-        const u = new SpeechSynthesisUtterance(sanitizeSpeechText(text));
-        u.rate = 1.0;
-        u.pitch = 1.0;
-        u.volume = 1.0;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(u);
-      } catch {
-        // ignore
-      }
+      return new Promise((resolve) => {
+        try {
+          if (!('speechSynthesis' in window)) return resolve();
+          const u = new SpeechSynthesisUtterance(sanitizeSpeechText(text));
+          u.rate = 1.0;
+          u.pitch = 1.0;
+          u.volume = 1.0;
+          u.onend = () => resolve();
+          u.onerror = () => resolve();
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(u);
+        } catch {
+          resolve();
+        }
+      });
     }
 
     async function ensureMicPermission() {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Microphone not supported');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach(t => t.stop());
+    }
+
+    const ROLE_CFG = {
+      planner: {
+        inputId: 'plannerInput',
+        interimId: 'plannerInterim',
+        voiceId: 'plannerVoiceToggle',
+        autoSendId: 'plannerAutoSendToggle',
+        handsFreeId: 'plannerHandsFreeToggle',
+        send: () => sendPlannerChat(),
+      },
+      expert: {
+        inputId: 'chatInput',
+        interimId: 'expertInterim',
+        voiceId: 'expertVoiceToggle',
+        autoSendId: 'expertAutoSendToggle',
+        handsFreeId: 'expertHandsFreeToggle',
+        send: () => sendChat(),
+      },
+      somm: {
+        inputId: 'sommInput',
+        interimId: 'sommInterim',
+        voiceId: 'sommVoiceToggle',
+        autoSendId: 'sommAutoSendToggle',
+        handsFreeId: 'sommHandsFreeToggle',
+        send: () => sendSommChat(),
+      }
+    };
+
+    function handsFreeOn(role) {
+      const cfg = ROLE_CFG[role];
+      const el = cfg ? document.getElementById(cfg.handsFreeId) : null;
+      return !!el && el.checked;
+    }
+
+    function setChecked(id, v) {
+      const el = document.getElementById(id);
+      if (el) el.checked = !!v;
+    }
+
+    function stopRoleMic(role) {
+      try {
+        if (speech[role]) speech[role].stop();
+      } catch {}
+    }
+
+    async function startRoleMic(role, opts = {}) {
+      const cfg = ROLE_CFG[role];
+      if (!cfg) return;
+      if (speech[role]) return;
+      if (speaking[role]) return;
+
+      if (opts.ensurePermission) {
+        try {
+          await ensureMicPermission();
+        } catch {
+          showToast('Microphone permission denied or not available.');
+          return;
+        }
+      }
+
+      const rec = createRecognizer((text) => {
+        const input = document.getElementById(cfg.inputId);
+        if (input) input.value = text;
+        const interim = document.getElementById(cfg.interimId);
+        if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
+      }, () => {
+        speech[role] = null;
+        // In hands-free mode, we'll restart after the assistant finishes speaking.
+        if (!handsFreeOn(role)) setMicUi(role, false);
+        const interim = document.getElementById(cfg.interimId);
+        if (interim) interim.classList.add('hidden');
+        if (autoSendEnabled(cfg.autoSendId)) cfg.send();
+        if (!handsFreeOn(role)) showToast('Microphone off.');
+      });
+
+      if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
+      speech[role] = rec;
+      setMicUi(role, true);
+      setStatus(role, 'listening');
+      showToast(handsFreeOn(role) ? 'Hands-free: listening. Speak, pause, and it will send.' : 'Microphone on. Speak now, then click Stop Mic.');
+      try {
+        rec.start();
+      } catch {
+        speech[role] = null;
+        setMicUi(role, false);
+        showToast('Unable to start speech recognition. Try clicking Start Mic once.');
+      }
+    }
+
+    async function setHandsFree(role, enabled) {
+      const cfg = ROLE_CFG[role];
+      if (!cfg) return;
+      if (enabled) {
+        // Make hands-free "one switch": enable voice replies + auto-send.
+        setChecked(cfg.voiceId, true);
+        setChecked(cfg.autoSendId, true);
+        enableAudio();
+        await startRoleMic(role, { ensurePermission: true });
+      } else {
+        stopRoleMic(role);
+        setMicUi(role, false);
+        setStatus(role, 'idle');
+      }
+    }
+
+    async function resumeHandsFree(role) {
+      if (!handsFreeOn(role)) return;
+      if (speech[role]) return;
+      if (speaking[role]) return;
+      // No permission prompts here: the user enables hands-free once per session.
+      await startRoleMic(role, { ensurePermission: false });
     }
 
     function createRecognizer(onText, onEnd) {
@@ -1923,13 +2021,16 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         const reply = data.response || 'Please try again.';
         plannerHistory[plannerHistory.length - 1] = { role: 'assistant', content: reply };
         renderPlannerChat();
-        if (voiceEnabled('plannerVoiceToggle') || document.getElementById('plannerHandsFreeToggle')?.checked) {
+        if (voiceEnabled('plannerVoiceToggle') || handsFreeOn('planner')) {
           setStatus('planner', 'speaking');
+          speaking.planner = true;
           await speak(reply, 'planner');
-          setStatus('planner', document.getElementById('plannerHandsFreeToggle')?.checked ? 'listening' : 'idle');
+          speaking.planner = false;
+          setStatus('planner', handsFreeOn('planner') ? 'listening' : 'idle');
         } else {
           setStatus('planner', 'idle');
         }
+        await resumeHandsFree('planner');
       } catch {
         plannerHistory[plannerHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
         renderPlannerChat();
@@ -1938,68 +2039,24 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     }
 
     async function togglePlannerMic() {
-      if (!speech.planner) {
-        try {
-          await ensureMicPermission();
-        } catch {
-          showToast('Microphone permission denied or not available.');
-          return;
-        }
-        const rec = createRecognizer((text) => {
-          document.getElementById('plannerInput').value = text;
-          const interim = document.getElementById('plannerInterim');
-          if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
-        }, () => {
-          speech.planner = null;
-          setMicUi('planner', false);
-          const interim = document.getElementById('plannerInterim');
-          if (interim) interim.classList.add('hidden');
-          if (autoSendEnabled('plannerAutoSendToggle')) sendPlannerChat();
-          showToast('Microphone off.');
-        });
-        if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
-        speech.planner = rec;
-        setMicUi('planner', true);
-        setStatus('planner', 'listening');
-        showToast('Microphone on. Speak now, then click Stop Mic.');
-        rec.start();
-      } else {
-        speech.planner.stop();
-      }
+      if (!speech.planner) return startRoleMic('planner', { ensurePermission: true });
+      stopRoleMic('planner');
+      const cfg = ROLE_CFG.planner;
+      if (cfg) setChecked(cfg.handsFreeId, false);
+      setMicUi('planner', false);
+      setStatus('planner', 'idle');
     }
 
     // =========================
     // Expert mic + voice (Step 4)
     // =========================
     async function toggleExpertMic() {
-      if (!speech.expert) {
-        try {
-          await ensureMicPermission();
-        } catch {
-          showToast('Microphone permission denied or not available.');
-          return;
-        }
-        const rec = createRecognizer((text) => {
-          document.getElementById('chatInput').value = text;
-          const interim = document.getElementById('expertInterim');
-          if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
-        }, () => {
-          speech.expert = null;
-          setMicUi('expert', false);
-          const interim = document.getElementById('expertInterim');
-          if (interim) interim.classList.add('hidden');
-          if (autoSendEnabled('expertAutoSendToggle')) sendChat();
-          showToast('Microphone off.');
-        });
-        if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
-        speech.expert = rec;
-        setMicUi('expert', true);
-        setStatus('expert', 'listening');
-        showToast('Microphone on. Speak now, then click Stop Mic.');
-        rec.start();
-      } else {
-        speech.expert.stop();
-      }
+      if (!speech.expert) return startRoleMic('expert', { ensurePermission: true });
+      stopRoleMic('expert');
+      const cfg = ROLE_CFG.expert;
+      if (cfg) setChecked(cfg.handsFreeId, false);
+      setMicUi('expert', false);
+      setStatus('expert', 'idle');
     }
     
     // ============================================================
@@ -2567,14 +2624,17 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         if (voiceEnabled('expertVoiceToggle')) {
           const role = (selectedExpert === 'sommelier') ? 'sommelier' : (selectedExpert === 'chef' ? 'chef' : 'planner');
           setStatus('expert', 'speaking');
+          speaking.expert = true;
           await speak(chatHistory[chatHistory.length - 1].content, role);
-          setStatus('expert', document.getElementById('expertHandsFreeToggle')?.checked ? 'listening' : 'idle');
-        } else if (document.getElementById('expertHandsFreeToggle')?.checked) {
+          speaking.expert = false;
+          setStatus('expert', handsFreeOn('expert') ? 'listening' : 'idle');
+        } else if (handsFreeOn('expert')) {
           // Hands-free without voice still cycles listening.
           setStatus('expert', 'listening');
         } else {
           setStatus('expert', 'idle');
         }
+        await resumeHandsFree('expert');
       } catch (err) {
         chatHistory[chatHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
         renderChat();
@@ -2633,13 +2693,16 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         const reply = data.response || 'Please try again.';
         sommHistory[sommHistory.length - 1] = { role: 'assistant', content: reply };
         renderSommChat();
-        if (voiceEnabled('sommVoiceToggle') || document.getElementById('sommHandsFreeToggle')?.checked) {
+        if (voiceEnabled('sommVoiceToggle') || handsFreeOn('somm')) {
           setStatus('somm', 'speaking');
+          speaking.somm = true;
           await speak(reply, 'sommelier');
-          setStatus('somm', document.getElementById('sommHandsFreeToggle')?.checked ? 'listening' : 'idle');
+          speaking.somm = false;
+          setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
         } else {
           setStatus('somm', 'idle');
         }
+        await resumeHandsFree('somm');
       } catch {
         sommHistory[sommHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
         renderSommChat();
@@ -2648,34 +2711,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     }
 
     async function toggleSommMic() {
-      if (!speech.somm) {
-        try {
-          await ensureMicPermission();
-        } catch {
-          showToast('Microphone permission denied or not available.');
-          return;
-        }
-        const rec = createRecognizer((text) => {
-          document.getElementById('sommInput').value = text;
-          const interim = document.getElementById('sommInterim');
-          if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
-        }, () => {
-          speech.somm = null;
-          setMicUi('somm', false);
-          const interim = document.getElementById('sommInterim');
-          if (interim) interim.classList.add('hidden');
-          if (autoSendEnabled('sommAutoSendToggle')) sendSommChat();
-          showToast('Microphone off.');
-        });
-        if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
-        speech.somm = rec;
-        setMicUi('somm', true);
-        setStatus('somm', 'listening');
-        showToast('Microphone on. Speak now, then click Stop Mic.');
-        rec.start();
-      } else {
-        speech.somm.stop();
-      }
+      if (!speech.somm) return startRoleMic('somm', { ensurePermission: true });
+      stopRoleMic('somm');
+      const cfg = ROLE_CFG.somm;
+      if (cfg) setChecked(cfg.handsFreeId, false);
+      setMicUi('somm', false);
+      setStatus('somm', 'idle');
     }
     
     function getContext() {
