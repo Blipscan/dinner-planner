@@ -626,6 +626,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <label for="guestList">Guest Names <span style="font-weight:normal;color:var(--text-light)">(for place cards, one per line)</span></label>
           <textarea id="guestList" rows="4" placeholder="Jane Smith&#10;John Smith&#10;..."></textarea>
         </div>
+        <div class="form-group">
+          <label>Guest Details <span style="font-weight:normal;color:var(--text-light)">(auto-formatted; edit as needed)</span></label>
+          <div id="guestDetails"></div>
+        </div>
       </div>
       
       <div class="card">
@@ -899,6 +903,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let cookbookId = null;
     let wineTiers = null;
     let wineTiersLoading = false;
+    let guests = [];
     
     // ============================================================
     // INITIALIZATION
@@ -932,6 +937,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
       // Restore access code for this tab session (so refresh doesn’t force re-entry)
       restoreSession();
+
+      // Guest details live formatting
+      document.getElementById('guestList').addEventListener('input', () => rebuildGuests());
+      document.getElementById('guestCount').addEventListener('change', () => rebuildGuests());
+      rebuildGuests();
     }
     
     document.addEventListener('DOMContentLoaded', init);
@@ -1367,6 +1377,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         eventDate: document.getElementById('eventDate').value,
         guestCount: document.getElementById('guestCount').value,
         guestList: document.getElementById('guestList').value,
+        guests: guests,
         serviceTime: document.getElementById('serviceTime').value,
         foodBudget: document.getElementById('foodBudget').value,
         wineBudget: document.getElementById('wineBudget').value,
@@ -1379,6 +1390,170 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         dislikes: dislikes,
         restrictions: restrictions
       };
+    }
+
+    function normalizeTitle(name) {
+      const s = (name || '').trim();
+      const lowered = s.toLowerCase();
+      const titles = ['dr.', 'dr', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms', 'prof.', 'prof', 'rev.', 'rev', 'hon.', 'hon'];
+      const hit = titles.find(t => lowered.startsWith(t + ' '));
+      if (!hit) return null;
+      if (hit.startsWith('dr')) return 'Dr.';
+      if (hit.startsWith('mr')) return 'Mr.';
+      if (hit.startsWith('mrs')) return 'Mrs.';
+      if (hit.startsWith('ms')) return 'Ms.';
+      if (hit.startsWith('prof')) return 'Prof.';
+      if (hit.startsWith('rev')) return 'Rev.';
+      if (hit.startsWith('hon')) return 'Hon.';
+      return null;
+    }
+
+    function stripTitle(name) {
+      const t = normalizeTitle(name);
+      if (!t) return (name || '').trim();
+      return (name || '').trim().replace(new RegExp('^' + t.replace('.', '\\\\.') + '\\\\s+', 'i'), '');
+    }
+
+    function parseGuestLine(line) {
+      const raw = (line || '').trim();
+      if (!raw) return null;
+
+      // Couples: "Fred/Alice Smith", "Fred & Alice Smith"
+      const coupleMatch = raw.match(/^(.+?)(?:\\s*\\/\\s*|\\s*&\\s*)(.+)$/);
+      if (coupleMatch) {
+        const left = coupleMatch[1].trim();
+        const right = coupleMatch[2].trim();
+        const leftNoTitle = stripTitle(left);
+        const rightNoTitle = stripTitle(right);
+        // If right contains a last name and left doesn't, assume shared last name from right.
+        const rightParts = rightNoTitle.split(/\s+/).filter(Boolean);
+        const leftParts = leftNoTitle.split(/\s+/).filter(Boolean);
+        const rightLast = rightParts.length > 1 ? rightParts[rightParts.length - 1] : null;
+        const leftHasLast = leftParts.length > 1;
+        const leftFirst = leftParts[0] || leftNoTitle;
+        const rightFirst = rightParts[0] || rightNoTitle;
+        const lastName = rightLast && !leftHasLast ? rightLast : null;
+
+        const display = lastName ? `${leftFirst} & ${rightFirst} ${lastName}` : `${leftFirst} & ${rightFirst}`;
+        return {
+          raw,
+          name: display,
+          addressing: 'first',
+          title: null,
+          dietaryConcern: false
+        };
+      }
+
+      const title = normalizeTitle(raw);
+      const name = raw;
+      // Default addressing: if title present, use title; else first names for friendliness.
+      return {
+        raw,
+        name,
+        addressing: title ? 'title' : 'first',
+        title: title,
+        dietaryConcern: false
+      };
+    }
+
+    function displayNameForGuest(g) {
+      const name = (g?.name || '').trim();
+      const addressing = g?.addressing || 'first';
+      const title = g?.title || normalizeTitle(name);
+      const nameNoTitle = stripTitle(name);
+      const parts = nameNoTitle.split(/\s+/).filter(Boolean);
+      const first = parts[0] || nameNoTitle;
+      const last = parts.length > 1 ? parts[parts.length - 1] : '';
+
+      if (addressing === 'first') return first || name;
+      if (addressing === 'full') return nameNoTitle || name;
+      if (addressing === 'title') {
+        const t = title || 'Mr./Ms.';
+        return last ? `${t} ${last}` : `${t} ${nameNoTitle || name}`;
+      }
+      if (addressing === 'custom') return name || '';
+      return name || '';
+    }
+
+    function rebuildGuests() {
+      const count = parseInt(document.getElementById('guestCount').value || '6', 10) || 6;
+      const lines = String(document.getElementById('guestList').value || '')
+        .split('\\n')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const parsed = lines.map(parseGuestLine).filter(Boolean);
+
+      // Preserve existing edits where possible by index.
+      const next = [];
+      for (let i = 0; i < count; i++) {
+        const existing = guests[i];
+        const fromLine = parsed[i];
+        const base = fromLine || { raw: '', name: `Guest-${i + 1}`, addressing: 'first', title: null, dietaryConcern: false };
+        next[i] = {
+          ...base,
+          // preserve user edits
+          name: existing?.name && existing?.name !== `Guest-${i + 1}` ? existing.name : base.name,
+          addressing: existing?.addressing || base.addressing,
+          title: existing?.title ?? base.title,
+          dietaryConcern: typeof existing?.dietaryConcern === 'boolean' ? existing.dietaryConcern : base.dietaryConcern
+        };
+      }
+      guests = next.map(g => ({
+        ...g,
+        displayName: displayNameForGuest(g)
+      }));
+      renderGuestDetails();
+    }
+
+    function renderGuestDetails() {
+      const container = document.getElementById('guestDetails');
+      if (!container) return;
+      container.innerHTML = `
+        <div style="display:grid;gap:0.5rem">
+          ${guests.map((g, i) => `
+            <div style="display:grid;grid-template-columns: 1.2fr 0.8fr 0.7fr;gap:0.6rem;align-items:center;padding:0.6rem;border:1px solid var(--cream-dark);border-radius:10px;background:white;">
+              <div>
+                <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:0.2rem;">Guest ${i + 1}</div>
+                <input type="text" value="${(g.name || '').replace(/\"/g,'&quot;')}" oninput="updateGuestName(${i}, this.value)" />
+                <div style="font-size:0.8rem;color:var(--text-light);margin-top:0.25rem;">Place card: <strong>${(g.displayName || '').replace(/</g,'&lt;')}</strong></div>
+              </div>
+              <div>
+                <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:0.2rem;">Addressing</div>
+                <select onchange="updateGuestAddressing(${i}, this.value)">
+                  <option value="first" ${g.addressing==='first'?'selected':''}>First name</option>
+                  <option value="title" ${g.addressing==='title'?'selected':''}>Title + last</option>
+                  <option value="full" ${g.addressing==='full'?'selected':''}>Full name</option>
+                  <option value="custom" ${g.addressing==='custom'?'selected':''}>Custom</option>
+                </select>
+              </div>
+              <div>
+                <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:0.2rem;">Dietary concern</div>
+                <label style="display:flex;gap:0.5rem;align-items:center;">
+                  <input type="checkbox" ${g.dietaryConcern ? 'checked' : ''} onchange="updateGuestDietary(${i}, this.checked)" />
+                  <span>${g.dietaryConcern ? 'Yes' : 'No'}</span>
+                </label>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function updateGuestName(i, value) {
+      guests[i].name = value;
+      guests[i].title = normalizeTitle(value) || guests[i].title;
+      guests[i].displayName = displayNameForGuest(guests[i]);
+      renderGuestDetails();
+    }
+    function updateGuestAddressing(i, value) {
+      guests[i].addressing = value;
+      guests[i].displayName = displayNameForGuest(guests[i]);
+      renderGuestDetails();
+    }
+    function updateGuestDietary(i, checked) {
+      guests[i].dietaryConcern = !!checked;
+      renderGuestDetails();
     }
     
     function endChat() {

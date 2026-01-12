@@ -929,10 +929,12 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
   const { menu, context, staffing, recipes, format: storedFormat } = cookbookData;
   const formatChoice = String(req.query?.format || storedFormat || context?.cookbookFormat || "binder").toLowerCase();
   const staffingInfo = STAFFING.find((s) => s.id === staffing) || STAFFING[0];
-  const guestNames = String(context?.guestList || "")
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const guestNames = Array.isArray(context?.guests) && context.guests.length
+    ? context.guests.map((g) => g?.displayName || g?.name).filter(Boolean)
+    : String(context?.guestList || "")
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
   const title = (context?.eventTitle || "Dinner Party").replace(/[<>]/g, "");
   const menuTitle = (menu?.title || "Menu").replace(/[<>]/g, "");
 

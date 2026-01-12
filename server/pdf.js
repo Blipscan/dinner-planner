@@ -63,6 +63,13 @@ function collectPdf(doc) {
 }
 
 function getGuestNames(context) {
+  // Prefer structured guests (with displayName/addressing) if present.
+  if (Array.isArray(context?.guests) && context.guests.length) {
+    return context.guests
+      .map((g) => g?.displayName || g?.name || g?.raw)
+      .map((s) => String(s || "").trim())
+      .filter(Boolean);
+  }
   const raw = context?.guestList || "";
   return String(raw)
     .split("\n")
