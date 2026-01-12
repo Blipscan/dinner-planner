@@ -176,14 +176,23 @@ app.post("/api/tts", async (req, res) => {
       body: JSON.stringify({
         text: cleanText,
         model_id: "eleven_turbo_v2_5",
+        output_format: "mp3_44100_128",
         voice_settings: { stability: 0.35, similarity_boost: 0.85, style: 0.25, use_speaker_boost: true },
       }),
     });
 
     if (!elRes.ok) {
       const errText = await elRes.text().catch(() => "");
-      console.error("ElevenLabs TTS error:", elRes.status, errText.slice(0, 400));
-      return res.status(502).json({ error: "ElevenLabs TTS failed" });
+      const snippet = errText.slice(0, 600);
+      console.error("ElevenLabs TTS error:", elRes.status, snippet);
+      // Return a small diagnostic payload to help setup/debug.
+      return res.status(502).json({
+        error: "ElevenLabs TTS failed",
+        upstreamStatus: elRes.status,
+        upstreamBody: snippet || null,
+        hint:
+          "Check ELEVENLABS_API_KEY and ELEVENLABS_VOICE_* env vars, and confirm the voice ID exists in your ElevenLabs account.",
+      });
     }
 
     const buf = Buffer.from(await elRes.arrayBuffer());
