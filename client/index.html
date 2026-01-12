@@ -1295,6 +1295,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       renderChat();
       
       try {
+        const menuForChat = (selectedMenu !== null && menus && menus[selectedMenu]) ? menus[selectedMenu] : null;
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1302,7 +1303,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             code: accessCode,
             persona: selectedExpert,
             messages: chatHistory.slice(0, -1),
-            context: getContext()
+            context: getContext(),
+            menu: menuForChat
           })
         });
         const data = await res.json();

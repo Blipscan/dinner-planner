@@ -6,6 +6,8 @@ const express = require("express");
 const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
  
+const { saveCookbook, getCookbook } = require("./storage");
+
 const {
   CUISINES,
   MENU_INSPIRATIONS,
@@ -50,7 +52,6 @@ const BETA_EXPIRY = process.env.BETA_EXPIRY || "2026-03-01";
 const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 10);
  
 const usageStats = {};
-global.cookbooks = global.cookbooks || {};
  
 // ============================================================
 // API ROUTES
@@ -129,7 +130,7 @@ app.post("/api/validate-code", (req, res) => {
  
 // Chat with expert persona
 app.post("/api/chat", async (req, res) => {
-  const { persona, messages, context } = req.body || {};
+  const { persona, messages, context, menu } = req.body || {};
  
   if (!ANTHROPIC_API_KEY) {
     const demoResponses = {
@@ -145,6 +146,9 @@ app.post("/api/chat", async (req, res) => {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const personaData = PERSONAS?.[persona] || PERSONAS.chef;
  
+    const menuData = menu || context?.menu || null;
+    const menuSummary = buildMenuContextSummary(menuData);
+
     const systemPrompt =
       (personaData?.systemPrompt || "") +
       `
@@ -162,6 +166,10 @@ Current event context:
 - Likes: ${context?.likes?.join(", ") || "none specified"}
 - Dislikes: ${context?.dislikes?.join(", ") || "none specified"}
 - Restrictions: ${context?.restrictions?.join(", ") || "none"}
+
+${menuSummary ? `\nSelected/Current Menu (if provided):\n${menuSummary}\n` : ""}
+
+If you have already recommended specific wines earlier in this conversation, do NOT ask basic classification questions (e.g., “is it red/white?”). Refer back to your prior recommendation and proceed with confident service guidance.
  
 Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.`;
  
@@ -379,11 +387,11 @@ app.post("/api/generate-cookbook", async (req, res) => {
  
   try {
     const recipes = await generateRecipes({ menu, context });
-    global.cookbooks[cookbookId] = { menu, context, staffing, recipes };
+    await saveCookbook(cookbookId, { menu, context, staffing, recipes });
     res.json({ success: true, cookbookId });
   } catch (err) {
     console.error("Cookbook generation error:", err);
-    global.cookbooks[cookbookId] = { menu, context, staffing, recipes: null };
+    await saveCookbook(cookbookId, { menu, context, staffing, recipes: null });
     res.json({
       success: true,
       cookbookId,
@@ -393,9 +401,9 @@ app.post("/api/generate-cookbook", async (req, res) => {
 });
  
 // Lightweight HTML cookbook preview/print page
-app.get("/cookbook/:cookbookId", (req, res) => {
+app.get("/cookbook/:cookbookId", async (req, res) => {
   const { cookbookId } = req.params || {};
-  const cookbookData = global.cookbooks?.[cookbookId];
+  const cookbookData = await getCookbook(cookbookId);
   if (!cookbookData) return res.status(404).send("Cookbook not found");
 
   const { menu, context, staffing, recipes } = cookbookData;
@@ -523,7 +531,7 @@ app.get("/cookbook/:cookbookId", (req, res) => {
 
 app.post("/api/download-cookbook", async (req, res) => {
   const { cookbookId } = req.body || {};
-  const cookbookData = global.cookbooks?.[cookbookId];
+  const cookbookData = await getCookbook(cookbookId);
  
   if (!cookbookData) {
     return res.status(404).json({ error: "Cookbook not found" });
