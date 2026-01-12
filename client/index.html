@@ -1253,9 +1253,17 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) return null;
       const rec = new SR();
-      rec.continuous = false;
+      rec.continuous = true;
       rec.interimResults = true;
       rec.lang = 'en-US';
+      let silenceTimer = null;
+      const resetSilence = () => {
+        clearTimeout(silenceTimer);
+        // Heuristic: stop after ~900ms of no new recognition updates
+        silenceTimer = setTimeout(() => {
+          try { rec.stop(); } catch {}
+        }, 900);
+      };
       rec.onresult = (e) => {
         let combined = '';
         for (let i = 0; i < (e.results?.length || 0); i++) {
@@ -1263,8 +1271,18 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
         const text = (combined || '').trim();
         if (text) onText(text);
+        resetSilence();
+      };
+      rec.onspeechstart = () => resetSilence();
+      rec.onspeechend = () => {
+        // When browser thinks speech ended, stop soon
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          try { rec.stop(); } catch {}
+        }, 250);
       };
       rec.onend = () => onEnd();
+      rec.onerror = () => onEnd();
       return rec;
     }
 
