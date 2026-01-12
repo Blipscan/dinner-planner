@@ -65,6 +65,19 @@ Fix direction (next cycle):
   - Redis, SQLite, Postgres, or object storage for generated artifacts
   - Minimum viable: store cookbook JSON in a DB keyed by `cookbookId`
 
+Status update:
+- Implemented Postgres-backed cookbook storage when `DATABASE_URL` is set (fallback to memory).
+- `GET /api/health` reports `cookbookStorage: "postgres" | "memory"`.
+
+### 2b) Access code usage persistence (important for beta controls)
+
+Previously, access-code usage tracking was in-memory, so limits could reset on restarts.
+
+Status update:
+- Implemented Postgres-backed access-code usage tracking when `DATABASE_URL` is set (fallback to memory).
+- `/api/validate-code` now returns accurate remaining generations.
+- `/api/generate-menus` now enforces limits before calling the AI (prevents surprise spend).
+
 ### 3) Print product PDFs are “stubbed”
 
 UI buttons previously showed an alert (“coming in next release”).

@@ -5,6 +5,7 @@
 const DEFAULT_TABLE = "cookbooks";
 
 let memoryStore = Object.create(null);
+let memoryCodeUsage = Object.create(null);
 
 let pool = null;
 let ready = false;
@@ -53,6 +54,15 @@ async function initStorage() {
     );
   `);
 
+  const usageTable = process.env.CODE_USAGE_TABLE || "access_code_usage";
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${usageTable} (
+      code TEXT PRIMARY KEY,
+      generations INTEGER NOT NULL DEFAULT 0,
+      last_used TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   ready = true;
 }
 
@@ -78,10 +88,77 @@ async function getCookbook(id) {
   return res?.rows?.[0]?.data || null;
 }
 
+async function getCodeUsage(code) {
+  await initStorage();
+  const upper = String(code || "").trim().toUpperCase();
+  if (!upper) return null;
+
+  if (!hasPostgres()) {
+    const row = memoryCodeUsage[upper];
+    return row ? { ...row } : { code: upper, generations: 0, lastUsed: new Date().toISOString() };
+  }
+
+  const usageTable = process.env.CODE_USAGE_TABLE || "access_code_usage";
+  const res = await pool.query(`SELECT code, generations, last_used FROM ${usageTable} WHERE code = $1`, [upper]);
+  if (res?.rows?.[0]) {
+    return {
+      code: res.rows[0].code,
+      generations: Number(res.rows[0].generations || 0),
+      lastUsed: res.rows[0].last_used,
+    };
+  }
+
+  // Create on first sight so remaining counts stay consistent.
+  await pool.query(
+    `INSERT INTO ${usageTable} (code, generations) VALUES ($1, 0)
+     ON CONFLICT (code) DO NOTHING`,
+    [upper]
+  );
+  return { code: upper, generations: 0, lastUsed: new Date().toISOString() };
+}
+
+async function bumpCodeUsage(code, by = 1) {
+  await initStorage();
+  const upper = String(code || "").trim().toUpperCase();
+  if (!upper) return null;
+
+  const inc = Number(by || 0) || 0;
+  if (inc <= 0) return getCodeUsage(upper);
+
+  if (!hasPostgres()) {
+    const current = memoryCodeUsage[upper] || { code: upper, generations: 0, lastUsed: new Date().toISOString() };
+    const next = {
+      code: upper,
+      generations: (Number(current.generations) || 0) + inc,
+      lastUsed: new Date().toISOString(),
+    };
+    memoryCodeUsage[upper] = next;
+    return { ...next };
+  }
+
+  const usageTable = process.env.CODE_USAGE_TABLE || "access_code_usage";
+  const res = await pool.query(
+    `INSERT INTO ${usageTable} (code, generations, last_used)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (code)
+     DO UPDATE SET generations = ${usageTable}.generations + EXCLUDED.generations,
+                   last_used = NOW()
+     RETURNING code, generations, last_used`,
+    [upper, inc]
+  );
+  return {
+    code: res.rows[0].code,
+    generations: Number(res.rows[0].generations || 0),
+    lastUsed: res.rows[0].last_used,
+  };
+}
+
 module.exports = {
   initStorage,
   saveCookbook,
   getCookbook,
   storageMode,
+  getCodeUsage,
+  bumpCodeUsage,
 };
 

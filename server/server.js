@@ -6,7 +6,14 @@ const express = require("express");
 const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
  
-const { saveCookbook, getCookbook, initStorage, storageMode } = require("./storage");
+const {
+  saveCookbook,
+  getCookbook,
+  initStorage,
+  storageMode,
+  getCodeUsage,
+  bumpCodeUsage,
+} = require("./storage");
 
 const {
   CUISINES,
@@ -52,7 +59,10 @@ const ACCESS_CODES = (process.env.ACCESS_CODES || "BETA001,BETA002,BETA003")
 const BETA_EXPIRY = process.env.BETA_EXPIRY || "2026-03-01";
 const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 10);
  
-const usageStats = {};
+function isValidBetaCode(code) {
+  const upper = String(code || "").trim().toUpperCase();
+  return ACCESS_CODES.map((c) => c.toUpperCase()).includes(upper);
+}
  
 // ============================================================
 // API ROUTES
@@ -101,7 +111,7 @@ app.get("/api/data", (req, res) => {
 });
  
 // Validate access code
-app.post("/api/validate-code", (req, res) => {
+app.post("/api/validate-code", async (req, res) => {
   const { code } = req.body;
  
   if (!code) {
@@ -121,21 +131,16 @@ app.post("/api/validate-code", (req, res) => {
   }
  
   // Check if valid code
-  if (!ACCESS_CODES.map((c) => c.toUpperCase()).includes(upperCode)) {
+  if (!isValidBetaCode(upperCode)) {
     return res.json({ valid: false, message: "Invalid access code." });
   }
  
-  // Initialize or check usage
-  if (!usageStats[upperCode]) {
-    usageStats[upperCode] = { generations: 0, lastUsed: new Date() };
-  }
- 
-  if (usageStats[upperCode].generations >= MAX_GENERATIONS) {
+  const usage = await getCodeUsage(upperCode);
+  if ((usage?.generations || 0) >= MAX_GENERATIONS) {
     return res.json({ valid: false, message: "Usage limit reached for this code." });
   }
  
-  usageStats[upperCode].lastUsed = new Date();
-  res.json({ valid: true, remaining: MAX_GENERATIONS - usageStats[upperCode].generations });
+  res.json({ valid: true, remaining: MAX_GENERATIONS - (usage?.generations || 0) });
 });
  
 // Chat with expert persona
@@ -207,15 +212,25 @@ app.post("/api/generate-menus", async (req, res) => {
   const { code, context, chatHistory, rejectionHistory } = req.body || {};
  
   const upperCode = code?.trim?.().toUpperCase?.();
-  if (upperCode && usageStats[upperCode]) {
-    usageStats[upperCode].generations++;
-  }
  
   if (!ANTHROPIC_API_KEY) {
     return res.json({ menus: DEMO_MENUS });
   }
  
   try {
+    // Enforce access code and generation limits before spending tokens
+    const isAdmin = upperCode && upperCode === ADMIN_CODE.toUpperCase();
+    if (upperCode && !isAdmin && !isValidBetaCode(upperCode)) {
+      return res.status(403).json({ error: "Invalid access code." });
+    }
+
+    if (upperCode && !isAdmin) {
+      const usage = await bumpCodeUsage(upperCode, 1);
+      if ((usage?.generations || 0) > MAX_GENERATIONS) {
+        return res.status(429).json({ error: "Usage limit reached for this code." });
+      }
+    }
+
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
  
     let chatContext = "";
