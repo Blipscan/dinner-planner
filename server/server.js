@@ -116,6 +116,14 @@ app.get("/api/health", async (req, res) => {
   res.json({
     status: "ok",
     apiConfigured: !!ANTHROPIC_API_KEY,
+    elevenLabsConfigured: {
+      apiKey: !!ELEVENLABS_API_KEY,
+      voices: {
+        planner: !!ELEVENLABS_VOICE_PLANNER,
+        chef: !!ELEVENLABS_VOICE_CHEF,
+        sommelier: !!ELEVENLABS_VOICE_SOMM,
+      },
+    },
     betaExpiry: BETA_EXPIRY,
     version: "2.0.0-cadillac",
     cookbookStorage: storageMode(),

@@ -1763,17 +1763,25 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         });
         if (!res.ok) {
           const j = await res.json().catch(()=>null);
-          // Fallback to browser speech synthesis so user still hears something.
-          showToast(j?.error ? `ElevenLabs voice failed: ${j.error}. Using device voice.` : 'ElevenLabs voice failed. Using device voice.');
-          return speakWithDeviceVoice(t);
+          // Prefer ElevenLabs; avoid "stock voice" fallback when it isn't configured.
+          const msg = j?.error ? String(j.error) : 'ElevenLabs voice failed.';
+          showToast(`ElevenLabs: ${msg}`);
+          // Only fall back if ElevenLabs is up but transiently fails.
+          const shouldFallback = !/not configured/i.test(msg);
+          if (shouldFallback) return speakWithDeviceVoice(t);
+          return;
         }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
-        audio.onended = () => URL.revokeObjectURL(url);
-        await audio.play();
+        await new Promise((resolve) => {
+          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+          // play() resolves when playback *starts*, not when it finishes
+          audio.play().then(() => {}).catch(() => resolve());
+        });
       } catch {
-        // If anything goes wrong, use device voice.
+        // If anything goes wrong, use device voice (best-effort).
         return speakWithDeviceVoice(t);
       }
     }
@@ -1924,12 +1932,13 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       let silenceTimer = null;
       let noSpeechTimer = null;
       let lastTranscript = '';
+      let lastFinal = '';
       const resetSilence = () => {
         clearTimeout(silenceTimer);
-        // Faster turn-taking: stop after ~450ms of no new recognition updates
+        // Hands-free should feel natural: give a bit more time before cutting off.
         silenceTimer = setTimeout(() => {
           try { rec.stop(); } catch {}
-        }, 450);
+        }, 900);
       };
       const clearNoSpeech = () => {
         clearTimeout(noSpeechTimer);
@@ -1937,12 +1946,13 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       };
       rec.onresult = (e) => {
         clearNoSpeech();
-        const result = e.results?.[e.results.length - 1];
+        const idx = (e.results?.length || 1) - 1;
+        const result = e.results?.[idx];
         const text = (result?.[0]?.transcript || '').trim();
-        if (text) {
-          lastTranscript = text;
-          onText(text);
-        }
+        if (text) lastTranscript = text;
+        if (result?.isFinal && text) lastFinal = text;
+        // Show interim/live text; auto-send will use final if available.
+        if (text) onText(text);
         resetSilence();
       };
       rec.onstart = () => {
@@ -1959,16 +1969,16 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         clearTimeout(silenceTimer);
         silenceTimer = setTimeout(() => {
           try { rec.stop(); } catch {}
-        }, 120);
+        }, 250);
       };
       rec.onend = () => {
         clearNoSpeech();
-        onEnd(lastTranscript);
+        onEnd(lastFinal || lastTranscript);
       };
       rec.onerror = (e) => {
         clearNoSpeech();
         showToast(`Speech error: ${e?.error || 'unknown'}`);
-        onEnd(lastTranscript);
+        onEnd(lastFinal || lastTranscript);
       };
       return rec;
     }
