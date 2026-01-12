@@ -54,6 +54,10 @@ app.get("/", (req, res) => {
  
 const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_VOICE_PLANNER = process.env.ELEVENLABS_VOICE_PLANNER;
+const ELEVENLABS_VOICE_CHEF = process.env.ELEVENLABS_VOICE_CHEF;
+const ELEVENLABS_VOICE_SOMM = process.env.ELEVENLABS_VOICE_SOMM;
  
 const ADMIN_CODE = process.env.ADMIN_CODE || "ADMIN2024";
 const ACCESS_CODES = (process.env.ACCESS_CODES || "BETA001,BETA002,BETA003")
@@ -143,6 +147,54 @@ app.get("/api/data", (req, res) => {
   });
 });
  
+// ElevenLabs TTS (server-side proxy so API key stays private)
+app.post("/api/tts", async (req, res) => {
+  const { voice, text } = req.body || {};
+  const cleanText = String(text || "").trim();
+  if (!cleanText) return res.status(400).json({ error: "text is required" });
+  if (cleanText.length > 5000) return res.status(400).json({ error: "text too long" });
+  if (!ELEVENLABS_API_KEY) return res.status(503).json({ error: "ElevenLabs not configured" });
+
+  const v = String(voice || "planner").toLowerCase();
+  const voiceId =
+    v === "chef"
+      ? ELEVENLABS_VOICE_CHEF
+      : v === "sommelier"
+        ? ELEVENLABS_VOICE_SOMM
+        : ELEVENLABS_VOICE_PLANNER;
+
+  if (!voiceId) return res.status(503).json({ error: "ElevenLabs voice ID not configured" });
+
+  try {
+    const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": ELEVENLABS_API_KEY,
+        Accept: "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text: cleanText,
+        model_id: "eleven_turbo_v2_5",
+        voice_settings: { stability: 0.35, similarity_boost: 0.85, style: 0.25, use_speaker_boost: true },
+      }),
+    });
+
+    if (!elRes.ok) {
+      const errText = await elRes.text().catch(() => "");
+      console.error("ElevenLabs TTS error:", elRes.status, errText.slice(0, 400));
+      return res.status(502).json({ error: "ElevenLabs TTS failed" });
+    }
+
+    const buf = Buffer.from(await elRes.arrayBuffer());
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.send(buf);
+  } catch (e) {
+    console.error("ElevenLabs TTS exception:", e);
+    res.status(500).json({ error: "TTS error" });
+  }
+});
+
 // Validate access code
 app.post("/api/validate-code", async (req, res) => {
   const { code } = req.body;

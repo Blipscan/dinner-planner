@@ -261,6 +261,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       align-items: center;
       gap: 0.875rem;
     }
+    .chat-header .spacer { margin-left: auto; }
+    .chat-controls { display:flex; gap:0.6rem; align-items:center; }
+    .chat-controls label { display:flex; gap:0.4rem; align-items:center; font-size:0.85rem; opacity:0.95; }
+    .chat-controls input[type="checkbox"] { transform: translateY(1px); }
+    .mic-banner {
+      background: rgba(201,162,39,0.15);
+      border-top: 1px solid rgba(201,162,39,0.35);
+      border-bottom: 1px solid rgba(201,162,39,0.35);
+      color: white;
+      padding: 0.55rem 1.25rem;
+      font-size: 0.85rem;
+    }
+    .mic-banner strong { color: white; }
     .chat-header .icon { font-size: 1.75rem; }
     .chat-header .name {
       font-family: 'Playfair Display', serif;
@@ -301,6 +314,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       background: white;
     }
     .chat-input-area input { flex: 1; }
+    .mic-btn { padding: 0.95rem 1rem; min-width: 120px; }
     
     /* ===== MENU CARDS ===== */
     .menu-card {
@@ -685,6 +699,28 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <button class="btn btn-primary" onclick="validateCode()">Begin Planning</button>
         </div>
       </div>
+
+      <div class="card">
+        <h2 class="card-title">Talk to Your Planner (Optional)</h2>
+        <p class="card-subtitle">Ask a quick question — the Planner can guide you through the process.</p>
+        <div class="chat-container">
+          <div class="chat-header">
+            <span class="icon">🗂️</span>
+            <span class="name">The Planner</span>
+            <span class="spacer"></span>
+            <div class="chat-controls">
+              <label><input type="checkbox" id="plannerVoiceToggle"> Voice</label>
+            </div>
+          </div>
+          <div class="mic-banner hidden" id="plannerMicBanner"><strong>Microphone ON</strong> — speak now, then click “Stop Mic” to turn it off.</div>
+          <div class="chat-messages" id="plannerMessages"></div>
+          <div class="chat-input-area">
+            <input type="text" id="plannerInput" placeholder="Ask the Planner..." onkeypress="if(event.key==='Enter')sendPlannerChat()">
+            <button class="btn btn-outline mic-btn" id="plannerMicBtn" onclick="togglePlannerMic()">Start Mic</button>
+            <button class="btn btn-primary" onclick="sendPlannerChat()">Send</button>
+          </div>
+        </div>
+      </div>
     </section>
     
     <!-- Step 2: Event Details -->
@@ -852,10 +888,16 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <div class="chat-header">
             <span class="icon" id="chatIcon">👨‍🍳</span>
             <span class="name" id="chatName">The Chef</span>
+            <span class="spacer"></span>
+            <div class="chat-controls">
+              <label><input type="checkbox" id="expertVoiceToggle"> Voice</label>
+            </div>
           </div>
+          <div class="mic-banner hidden" id="expertMicBanner"><strong>Microphone ON</strong> — speak now, then click “Stop Mic” to turn it off.</div>
           <div class="chat-messages" id="chatMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Ask a question or share your vision..." onkeypress="if(event.key==='Enter')sendChat()">
+            <button class="btn btn-outline mic-btn" id="expertMicBtn" onclick="toggleExpertMic()">Start Mic</button>
             <button class="btn btn-primary" onclick="sendChat()">Send</button>
           </div>
         </div>
@@ -918,6 +960,28 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div class="card">
         <h3 class="card-title" style="font-size:1.2rem">Your Selected Menu</h3>
         <div id="selectedMenuSummary"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Sommelier Service (After Menu Choice)</h2>
+        <p class="card-subtitle">Ask about serving order, decanting, glassware, cocktails/mocktails, and how the pairings work.</p>
+        <div class="chat-container">
+          <div class="chat-header">
+            <span class="icon">🍷</span>
+            <span class="name">The Sommelier</span>
+            <span class="spacer"></span>
+            <div class="chat-controls">
+              <label><input type="checkbox" id="sommVoiceToggle"> Voice</label>
+            </div>
+          </div>
+          <div class="mic-banner hidden" id="sommMicBanner"><strong>Microphone ON</strong> — speak now, then click “Stop Mic” to turn it off.</div>
+          <div class="chat-messages" id="sommMessages"></div>
+          <div class="chat-input-area">
+            <input type="text" id="sommInput" placeholder="Ask the Sommelier..." onkeypress="if(event.key==='Enter')sendSommChat()">
+            <button class="btn btn-outline mic-btn" id="sommMicBtn" onclick="toggleSommMic()">Start Mic</button>
+            <button class="btn btn-primary" onclick="sendSommChat()">Send</button>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -1022,6 +1086,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let wineTiers = null;
     let wineTiersLoading = false;
     let guests = [];
+    let plannerHistory = [];
+    let sommHistory = [];
+    let speech = { planner: null, expert: null, somm: null };
     
     // ============================================================
     // INITIALIZATION
@@ -1067,9 +1134,175 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       document.getElementById('guestList').addEventListener('input', () => rebuildGuests());
       document.getElementById('guestCount').addEventListener('change', () => rebuildGuests());
       rebuildGuests();
+
+      // Initialize planner + somm chat
+      initPlannerChat();
+      initSommChat();
     }
     
     document.addEventListener('DOMContentLoaded', init);
+
+    function voiceEnabled(id) {
+      const el = document.getElementById(id);
+      return !!el && el.checked;
+    }
+
+    async function speak(text, voiceRole) {
+      // Avoid speaking empty or placeholder responses.
+      const t = String(text || '').trim();
+      if (!t || t === '...') return;
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ voice: voiceRole, text: t })
+        });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => URL.revokeObjectURL(url);
+        await audio.play();
+      } catch {
+        // Silent fail (voice is optional).
+      }
+    }
+
+    async function ensureMicPermission() {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('Microphone not supported');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+    }
+
+    function createRecognizer(onText, onEnd) {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return null;
+      const rec = new SR();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+      rec.onresult = (e) => {
+        const text = e.results?.[0]?.[0]?.transcript || '';
+        if (text) onText(text);
+      };
+      rec.onend = () => onEnd();
+      return rec;
+    }
+
+    // =========================
+    // Planner chat (Step 1)
+    // =========================
+    function initPlannerChat() {
+      plannerHistory = [{
+        role: 'assistant',
+        content: "Welcome — I’m your Planner. If you’d like, tell me what kind of night you want to host (intimate, festive, elegant, casual) and any dietary must‑dos."
+      }];
+      renderPlannerChat();
+    }
+
+    function renderPlannerChat() {
+      const container = document.getElementById('plannerMessages');
+      if (!container) return;
+      container.innerHTML = plannerHistory.map(msg => `
+        <div class="chat-message ${msg.role}">
+          <div class="bubble">${formatChatMessage(msg.content)}</div>
+        </div>
+      `).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendPlannerChat() {
+      const input = document.getElementById('plannerInput');
+      const message = (input?.value || '').trim();
+      if (!message) return;
+      plannerHistory.push({ role: 'user', content: message });
+      input.value = '';
+      renderPlannerChat();
+
+      plannerHistory.push({ role: 'assistant', content: '...' });
+      renderPlannerChat();
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persona: 'planner',
+            messages: plannerHistory.slice(0, -1),
+            context: getContext()
+          })
+        });
+        const data = await res.json();
+        const reply = data.response || 'Please try again.';
+        plannerHistory[plannerHistory.length - 1] = { role: 'assistant', content: reply };
+        renderPlannerChat();
+        if (voiceEnabled('plannerVoiceToggle')) speak(reply, 'planner');
+      } catch {
+        plannerHistory[plannerHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
+        renderPlannerChat();
+      }
+    }
+
+    async function togglePlannerMic() {
+      const btn = document.getElementById('plannerMicBtn');
+      const banner = document.getElementById('plannerMicBanner');
+      if (!speech.planner) {
+        try {
+          await ensureMicPermission();
+        } catch {
+          alert('Microphone permission denied or not available.');
+          return;
+        }
+        const rec = createRecognizer((text) => {
+          document.getElementById('plannerInput').value = text;
+        }, () => {
+          speech.planner = null;
+          btn.textContent = 'Start Mic';
+          banner.classList.add('hidden');
+          alert('Microphone off.');
+        });
+        if (!rec) { alert('Speech recognition not supported in this browser.'); return; }
+        speech.planner = rec;
+        btn.textContent = 'Stop Mic';
+        banner.classList.remove('hidden');
+        alert('Microphone on. Speak now, then click “Stop Mic” when finished.');
+        rec.start();
+      } else {
+        speech.planner.stop();
+      }
+    }
+
+    // =========================
+    // Expert mic + voice (Step 4)
+    // =========================
+    async function toggleExpertMic() {
+      const btn = document.getElementById('expertMicBtn');
+      const banner = document.getElementById('expertMicBanner');
+      if (!speech.expert) {
+        try {
+          await ensureMicPermission();
+        } catch {
+          alert('Microphone permission denied or not available.');
+          return;
+        }
+        const rec = createRecognizer((text) => {
+          document.getElementById('chatInput').value = text;
+        }, () => {
+          speech.expert = null;
+          btn.textContent = 'Start Mic';
+          banner.classList.add('hidden');
+          alert('Microphone off.');
+        });
+        if (!rec) { alert('Speech recognition not supported in this browser.'); return; }
+        speech.expert = rec;
+        btn.textContent = 'Stop Mic';
+        banner.classList.remove('hidden');
+        alert('Microphone on. Speak now, then click “Stop Mic” when finished.');
+        rec.start();
+      } else {
+        speech.expert.stop();
+      }
+    }
     
     // ============================================================
     // INIT HELPERS
@@ -1575,9 +1808,99 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         
         chatHistory[chatHistory.length - 1] = { role: 'assistant', content: data.response || 'Please try again.' };
         renderChat();
+        if (voiceEnabled('expertVoiceToggle')) {
+          const role = (selectedExpert === 'sommelier') ? 'sommelier' : (selectedExpert === 'chef' ? 'chef' : 'planner');
+          speak(chatHistory[chatHistory.length - 1].content, role);
+        }
       } catch (err) {
         chatHistory[chatHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
         renderChat();
+      }
+    }
+
+    // =========================
+    // Sommelier chat (Step 6)
+    // =========================
+    function initSommChat() {
+      sommHistory = [{
+        role: 'assistant',
+        content: "I’m your Sommelier. Once you’ve chosen a menu, ask me how to serve it: order, temps, decanting, glassware, and cocktails/mocktails."
+      }];
+      renderSommChat();
+    }
+
+    function renderSommChat() {
+      const container = document.getElementById('sommMessages');
+      if (!container) return;
+      sommHistory = sommHistory.slice(-40);
+      container.innerHTML = sommHistory.map(msg => `
+        <div class="chat-message ${msg.role}">
+          <div class="bubble">${formatChatMessage(msg.content)}</div>
+        </div>
+      `).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendSommChat() {
+      const input = document.getElementById('sommInput');
+      const message = (input?.value || '').trim();
+      if (!message) return;
+      sommHistory.push({ role: 'user', content: message });
+      input.value = '';
+      renderSommChat();
+
+      sommHistory.push({ role: 'assistant', content: '...' });
+      renderSommChat();
+
+      try {
+        const menuForChat = (selectedMenu !== null && menus && menus[selectedMenu]) ? menus[selectedMenu] : null;
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persona: 'sommelier',
+            messages: sommHistory.slice(0, -1),
+            context: getContext(),
+            menu: menuForChat
+          })
+        });
+        const data = await res.json();
+        const reply = data.response || 'Please try again.';
+        sommHistory[sommHistory.length - 1] = { role: 'assistant', content: reply };
+        renderSommChat();
+        if (voiceEnabled('sommVoiceToggle')) speak(reply, 'sommelier');
+      } catch {
+        sommHistory[sommHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
+        renderSommChat();
+      }
+    }
+
+    async function toggleSommMic() {
+      const btn = document.getElementById('sommMicBtn');
+      const banner = document.getElementById('sommMicBanner');
+      if (!speech.somm) {
+        try {
+          await ensureMicPermission();
+        } catch {
+          alert('Microphone permission denied or not available.');
+          return;
+        }
+        const rec = createRecognizer((text) => {
+          document.getElementById('sommInput').value = text;
+        }, () => {
+          speech.somm = null;
+          btn.textContent = 'Start Mic';
+          banner.classList.add('hidden');
+          alert('Microphone off.');
+        });
+        if (!rec) { alert('Speech recognition not supported in this browser.'); return; }
+        speech.somm = rec;
+        btn.textContent = 'Stop Mic';
+        banner.classList.remove('hidden');
+        alert('Microphone on. Speak now, then click “Stop Mic” when finished.');
+        rec.start();
+      } else {
+        speech.somm.stop();
       }
     }
     
