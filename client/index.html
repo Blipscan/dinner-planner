@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dinner Party Planner</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Montserrat:wght@400;600&family=Cormorant+Garamond:wght@400;600&family=Cinzel:wght@400;600&family=Libre+Baskerville:wght@400;700&family=Great+Vibes&display=swap">
   <style>
 :root{
   --navy:#1E3A5F; --navy-dark:#152b46;
@@ -949,13 +950,24 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // INIT HELPERS
     // ============================================================
+    const STYLE_FONTS = {
+      classic: "'Libre Baskerville', Georgia, serif",
+      modern: "'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+      romantic: "'Cormorant Garamond', Georgia, serif",
+      artdeco: "'Cinzel', Georgia, serif",
+      rustic: "'Libre Baskerville', Georgia, serif",
+      botanical: "'Cormorant Garamond', Georgia, serif",
+      coastal: "'Playfair Display', Georgia, serif",
+      urban: "'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+    };
+
     function initStyleGrid() {
       const grid = document.getElementById('styleGrid');
       if (!DATA.MENU_STYLES) return;
       grid.innerHTML = DATA.MENU_STYLES.map(s => `
         <div class="style-card ${selectedStyle === s.id ? 'selected' : ''}" onclick="selectStyle('${s.id}')">
-          <div class="name">${s.name}</div>
-          <div class="desc">${s.desc}</div>
+          <div class="name" style="font-family:${STYLE_FONTS[s.id] || `'Playfair Display', Georgia, serif`};">${s.name}</div>
+          <div class="desc" style="font-family:${STYLE_FONTS[s.id] || `inherit`};">${s.desc}</div>
         </div>
       `).join('');
     }
