@@ -2572,7 +2572,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       const inspiration = DATA.MENU_INSPIRATIONS?.find(i => i.id === selectedInspiration)?.title || 'special';
       
       const greetings = {
-        chef: `Welcome! I'm thrilled to help plan ${eventTitle}. I see you're cooking for ${guestCount} guests with a ${inspiration.toLowerCase()} inspiration — wonderful choice. Tell me, what story do you want your menu to tell? Is there an ingredient or dish you've been dreaming about?`,
+        chef: `Hi — I’m your Chef for ${eventTitle}. How can I help?`,
         sommelier: `What a pleasure to help with ${eventTitle}! Before we discuss wines, tell me about your guests. Are they adventurous with wine, or do they prefer familiar favorites? And is there a memorable bottle you've shared before that we might echo?`,
         instructor: `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. First, tell me about your kitchen setup and how much time you'll have for prep. What's your biggest concern about executing this dinner?`,
         all: `Welcome! The three of us are excited to help plan ${eventTitle}.\n\n**Chef:** Let's start with your vision — what flavors are you craving?\n\n**Sommelier:** I'll ensure every course has the perfect pour.\n\n**Instructor:** And I'll make sure you can execute it all calmly.\n\nWhat would you like to discuss first?`,
