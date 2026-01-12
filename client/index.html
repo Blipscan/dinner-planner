@@ -8,13 +8,318 @@
   <style>
 :root{
   --navy:#1E3A5F; --navy-dark:#152b46;
-  --gold:#C9A227; --gold-light:#D4B03A;
+  --navy-light:#2B5B93;
+  --gold:#C9A227; --gold-light:#D4B03A; --gold-dark:#8b6c18;
   --cream:#FDF8F3; --cream-dark:#EFE6DD;
   --text:#1f2937; --text-light:#6b7280;
   --success:#16a34a; --success-light:#dcfce7;
   --error:#dc2626; --error-light:#fee2e2;
 }
-body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}    
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family: Georgia, serif;
+  background:
+    radial-gradient(1200px 600px at 20% 0%, rgba(201,162,39,0.10), transparent 55%),
+    radial-gradient(900px 520px at 95% 10%, rgba(30,58,95,0.12), transparent 52%),
+    linear-gradient(180deg, #ffffff 0%, var(--cream) 55%, var(--cream) 100%);
+  color:var(--text);
+}
+
+/* ===== BASE LAYOUT ===== */
+.container{
+  width: min(1100px, calc(100vw - 2.25rem));
+  margin: 0 auto;
+  padding: 1.25rem 0 3rem;
+}
+
+/* ===== TOP BAR ===== */
+.topbar{
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(17,24,39,0.06);
+}
+.topbar-inner{
+  width: min(1100px, calc(100vw - 2.25rem));
+  margin: 0 auto;
+  padding: 0.85rem 0;
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.brand{display:flex;align-items:center;gap:0.85rem;min-width:0;}
+.brand-icon{
+  width: 40px; height: 40px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(30,58,95,0.10) 0%, rgba(201,162,39,0.14) 100%);
+  border: 1px solid rgba(17,24,39,0.08);
+  font-size: 1.25rem;
+}
+.brand-title{
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--navy);
+  line-height: 1.1;
+  font-size: 1.05rem;
+}
+.brand-tagline{
+  font-size: 0.88rem;
+  color: var(--text-light);
+  line-height: 1.25;
+}
+.beta-pill{
+  display:inline-flex;
+  align-items:center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--navy);
+  background: rgba(30,58,95,0.08);
+  border: 1px solid rgba(30,58,95,0.14);
+}
+
+/* ===== PROGRESS ===== */
+.progress{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 0.55rem;
+  padding: 0.8rem 0 1.25rem;
+}
+.progress-step{
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(17,24,39,0.10);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select:none;
+}
+.progress-step:hover{ border-color: rgba(30,58,95,0.25); color: var(--navy); }
+.progress-step.active{
+  color: white;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+  border-color: rgba(30,58,95,0.35);
+  box-shadow: 0 8px 18px rgba(30,58,95,0.20);
+}
+.progress-step.complete{
+  color: var(--navy);
+  background: rgba(30,58,95,0.08);
+  border-color: rgba(30,58,95,0.18);
+}
+.progress-line{
+  width: 26px; height: 2px;
+  background: rgba(17,24,39,0.12);
+  border-radius: 999px;
+}
+.progress-line.complete{
+  background: rgba(30,58,95,0.35);
+}
+
+/* ===== CARDS + FORMS ===== */
+.card{
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(17,24,39,0.10);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.06);
+  margin: 0 0 1.25rem 0;
+}
+.card-title{
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  margin: 0 0 0.45rem;
+  color: var(--navy);
+}
+.card-subtitle{
+  margin: 0 0 1.25rem;
+  color: var(--text-light);
+  line-height: 1.55;
+  font-size: 1.02rem;
+}
+.form-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.form-group{ margin: 0 0 1rem; }
+label{
+  display:block;
+  font-weight: 700;
+  margin: 0 0 0.45rem;
+  color: rgba(17,24,39,0.88);
+}
+input[type="text"], input[type="date"], textarea, select{
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(17,24,39,0.14);
+  background: rgba(255,255,255,0.95);
+  font: inherit;
+  outline: none;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+textarea{ resize: vertical; }
+input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus{
+  border-color: rgba(30,58,95,0.45);
+  box-shadow: 0 0 0 4px rgba(30,58,95,0.10);
+}
+
+/* ===== CHIPS ===== */
+.chip-group{ display:flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.75rem; }
+.chip{
+  display:inline-flex;
+  align-items:center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(17,24,39,0.12);
+  background: rgba(255,255,255,0.92);
+  color: rgba(17,24,39,0.80);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.18s ease;
+}
+.chip:hover{ border-color: rgba(30,58,95,0.25); color: var(--navy); }
+.chip.selected{
+  border-color: rgba(30,58,95,0.35);
+  background: rgba(30,58,95,0.08);
+  color: var(--navy);
+}
+
+/* ===== STEP 1 HERO ===== */
+#step1{ padding-bottom: 0.5rem; }
+.step1-hero{
+  display:grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 0.25rem;
+}
+.hero-panel{
+  border-radius: 18px;
+  padding: 2.25rem;
+  background:
+    radial-gradient(700px 380px at 15% 10%, rgba(201,162,39,0.18), transparent 60%),
+    radial-gradient(640px 360px at 95% 30%, rgba(30,58,95,0.18), transparent 58%),
+    linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.86) 100%);
+  border: 1px solid rgba(17,24,39,0.10);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.08);
+  overflow: hidden;
+  position: relative;
+}
+.hero-kicker{
+  display:inline-flex;
+  align-items:center;
+  gap: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: rgba(30,58,95,0.85);
+  margin-bottom: 0.75rem;
+}
+.hero-title{
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.1rem, 3.4vw, 3rem);
+  line-height: 1.06;
+  color: var(--navy);
+  margin: 0 0 0.75rem;
+}
+.hero-lede{
+  font-size: 1.08rem;
+  line-height: 1.65;
+  color: rgba(17,24,39,0.74);
+  margin: 0 0 1.25rem;
+}
+.hero-points{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.hero-point{
+  display:flex;
+  gap: 0.75rem;
+  align-items:flex-start;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(17,24,39,0.08);
+}
+.hero-point .dot{
+  width: 12px; height: 12px; border-radius: 999px;
+  background: var(--gold);
+  box-shadow: 0 0 0 4px rgba(201,162,39,0.16);
+  margin-top: 0.25rem;
+  flex: 0 0 auto;
+}
+.hero-point .text{ color: rgba(17,24,39,0.78); line-height: 1.5; }
+.hero-point .text strong{ color: rgba(17,24,39,0.92); }
+.hero-mini{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1.15rem;
+}
+.mini-pill{
+  display:inline-flex;
+  align-items:center;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(17,24,39,0.72);
+  border: 1px solid rgba(17,24,39,0.10);
+  background: rgba(255,255,255,0.75);
+}
+.hero-entry{ display:flex; flex-direction: column; gap: 1rem; }
+.entry-card{ margin: 0; }
+.drawer{
+  padding: 0;
+  overflow: hidden;
+}
+.drawer > summary{
+  list-style: none;
+  cursor: pointer;
+  padding: 1.25rem 1.35rem;
+  border-bottom: 1px solid rgba(17,24,39,0.08);
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.drawer > summary::-webkit-details-marker{ display:none; }
+.drawer > summary .sum-title{
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  color: var(--navy);
+}
+.drawer > summary .sum-hint{
+  color: var(--text-light);
+  font-size: 0.92rem;
+}
+.drawer[open] > summary{ background: rgba(30,58,95,0.04); }
+.drawer-body{ padding: 1.25rem 1.35rem 1.35rem; }
+
     /* ===== INSPIRATION CARDS ===== */
     .inspiration-grid {
       display: grid;
@@ -707,8 +1012,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     /* ===== RESPONSIVE ===== */
     @media (max-width: 700px) {
       body { font-size: 16px; }
-      .header h1 { font-size: 2rem; }
-      .header { padding: 2rem 1rem 3rem; }
+      .brand-title { font-size: 1rem; }
+      .brand-tagline { display:none; }
       .card { padding: 1.5rem; }
       .form-row { grid-template-columns: 1fr; }
       .inspiration-grid { grid-template-columns: repeat(2, 1fr); }
@@ -721,15 +1026,25 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       .progress-step { width: 30px; height: 30px; font-size: 0.8rem; }
       .progress-line { width: 18px; }
       .btn { padding: 0.85rem 1.5rem; }
+      .step1-hero { grid-template-columns: 1fr; }
+      .hero-panel { padding: 1.75rem; }
+      .hero-mini { margin-top: 0.9rem; }
     }
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="header-content">
-      <div class="header-icon">🍽️</div>
-      <h1>Dinner Party Planner</h1>
-      <p>Create Unforgettable Experiences</p>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-icon">🍽️</div>
+        <div class="brand-text">
+          <div class="brand-title">Dinner Party Planner</div>
+          <div class="brand-tagline">Create unforgettable experiences</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="beta-pill">Beta</span>
+      </div>
     </div>
   </header>
   
@@ -753,44 +1068,76 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     <!-- Step 1: Access Code -->
     <section id="step1">
-      <div class="card">
-        <h2 class="card-title">Welcome, Host</h2>
-        <p class="card-subtitle">Enter your access code to begin planning an unforgettable dinner party experience.</p>
-        <div class="form-group">
-          <label for="accessCode">Access Code</label>
-          <input type="text" id="accessCode" placeholder="Enter your beta access code" autocomplete="off">
+      <div class="step1-hero">
+        <div class="hero-panel">
+          <div class="hero-kicker">Your private dinner-party concierge</div>
+          <h2 class="hero-title">Make a beautiful plan — then enjoy your own party.</h2>
+          <p class="hero-lede">
+            In a few minutes, you’ll have a complete menu, a beverage program, a shopping list, and a cooking timeline —
+            all tailored to your guests and your style.
+          </p>
+          <div class="hero-points">
+            <div class="hero-point"><span class="dot"></span><div class="text"><strong>Fast decisions.</strong> One clear choice at a time — no overwhelm.</div></div>
+            <div class="hero-point"><span class="dot"></span><div class="text"><strong>Execution-ready.</strong> Recipes, prep plan, and service flow that actually works.</div></div>
+            <div class="hero-point"><span class="dot"></span><div class="text"><strong>Printables included.</strong> Place cards, menus, invitations, and a polished cookbook.</div></div>
+          </div>
+          <div class="hero-mini" aria-label="What you’ll get">
+            <span class="mini-pill">Menus</span>
+            <span class="mini-pill">Shopping list</span>
+            <span class="mini-pill">Timeline</span>
+            <span class="mini-pill">Wine tiers</span>
+            <span class="mini-pill">Cookbook (DOCX + HTML)</span>
+          </div>
         </div>
-        <div id="codeMessage"></div>
-        <div class="actions">
-          <button class="btn btn-primary" onclick="validateCode()">Begin Planning</button>
-        </div>
-      </div>
 
-      <div class="card">
-        <h2 class="card-title">Talk to Your Planner (Optional)</h2>
-        <p class="card-subtitle">Ask a quick question — the Planner can guide you through the process.</p>
-        <div class="chat-container">
-          <div class="chat-header">
-            <span class="icon">🗂️</span>
-            <span class="name">The Planner</span>
-            <span class="spacer"></span>
-            <div class="chat-controls">
-              <span class="mic-status"><span class="mic-dot" id="plannerMicDot"></span><span id="plannerMicText">Mic off</span></span>
-              <span class="status-pill"><span class="status-dot off" id="plannerStatusDot"></span><span id="plannerStatusText">Idle</span></span>
-              <label><input type="checkbox" id="plannerVoiceToggle"> Voice</label>
-              <label><input type="checkbox" id="plannerAutoSendToggle" checked> Auto-send</label>
-              <label><input type="checkbox" id="plannerHandsFreeToggle"> Hands-free</label>
-              <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
+        <div class="hero-entry">
+          <div class="card entry-card">
+            <h2 class="card-title">Welcome, Host</h2>
+            <p class="card-subtitle">Enter your access code to start.</p>
+            <div class="form-group">
+              <label for="accessCode">Access Code</label>
+              <input type="text" id="accessCode" placeholder="Enter your beta access code" autocomplete="off">
+            </div>
+            <div id="codeMessage"></div>
+            <div class="actions" style="margin-top:1rem">
+              <button class="btn btn-primary" onclick="validateCode()">Begin Planning</button>
             </div>
           </div>
-          <div class="mic-banner hidden" id="plannerMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
-          <div class="interim hidden" id="plannerInterim"></div>
-          <div class="chat-messages" id="plannerMessages"></div>
-          <div class="chat-input-area">
-            <input type="text" id="plannerInput" placeholder="Ask the Planner..." onkeypress="if(event.key==='Enter')sendPlannerChat()">
-            <button class="btn btn-outline mic-btn" id="plannerMicBtn" onclick="togglePlannerMic()">Start Mic</button>
-            <button class="btn btn-primary" onclick="sendPlannerChat()">Send</button>
-          </div>
+
+          <details class="card drawer">
+            <summary>
+              <div>
+                <div class="sum-title">Talk to your Planner (optional)</div>
+                <div class="sum-hint">Ask a quick question — voice or type.</div>
+              </div>
+              <span class="beta-pill" style="letter-spacing:0.02em;text-transform:none;font-weight:700;font-size:0.85rem">🗂️</span>
+            </summary>
+            <div class="drawer-body">
+              <div class="chat-container">
+                <div class="chat-header">
+                  <span class="icon">🗂️</span>
+                  <span class="name">The Planner</span>
+                  <span class="spacer"></span>
+                  <div class="chat-controls">
+                    <span class="mic-status"><span class="mic-dot" id="plannerMicDot"></span><span id="plannerMicText">Mic off</span></span>
+                    <span class="status-pill"><span class="status-dot off" id="plannerStatusDot"></span><span id="plannerStatusText">Idle</span></span>
+                    <label><input type="checkbox" id="plannerVoiceToggle"> Voice</label>
+                    <label><input type="checkbox" id="plannerAutoSendToggle" checked> Auto-send</label>
+                    <label><input type="checkbox" id="plannerHandsFreeToggle"> Hands-free</label>
+                    <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
+                  </div>
+                </div>
+                <div class="mic-banner hidden" id="plannerMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
+                <div class="interim hidden" id="plannerInterim"></div>
+                <div class="chat-messages" id="plannerMessages"></div>
+                <div class="chat-input-area">
+                  <input type="text" id="plannerInput" placeholder="Ask the Planner..." onkeypress="if(event.key==='Enter')sendPlannerChat()">
+                  <button class="btn btn-outline mic-btn" id="plannerMicBtn" onclick="togglePlannerMic()">Start Mic</button>
+                  <button class="btn btn-primary" onclick="sendPlannerChat()">Send</button>
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </section>
