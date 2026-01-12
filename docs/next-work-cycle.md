@@ -112,6 +112,8 @@ Fix:
 
 - **Public URL works**
   - `GET /api/health` returns `{ status: "ok" }`
+- **Admin access-code visibility**
+  - Open `/admin.html`, enter admin code, confirm usage table loads
 - **Menu generation**
   - Step through wizard → generate menus → verify 5 menus render
 - **Cookbook generation**
@@ -158,4 +160,18 @@ Recommended timing:
 
 Rule of thumb:
 - Freeze UI polish when feature work shifts from “what is it?” to “how does it feel?”, and when you’re spending more time moving buttons than fixing core user value.
+
+## Admin endpoints/pages added
+
+- **Admin page**: `/admin.html`
+- **Admin API**:
+  - `GET /api/admin/code-usage` (requires `x-admin-code`)
+  - `POST /api/admin/cleanup-cookbooks` (requires `x-admin-code`)
+
+## Retention / cleanup
+
+- Cookbooks are cleaned up automatically on an interval.
+- Environment variables:
+  - `COOKBOOK_TTL_DAYS` (default: 30)
+  - `COOKBOOK_CLEANUP_INTERVAL_HOURS` (default: 12)
 

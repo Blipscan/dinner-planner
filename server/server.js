@@ -13,6 +13,8 @@ const {
   storageMode,
   getCodeUsage,
   bumpCodeUsage,
+  listCodeUsage,
+  cleanupCookbooks,
 } = require("./storage");
 
 const {
@@ -58,12 +60,25 @@ const ACCESS_CODES = (process.env.ACCESS_CODES || "BETA001,BETA002,BETA003")
  
 const BETA_EXPIRY = process.env.BETA_EXPIRY || "2026-03-01";
 const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 10);
+const COOKBOOK_TTL_DAYS = parseInt(process.env.COOKBOOK_TTL_DAYS || "30", 10);
+const COOKBOOK_CLEANUP_INTERVAL_HOURS = parseInt(process.env.COOKBOOK_CLEANUP_INTERVAL_HOURS || "12", 10);
  
 function isValidBetaCode(code) {
   const upper = String(code || "").trim().toUpperCase();
   return ACCESS_CODES.map((c) => c.toUpperCase()).includes(upper);
 }
  
+let lastCookbookCleanup = null;
+async function runCookbookCleanup() {
+  try {
+    const result = await cleanupCookbooks(COOKBOOK_TTL_DAYS);
+    lastCookbookCleanup = { at: new Date().toISOString(), ...result };
+  } catch (e) {
+    console.error("Cookbook cleanup error:", e);
+    lastCookbookCleanup = { at: new Date().toISOString(), error: String(e?.message || e) };
+  }
+}
+
 // ============================================================
 // API ROUTES
 // ============================================================
@@ -84,6 +99,8 @@ app.get("/api/health", async (req, res) => {
     betaExpiry: BETA_EXPIRY,
     version: "2.0.0-cadillac",
     cookbookStorage: storageMode(),
+    cookbookTtlDays: COOKBOOK_TTL_DAYS,
+    lastCookbookCleanup,
   });
 });
  
@@ -143,6 +160,53 @@ app.post("/api/validate-code", async (req, res) => {
   res.json({ valid: true, remaining: MAX_GENERATIONS - (usage?.generations || 0) });
 });
  
+function requireAdmin(req) {
+  const headerCode = req.get("x-admin-code");
+  const queryCode = req.query?.adminCode;
+  const bodyCode = req.body?.adminCode;
+  const provided = (headerCode || queryCode || bodyCode || "").toString();
+  return provided && provided.toUpperCase() === ADMIN_CODE.toUpperCase();
+}
+
+// Admin: access code usage overview
+app.get("/api/admin/code-usage", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(401).json({ error: "Unauthorized" });
+
+  const rows = await listCodeUsage();
+  const byCode = Object.fromEntries(rows.map((r) => [String(r.code).toUpperCase(), r]));
+
+  const known = ACCESS_CODES.map((c) => c.trim()).filter(Boolean).map((c) => c.toUpperCase());
+  const allCodes = Array.from(new Set([...known, ...Object.keys(byCode)])).sort();
+
+  const usage = allCodes.map((code) => {
+    const row = byCode[code];
+    const generations = row?.generations || 0;
+    return {
+      code,
+      known: known.includes(code),
+      generations,
+      remaining: Math.max(0, MAX_GENERATIONS - generations),
+      lastUsed: row?.lastUsed || null,
+      limit: MAX_GENERATIONS,
+    };
+  });
+
+  res.json({
+    storage: storageMode(),
+    count: usage.length,
+    usage,
+  });
+});
+
+// Admin: run cookbook cleanup now (optional ttlDays override)
+app.post("/api/admin/cleanup-cookbooks", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(401).json({ error: "Unauthorized" });
+  const ttlDays = req.body?.ttlDays ?? COOKBOOK_TTL_DAYS;
+  const result = await cleanupCookbooks(ttlDays);
+  lastCookbookCleanup = { at: new Date().toISOString(), ...result };
+  res.json(lastCookbookCleanup);
+});
+
 // Chat with expert persona
 app.post("/api/chat", async (req, res) => {
   const { persona, messages, context, menu } = req.body || {};
@@ -163,6 +227,11 @@ app.post("/api/chat", async (req, res) => {
  
     const menuData = menu || context?.menu || null;
     const menuSummary = buildMenuContextSummary(menuData);
+    const winePairings = buildWinePairingSummary(menuData);
+    const wineGuidance =
+      persona === "sommelier" || persona === "all"
+        ? `\nSommelier continuity rules:\n- If a wine is already listed in the menu OR you already recommended a specific bottle earlier in this conversation, treat that as authoritative unless the user explicitly asks to change it.\n- Before asking a question, scan the prior messages for your own earlier recommendations.\n- Do NOT ask basic classification questions about a bottle already named (e.g., “is it red/white?”).\n`
+        : "";
 
     const systemPrompt =
       (personaData?.systemPrompt || "") +
@@ -183,8 +252,8 @@ Current event context:
 - Restrictions: ${context?.restrictions?.join(", ") || "none"}
 
 ${menuSummary ? `\nSelected/Current Menu (if provided):\n${menuSummary}\n` : ""}
-
-If you have already recommended specific wines earlier in this conversation, do NOT ask basic classification questions (e.g., “is it red/white?”). Refer back to your prior recommendation and proceed with confident service guidance.
+${winePairings ? `\nKnown Wine Pairings (from the menu; treat as authoritative):\n${winePairings}\n` : ""}
+${wineGuidance}
  
 Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.`;
  
@@ -312,6 +381,15 @@ function buildMenuContextSummary(menu) {
     return `${i + 1}. ${c?.type || "Course"}: ${c?.name || ""}${wine}`.trim();
   });
   return lines.length ? lines.join("\n") : "";
+}
+
+function buildWinePairingSummary(menu) {
+  if (!menu || !Array.isArray(menu.courses)) return "";
+  const wines = menu.courses
+    .map((c) => ({ type: c?.type, name: c?.name, wine: c?.wine }))
+    .filter((c) => c.wine);
+  if (!wines.length) return "";
+  return wines.map((c) => `- ${c.type}: ${c.wine} (paired with ${c.name})`).join("\n");
 }
 
 async function generateRecipes({ menu, context }) {
@@ -616,3 +694,7 @@ app.post("/api/print-product", async (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Dinner Planner listening on port ${PORT} (${ANTHROPIC_API_KEY ? "API key set" : "demo mode"})`);
 });
+
+// Periodic cookbook retention cleanup (best-effort)
+runCookbookCleanup();
+setInterval(runCookbookCleanup, Math.max(1, COOKBOOK_CLEANUP_INTERVAL_HOURS) * 60 * 60 * 1000);

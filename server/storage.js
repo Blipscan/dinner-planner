@@ -69,7 +69,7 @@ async function initStorage() {
 async function saveCookbook(id, data) {
   await initStorage();
   if (!hasPostgres()) {
-    memoryStore[id] = data;
+    memoryStore[id] = { data, createdAt: new Date().toISOString() };
     return;
   }
   const table = process.env.COOKBOOKS_TABLE || DEFAULT_TABLE;
@@ -82,10 +82,43 @@ async function saveCookbook(id, data) {
 
 async function getCookbook(id) {
   await initStorage();
-  if (!hasPostgres()) return memoryStore[id] || null;
+  if (!hasPostgres()) {
+    const v = memoryStore[id];
+    if (!v) return null;
+    // Back-compat if older in-memory entries were stored as raw data.
+    if (v && typeof v === "object" && Object.prototype.hasOwnProperty.call(v, "data")) return v.data;
+    return v;
+  }
   const table = process.env.COOKBOOKS_TABLE || DEFAULT_TABLE;
   const res = await pool.query(`SELECT data FROM ${table} WHERE id = $1`, [id]);
   return res?.rows?.[0]?.data || null;
+}
+
+async function cleanupCookbooks(ttlDays = 30) {
+  await initStorage();
+  const days = Math.max(1, Number(ttlDays) || 30);
+
+  if (!hasPostgres()) {
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    let deleted = 0;
+    for (const [id, v] of Object.entries(memoryStore)) {
+      const createdAt = v?.createdAt ? Date.parse(v.createdAt) : null;
+      // If we can't parse createdAt, keep it (safer).
+      if (!createdAt || Number.isNaN(createdAt)) continue;
+      if (createdAt < cutoff) {
+        delete memoryStore[id];
+        deleted++;
+      }
+    }
+    return { deleted, ttlDays: days, storage: "memory" };
+  }
+
+  const table = process.env.COOKBOOKS_TABLE || DEFAULT_TABLE;
+  const res = await pool.query(
+    `DELETE FROM ${table} WHERE created_at < NOW() - ($1 * INTERVAL '1 day')`,
+    [days]
+  );
+  return { deleted: Number(res?.rowCount || 0), ttlDays: days, storage: "postgres" };
 }
 
 async function getCodeUsage(code) {
@@ -153,6 +186,23 @@ async function bumpCodeUsage(code, by = 1) {
   };
 }
 
+async function listCodeUsage() {
+  await initStorage();
+  if (!hasPostgres()) {
+    return Object.values(memoryCodeUsage).map((r) => ({ ...r }));
+  }
+
+  const usageTable = process.env.CODE_USAGE_TABLE || "access_code_usage";
+  const res = await pool.query(
+    `SELECT code, generations, last_used FROM ${usageTable} ORDER BY last_used DESC`
+  );
+  return (res?.rows || []).map((r) => ({
+    code: r.code,
+    generations: Number(r.generations || 0),
+    lastUsed: r.last_used,
+  }));
+}
+
 module.exports = {
   initStorage,
   saveCookbook,
@@ -160,5 +210,7 @@ module.exports = {
   storageMode,
   getCodeUsage,
   bumpCodeUsage,
+  listCodeUsage,
+  cleanupCookbooks,
 };
 
