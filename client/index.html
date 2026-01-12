@@ -761,6 +761,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div id="menuActions" class="actions hidden">
         <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
         <button class="btn btn-outline" onclick="rejectMenus()">None of These Work</button>
+        <button class="btn btn-outline" onclick="loadWineTiers()">Get 4-tier wine options</button>
         <button class="btn btn-primary" id="selectMenuBtn" onclick="selectMenu()" disabled>Select This Menu</button>
       </div>
       
@@ -896,6 +897,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let selectedCookbookFormat = 'binder';
     let rejectionHistory = [];
     let cookbookId = null;
+    let wineTiers = null;
+    let wineTiersLoading = false;
     
     // ============================================================
     // INITIALIZATION
@@ -926,6 +929,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       document.getElementById('accessCode').addEventListener('keypress', e => {
         if (e.key === 'Enter') validateCode();
       });
+
+      // Restore access code for this tab session (so refresh doesn’t force re-entry)
+      restoreSession();
     }
     
     document.addEventListener('DOMContentLoaded', init);
@@ -1122,6 +1128,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         
         if (data.valid) {
           accessCode = code;
+          sessionStorage.setItem('dpp_accessCode', accessCode);
           msgEl.innerHTML = `<div class="success-msg">✓ Access granted! ${data.remaining ? `(${data.remaining} generations remaining)` : ''}</div>`;
           setTimeout(() => goToStep(2), 800);
         } else {
@@ -1129,6 +1136,29 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
       } catch (err) {
         msgEl.innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
+      }
+    }
+
+    async function restoreSession() {
+      const saved = sessionStorage.getItem('dpp_accessCode');
+      if (!saved) return;
+      try {
+        const res = await fetch('/api/validate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: saved })
+        });
+        const data = await res.json();
+        if (data.valid) {
+          accessCode = saved;
+          document.getElementById('accessCode').value = saved;
+          maxStepReached = Math.max(maxStepReached, 2);
+          goToStep(2);
+        } else {
+          sessionStorage.removeItem('dpp_accessCode');
+        }
+      } catch {
+        // If offline, keep them on step 1; they can retry.
       }
     }
     
@@ -1422,14 +1452,61 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             `).join('')}
           </div>
           <div style="margin-top:0.75rem;font-size:0.9rem;color:var(--gold-dark)">Wine: ${menu.wineCost}</div>
+          ${selectedMenu === i && wineTiers ? `
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.92rem">
+              <div style="font-weight:600;color:var(--navy);margin-bottom:0.5rem">4-tier wine options</div>
+              ${(wineTiers.courses || []).filter(x => x.selectedWine || x.type).map(x => `
+                <div style="margin-bottom:0.75rem">
+                  <div style="font-weight:600;color:var(--gold-dark)">${x.type}: <span style="font-weight:400;color:var(--text)">${x.selectedWine || '—'}</span></div>
+                  <div style="margin-top:0.35rem;display:grid;gap:0.35rem">
+                    ${['topShelf','under80','under20','bond'].map(k => {
+                      const t = x.tiers?.[k];
+                      if (!t) return '';
+                      const q = encodeURIComponent(t.vivinoQuery || t.wine || '');
+                      const link = q ? `https://www.vivino.com/search/wines?q=${q}` : '';
+                      return `<div><strong>${t.title}:</strong> ${t.wine}${t.notes ? ` — <span style="color:var(--text-light)">${t.notes}</span>` : ''}${link ? ` — <a href="${link}" target="_blank" rel="noopener noreferrer">Vivino search</a>` : ''}</div>`;
+                    }).join('')}
+                  </div>
+                </div>
+              `).join('')}
+              ${wineTiers.disclaimer ? `<div style="color:var(--text-light);font-style:italic">${wineTiers.disclaimer}</div>` : ''}
+            </div>
+          ` : ''}
         </div>
       `).join('');
     }
     
     function highlightMenu(index) {
       selectedMenu = index;
+      wineTiers = null;
       renderMenus();
       document.getElementById('selectMenuBtn').disabled = false;
+    }
+
+    async function loadWineTiers() {
+      if (selectedMenu === null) return;
+      if (wineTiersLoading) return;
+      wineTiersLoading = true;
+      try {
+        const res = await fetch('/api/wine-tiers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: accessCode,
+            menu: menus[selectedMenu],
+            context: getContext(),
+            chatHistory: chatHistory
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'Wine tiers failed');
+        wineTiers = data;
+        renderMenus();
+      } catch (e) {
+        alert('Error generating wine tiers. Please try again.');
+      } finally {
+        wineTiersLoading = false;
+      }
     }
     
     function selectMenu() {

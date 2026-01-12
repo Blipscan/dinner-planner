@@ -367,6 +367,137 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     res.json({ menus: DEMO_MENUS });
   }
 });
+
+async function generateWineTiers({ menu, context, chatHistory }) {
+  const courses = Array.isArray(menu?.courses) ? menu.courses : [];
+
+  if (!ANTHROPIC_API_KEY) {
+    // Demo fallback: deterministic, not "rated" claims.
+    return {
+      courses: courses.map((c) => ({
+        type: c?.type || "Course",
+        name: c?.name || "",
+        selectedWine: c?.wine || null,
+        tiers: {
+          topShelf: {
+            title: "Top shelf (special occasion)",
+            wine: c?.wine || "Champagne (grower) or Grand Cru Burgundy (depending on the course)",
+            notes: "A splurge pick that matches the dish’s intensity and texture.",
+            vivinoQuery: c?.wine || "top shelf wine",
+          },
+          under80: {
+            title: "Highest-rated under $80",
+            wine: "A highly regarded regional classic under $80 (varies by market)",
+            notes: "Aim for a top producer in the same style as the selected pairing.",
+            vivinoQuery: c?.wine || "wine under 80",
+          },
+          under20: {
+            title: "Highest-rated under $20",
+            wine: "A strong value bottle under $20 (varies by market)",
+            notes: "Choose a fresh, clean style with good acidity to stay food-friendly.",
+            vivinoQuery: c?.wine || "wine under 20",
+          },
+          bond: {
+            title: "What James Bond would request",
+            wine: "Bollinger (for bubbles) or a crisp Martini moment (if cocktail fits the course)",
+            notes: "A cinematic pick—classic, confident, and instantly recognizable.",
+            vivinoQuery: "Bollinger",
+          },
+        },
+      })),
+      disclaimer:
+        "“Highest-rated” is a guidance label; exact availability/pricing/ratings vary by market. Use the Vivino link to confirm.",
+    };
+  }
+
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const menuSummary = buildMenuContextSummary(menu);
+  const winePairings = buildWinePairingSummary(menu);
+  const chatText =
+    Array.isArray(chatHistory) && chatHistory.length
+      ? chatHistory
+          .slice(-30)
+          .map((m) => `${m.role}: ${m.content}`.trim())
+          .join("\n")
+      : "";
+
+  const systemPrompt = `You are a Master Sommelier generating tiered wine options for a dinner party menu.
+
+You must return 4 tiers for each course:
+1) Top shelf (special occasion)
+2) Highest-rated under $80
+3) Highest-rated under $20
+4) What James Bond would request
+
+Important:
+- If the menu already specifies a wine for a course, treat it as the “selectedWine” and keep your tiered options stylistically consistent.
+- “Highest-rated” must be phrased as a market-dependent recommendation (do not claim exact ratings you cannot verify).
+- Keep suggestions realistic and widely available, with producer + region style guidance.
+- Include a Vivino search query string per tier (not a URL).
+
+Event context:
+- Guests: ${context?.guestCount || 6}
+- Wine budget: ${context?.wineBudget || "$80-120"} total
+- Restrictions: ${(context?.restrictions || []).join(", ") || "none"}
+
+Menu:
+${menuSummary}
+
+Known pairings (authoritative if present):
+${winePairings || "(none)"}
+
+Chef/Somm consultation notes (incorporate if relevant):
+${chatText || "(none)"}
+
+Return ONLY valid JSON with shape:
+{
+  "courses": [
+    {
+      "type": "string",
+      "name": "string",
+      "selectedWine": "string|null",
+      "tiers": {
+        "topShelf": { "title": "string", "wine": "string", "notes": "string", "vivinoQuery": "string" },
+        "under80": { "title": "string", "wine": "string", "notes": "string", "vivinoQuery": "string" },
+        "under20": { "title": "string", "wine": "string", "notes": "string", "vivinoQuery": "string" },
+        "bond": { "title": "string", "wine": "string", "notes": "string", "vivinoQuery": "string" }
+      }
+    }
+  ],
+  "disclaimer": "string"
+}
+`;
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 2500,
+    system: systemPrompt,
+    messages: [{ role: "user", content: "Generate the tiered wine options now." }],
+  });
+
+  const raw = response?.content?.[0]?.text;
+  const jsonText = stripJsonFences(raw);
+  return JSON.parse(jsonText);
+}
+
+app.post("/api/wine-tiers", async (req, res) => {
+  const { code, menu, context, chatHistory } = req.body || {};
+
+  const upperCode = code?.trim?.().toUpperCase?.();
+  const isAdmin = upperCode && upperCode === ADMIN_CODE.toUpperCase();
+  const isBeta = upperCode && isValidBetaCode(upperCode);
+  if (upperCode && !isAdmin && !isBeta) {
+    return res.status(403).json({ error: "Invalid access code." });
+  }
+
+  try {
+    const tiers = await generateWineTiers({ menu, context, chatHistory });
+    res.json(tiers);
+  } catch (err) {
+    console.error("Wine tiers error:", err);
+    res.status(500).json({ error: "Error generating wine tiers" });
+  }
+});
  
 function stripJsonFences(text) {
   return String(text || "")
