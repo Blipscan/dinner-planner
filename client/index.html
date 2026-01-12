@@ -1257,6 +1257,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       rec.interimResults = true;
       rec.lang = 'en-US';
       let silenceTimer = null;
+      let noSpeechTimer = null;
       const resetSilence = () => {
         clearTimeout(silenceTimer);
         // Heuristic: stop after ~900ms of no new recognition updates
@@ -1264,7 +1265,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           try { rec.stop(); } catch {}
         }, 900);
       };
+      const clearNoSpeech = () => {
+        clearTimeout(noSpeechTimer);
+        noSpeechTimer = null;
+      };
       rec.onresult = (e) => {
+        clearNoSpeech();
         let combined = '';
         for (let i = 0; i < (e.results?.length || 0); i++) {
           combined += e.results[i][0].transcript;
@@ -1272,6 +1278,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         const text = (combined || '').trim();
         if (text) onText(text);
         resetSilence();
+      };
+      rec.onstart = () => {
+        // If nothing is recognized within 6 seconds, surface a helpful hint.
+        clearNoSpeech();
+        noSpeechTimer = setTimeout(() => {
+          showToast('No speech detected. Check your mic permission and selected input device.');
+          try { rec.stop(); } catch {}
+        }, 6000);
       };
       rec.onspeechstart = () => resetSilence();
       rec.onspeechend = () => {
@@ -1281,8 +1295,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           try { rec.stop(); } catch {}
         }, 250);
       };
-      rec.onend = () => onEnd();
-      rec.onerror = () => onEnd();
+      rec.onend = () => {
+        clearNoSpeech();
+        onEnd();
+      };
+      rec.onerror = (e) => {
+        clearNoSpeech();
+        showToast(`Speech error: ${e?.error || 'unknown'}`);
+        onEnd();
+      };
       return rec;
     }
 
