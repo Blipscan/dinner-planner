@@ -34,6 +34,19 @@ body{
   padding: 1.25rem 0 3rem;
 }
 
+/* ===== STEP "SCREEN" FRAME ===== */
+section[id^="step"]{
+  border: 2px solid rgba(30,58,95,0.18);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.70);
+  box-shadow: 0 16px 44px rgba(0,0,0,0.07);
+  padding: 1.25rem;
+  margin: 0.75rem 0 1.5rem;
+}
+section[id^="step"] .card{
+  background: rgba(255,255,255,0.94);
+}
+
 /* ===== TOP BAR ===== */
 .topbar{
   position: sticky;
@@ -131,6 +144,56 @@ body{
 .progress-line.complete{
   background: rgba(30,58,95,0.35);
 }
+
+/* ===== IN-STEP NAV (MAJOR POINTS) ===== */
+.section-nav{
+  position: sticky;
+  top: 74px; /* below topbar */
+  z-index: 40;
+  display:flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items:center;
+  justify-content: center;
+  padding: 0.75rem 0.8rem;
+  margin: 0.3rem 0 0.85rem;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(17,24,39,0.10);
+  backdrop-filter: blur(8px);
+}
+.section-nav.hidden{ display:none !important; }
+.section-nav .label{
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(17,24,39,0.55);
+  margin-right: 0.25rem;
+}
+.section-nav-btn{
+  appearance:none;
+  border: 1px solid rgba(17,24,39,0.12);
+  background: rgba(255,255,255,0.92);
+  color: rgba(17,24,39,0.78);
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.section-nav-btn:hover{
+  border-color: rgba(30,58,95,0.25);
+  color: var(--navy);
+}
+.section-nav-btn.active{
+  border-color: rgba(30,58,95,0.35);
+  background: rgba(30,58,95,0.08);
+  color: var(--navy);
+}
+[data-screen]{ scroll-margin-top: 120px; }
 
 /* ===== CARDS + FORMS ===== */
 .card{
@@ -1029,6 +1092,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       .step1-hero { grid-template-columns: 1fr; }
       .hero-panel { padding: 1.75rem; }
       .hero-mini { margin-top: 0.9rem; }
+      section[id^="step"]{ padding: 1rem; }
+      .section-nav{ top: 62px; padding: 0.65rem 0.65rem; }
     }
   </style>
 </head>
@@ -1065,6 +1130,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       <div class="progress-line" id="line6"></div>
       <div class="progress-step" id="dot7" onclick="jumpToStep(7)">7</div>
     </div>
+
+    <div class="section-nav hidden" id="sectionNav" aria-label="On this step"></div>
     
     <!-- Step 1: Access Code -->
     <section id="step1">
@@ -1091,7 +1158,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         </div>
 
         <div class="hero-entry">
-          <div class="card entry-card">
+          <div class="card entry-card" data-screen="Access">
             <h2 class="card-title">Welcome, Host</h2>
             <p class="card-subtitle">Enter your access code to start.</p>
             <div class="form-group">
@@ -1104,7 +1171,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
             </div>
           </div>
 
-          <details class="card drawer">
+          <details class="card drawer" data-screen="Planner (optional)">
             <summary>
               <div>
                 <div class="sum-title">Talk to your Planner (optional)</div>
@@ -1144,7 +1211,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     
     <!-- Step 2: Event Details -->
     <section id="step2" class="hidden">
-      <div class="card">
+      <div class="card" data-screen="Event details">
         <h2 class="card-title">Event Details</h2>
         <p class="card-subtitle">Tell us about your dinner party — the basics help us personalize everything.</p>
         <div class="form-row">
@@ -1191,7 +1258,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         </div>
       </div>
       
-      <div class="card">
+      <div class="card" data-screen="Printed style">
         <h2 class="card-title">Menu Card Style</h2>
         <p class="card-subtitle">Choose the aesthetic for your printed materials.</p>
         <div class="style-layout">
@@ -1217,7 +1284,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     
     <!-- Step 3: Preferences -->
     <section id="step3" class="hidden">
-      <div class="card">
+      <div class="card" data-screen="Inspiration">
         <h2 class="card-title">Menu Inspiration</h2>
         <p class="card-subtitle">What kind of dining experience are you creating? This guides our menu suggestions.</p>
         <div class="inspiration-grid" id="inspirationGrid"></div>
@@ -1230,7 +1297,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         </div>
       </div>
       
-      <div class="card">
+      <div class="card" data-screen="Budget & skill">
         <h2 class="card-title">Budget & Skill Level</h2>
         <div class="form-row">
           <div class="form-group">
@@ -1264,7 +1331,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         </div>
       </div>
       
-      <div class="card">
+      <div class="card" data-screen="Preferences">
         <h2 class="card-title">Taste Preferences</h2>
         <div class="form-group">
           <label>Cuisine Direction</label>
@@ -1293,7 +1360,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     
     <!-- Step 4: Expert Consultation -->
     <section id="step4" class="hidden">
-      <div class="card">
+      <div class="card" data-screen="Choose an expert">
         <h2 class="card-title">Expert Consultation</h2>
         <p class="card-subtitle">Before we design your menu, would you like to consult with our experts? They can help refine your vision and answer questions. This is optional but recommended.</p>
         <div class="expert-grid" id="expertGrid"></div>
@@ -1302,7 +1369,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         </div>
       </div>
       
-      <div id="chatSection" class="hidden">
+      <div id="chatSection" class="hidden" data-screen="Consultation chat">
         <div class="chat-container">
           <div class="chat-header">
             <span class="icon" id="chatIcon">👨‍🍳</span>
@@ -1353,7 +1420,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       </div>
       
       <div id="rejectionChat" class="hidden">
-        <div class="card">
+        <div class="card" data-screen="Adjust the menus">
           <h3 class="card-title">Let's Find Your Perfect Menu</h3>
           <p class="card-subtitle">I sense none of these hit the mark. Help me understand what you're looking for...</p>
           <div class="chat-container">
@@ -1376,18 +1443,18 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     
     <!-- Step 6: Staffing -->
     <section id="step6" class="hidden">
-      <div class="card">
+      <div class="card" data-screen="Staffing">
         <h2 class="card-title">Kitchen Staffing</h2>
         <p class="card-subtitle">How will you be staffing your kitchen? This affects your prep timeline and what's realistic to execute.</p>
         <div id="staffingOptions"></div>
       </div>
       
-      <div class="card">
+      <div class="card" data-screen="Selected menu">
         <h3 class="card-title" style="font-size:1.2rem">Your Selected Menu</h3>
         <div id="selectedMenuSummary"></div>
       </div>
 
-      <div class="card">
+      <div class="card" data-screen="Sommelier">
         <h2 class="card-title">Sommelier Service (After Menu Choice)</h2>
         <p class="card-subtitle">Ask about serving order, decanting, glassware, cocktails/mocktails, and how the pairings work.</p>
         <div class="chat-container">
@@ -1415,7 +1482,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" data-screen="Cookbook format">
         <h2 class="card-title">Cookbook Format</h2>
         <p class="card-subtitle">Choose a layout for printing and sharing.</p>
         <div class="form-group">
@@ -1444,7 +1511,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       </div>
       
       <div id="cookbookComplete" class="hidden">
-        <div class="card text-center">
+        <div class="card text-center" data-screen="Cookbook">
           <h2 class="card-title">🎉 Your Cookbook is Ready!</h2>
           <p class="card-subtitle">Your complete dinner party cookbook has been generated with all 15 sections.</p>
           
@@ -1459,7 +1526,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           </div>
         </div>
         
-        <div class="card">
+        <div class="card" data-screen="Print products">
           <h2 class="card-title">Print Products</h2>
           <p class="card-subtitle">Download print-ready files formatted for Avery paper products.</p>
           
@@ -1606,6 +1673,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           setStatus('somm', 'idle');
         }
       });
+
+      // Build the in-step nav on first load (Step 1).
+      updateSectionNav();
     }
     
     document.addEventListener('DOMContentLoaded', init);
@@ -2158,6 +2228,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       
       // Update progress
       updateProgress();
+      updateSectionNav();
       
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2184,6 +2255,62 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           dot.classList.add('active');
         }
       }
+    }
+
+    function slugify(s) {
+      return String(s || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+        .slice(0, 40) || 'section';
+    }
+
+    function updateSectionNav() {
+      const nav = document.getElementById('sectionNav');
+      if (!nav) return;
+
+      const stepEl = document.getElementById('step' + currentStep);
+      if (!stepEl) {
+        nav.classList.add('hidden');
+        nav.innerHTML = '';
+        return;
+      }
+
+      const candidates = Array.from(stepEl.querySelectorAll('[data-screen]')).filter((el) => {
+        if (el.classList.contains('hidden')) return false;
+        // Only include elements actually visible (details counts as visible even if closed, which is fine for Step 1)
+        return true;
+      });
+
+      // Don’t show if there's nothing to navigate.
+      if (candidates.length <= 1) {
+        nav.classList.add('hidden');
+        nav.innerHTML = '';
+        return;
+      }
+
+      const items = candidates.map((el, idx) => {
+        const label = el.getAttribute('data-screen') || `Section ${idx + 1}`;
+        if (!el.id) el.id = `step${currentStep}-${slugify(label)}-${idx}`;
+        return { id: el.id, label };
+      });
+
+      nav.classList.remove('hidden');
+      nav.innerHTML =
+        `<span class="label">On this step</span>` +
+        items.map((it, i) => `<button class="section-nav-btn ${i === 0 ? 'active' : ''}" data-target="${it.id}">${escapeHtml(it.label)}</button>`).join('');
+
+      const buttons = Array.from(nav.querySelectorAll('.section-nav-btn'));
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-target');
+          const target = id ? document.getElementById(id) : null;
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            buttons.forEach((b) => b.classList.toggle('active', b === btn));
+          }
+        });
+      });
     }
     
     // ============================================================
