@@ -264,15 +264,263 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
   }
 });
  
+function stripJsonFences(text) {
+  return String(text || "")
+    .trim()
+    .replace(/^```json?\n?/i, "")
+    .replace(/\n?```$/i, "")
+    .trim();
+}
+
+function buildMenuContextSummary(menu) {
+  if (!menu || !Array.isArray(menu.courses)) return "";
+  const lines = menu.courses.map((c, i) => {
+    const wine = c?.wine ? ` | Wine: ${c.wine}` : "";
+    return `${i + 1}. ${c?.type || "Course"}: ${c?.name || ""}${wine}`.trim();
+  });
+  return lines.length ? lines.join("\n") : "";
+}
+
+async function generateRecipes({ menu, context }) {
+  const guestCount = parseInt(context?.guestCount || "6", 10) || 6;
+
+  // Demo-mode fallback: still return *real-looking* recipes, not empty placeholders.
+  if (!ANTHROPIC_API_KEY) {
+    return (menu?.courses || []).slice(0, 5).map((course) => ({
+      title: course?.name || "Recipe",
+      serves: guestCount,
+      activeTime: "35 min",
+      totalTime: "1 hr 15 min",
+      ingredients: [
+        `Kosher salt (to taste)`,
+        `Freshly ground black pepper (to taste)`,
+        `Extra-virgin olive oil (2 tbsp)`,
+        `Unsalted butter (2 tbsp)`,
+        `Garlic (2 cloves), minced`,
+        `Lemon (1), zest and juice`,
+        `Fresh herbs (2 tbsp), chopped`,
+        `Main ingredient(s) for "${course?.name || "this dish"}" (scaled for ${guestCount})`,
+      ],
+      steps: [
+        "Read through the full recipe and set up your mise en place (pre-measure, chop, and organize).",
+        "Season thoughtfully in layers; taste early and often.",
+        "Build flavor: gently sauté aromatics in olive oil/butter until fragrant.",
+        "Cook the main component using appropriate heat control, aiming for proper doneness and texture.",
+        "Finish with acid (lemon) and fresh herbs to brighten and lift the dish.",
+        "Hold warm (or chill, if appropriate) and plate with intention just before serving.",
+      ],
+      notes:
+        "Demo mode recipe. Add your own signature: a finishing oil, flaky salt, and a fresh herb garnish go a long way.",
+      makeAhead:
+        "You can prep aromatics and garnish earlier in the day; finish cooking close to service for best texture.",
+    }));
+  }
+
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const menuSummary = buildMenuContextSummary(menu);
+
+  const systemPrompt = `You are a Michelin-caliber test-kitchen team writing complete, usable recipes for a home cook hosting a dinner party.
+
+You MUST generate recipes that match the exact menu courses provided. Be consistent: if a wine pairing is listed, do not ask the user what wine it is—treat it as already recommended.
+
+Event context:
+- Guests: ${guestCount}
+- Skill level: ${context?.skillLevel || "intermediate"}
+- Dietary restrictions: ${(context?.restrictions || []).join(", ") || "none"}
+- Likes: ${(context?.likes || []).join(", ") || "none specified"}
+- Avoids: ${(context?.dislikes || []).join(", ") || "none specified"}
+
+Menu (5 courses):
+${menuSummary}
+
+Return ONLY valid JSON (no markdown) with this exact shape:
+{
+  "recipes": [
+    {
+      "title": "string (dish name)",
+      "serves": number,
+      "activeTime": "string (e.g. 35 min)",
+      "totalTime": "string (e.g. 1 hr 20 min)",
+      "ingredients": ["string", ...],
+      "steps": ["string", ...],
+      "notes": "string (optional but preferred)",
+      "makeAhead": "string (what can be prepped earlier)"
+    }
+  ]
+}
+
+Rules:
+- Output exactly 5 recipes in the same order as the menu courses.
+- Ingredients must include quantities scaled for ${guestCount} guests.
+- Steps must be specific and executable (temps, times, visual cues), but not overly long.
+- Respect restrictions (e.g., if gluten-free, avoid wheat flour / breadcrumbs unless you explicitly provide a GF alternative).`;
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 6500,
+    system: systemPrompt,
+    messages: [{ role: "user", content: "Write the 5 recipes now." }],
+  });
+
+  const raw = response?.content?.[0]?.text;
+  const jsonText = stripJsonFences(raw);
+  const parsed = JSON.parse(jsonText);
+  const recipes = parsed?.recipes;
+  if (!Array.isArray(recipes) || recipes.length !== 5) {
+    throw new Error("Recipe generation returned unexpected JSON shape.");
+  }
+  return recipes;
+}
+
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
   const { menu, context, staffing } = req.body || {};
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
  
-  global.cookbooks[cookbookId] = { menu, context, staffing, recipes: null };
-  res.json({ success: true, cookbookId });
+  try {
+    const recipes = await generateRecipes({ menu, context });
+    global.cookbooks[cookbookId] = { menu, context, staffing, recipes };
+    res.json({ success: true, cookbookId });
+  } catch (err) {
+    console.error("Cookbook generation error:", err);
+    global.cookbooks[cookbookId] = { menu, context, staffing, recipes: null };
+    res.json({
+      success: true,
+      cookbookId,
+      message: "Cookbook created, but recipes could not be generated. Download will include placeholders.",
+    });
+  }
 });
  
+// Lightweight HTML cookbook preview/print page
+app.get("/cookbook/:cookbookId", (req, res) => {
+  const { cookbookId } = req.params || {};
+  const cookbookData = global.cookbooks?.[cookbookId];
+  if (!cookbookData) return res.status(404).send("Cookbook not found");
+
+  const { menu, context, staffing, recipes } = cookbookData;
+  const title = (context?.eventTitle || "Dinner Party").replace(/[<>]/g, "");
+  const menuTitle = (menu?.title || "Menu").replace(/[<>]/g, "");
+
+  const escapeHtml = (s) =>
+    String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  const courseHtml = (menu?.courses || [])
+    .map(
+      (c) => `<div class="course">
+  <div class="course-type">${escapeHtml(c?.type || "")}</div>
+  <div class="course-name">${escapeHtml(c?.name || "")}</div>
+  ${c?.wine ? `<div class="course-wine">Wine: ${escapeHtml(c.wine)}</div>` : ""}
+</div>`
+    )
+    .join("\n");
+
+  const recipesHtml = (menu?.courses || []).map((c, idx) => {
+    const r = Array.isArray(recipes) ? recipes[idx] : null;
+    const ingredients = (r?.ingredients || []).map((i) => `<li>${escapeHtml(i)}</li>`).join("");
+    const steps = (r?.steps || []).map((s) => `<li>${escapeHtml(s)}</li>`).join("");
+
+    return `<section class="recipe">
+  <h2>${escapeHtml(c?.type || "Course")}: ${escapeHtml(c?.name || "Recipe")}</h2>
+  ${
+    r
+      ? `<div class="meta">Serves ${escapeHtml(r.serves)} · Active ${escapeHtml(r.activeTime)} · Total ${escapeHtml(r.totalTime)}</div>`
+      : `<div class="meta muted">Recipe details unavailable (placeholder).</div>`
+  }
+  <div class="cols">
+    <div>
+      <h3>Ingredients</h3>
+      ${ingredients ? `<ul>${ingredients}</ul>` : `<div class="muted">Ingredients not available.</div>`}
+    </div>
+    <div>
+      <h3>Method</h3>
+      ${steps ? `<ol>${steps}</ol>` : `<div class="muted">Steps not available.</div>`}
+    </div>
+  </div>
+  ${r?.notes ? `<h3>Chef's Notes</h3><p>${escapeHtml(r.notes)}</p>` : ""}
+  ${r?.makeAhead ? `<h3>Make Ahead</h3><p>${escapeHtml(r.makeAhead)}</p>` : ""}
+</section>`;
+  }).join("\n");
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(title)} — Cookbook</title>
+  <style>
+    :root { --navy:#1E3A5F; --gold:#C9A227; --ink:#111827; --muted:#6b7280; --paper:#ffffff; --bg:#f6f2ed; }
+    body { margin:0; font-family: Georgia, serif; color:var(--ink); background:var(--bg); }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    .card { background: var(--paper); border: 1px solid rgba(17,24,39,0.08); border-radius: 14px; padding: 22px; box-shadow: 0 6px 25px rgba(0,0,0,0.06); }
+    h1 { margin:0 0 6px; font-size: 34px; color: var(--navy); }
+    .subtitle { margin: 0 0 14px; color: var(--muted); font-style: italic; }
+    .topmeta { display:flex; gap:12px; flex-wrap:wrap; color:var(--muted); font-size:14px; }
+    .divider { height:1px; background: rgba(17,24,39,0.08); margin: 18px 0; }
+    .course { padding: 10px 0; border-bottom: 1px dashed rgba(17,24,39,0.12); }
+    .course:last-child { border-bottom: 0; }
+    .course-type { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+    .course-name { font-size: 18px; color: var(--navy); margin-top: 2px; }
+    .course-wine { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    .recipe { margin-top: 22px; }
+    .recipe h2 { color: var(--navy); font-size: 22px; margin: 0 0 8px; }
+    .meta { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
+    .muted { color: var(--muted); }
+    .cols { display:grid; grid-template-columns: 1fr 1.2fr; gap: 18px; }
+    h3 { margin: 10px 0 8px; color: var(--gold); font-size: 14px; letter-spacing: .06em; text-transform: uppercase; }
+    ul,ol { margin: 0; padding-left: 18px; }
+    li { margin: 6px 0; line-height: 1.35; }
+    .printbar { display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px; }
+    button { border: 0; border-radius: 10px; padding: 10px 14px; font-weight: 700; cursor:pointer; }
+    .btn { background: var(--navy); color: white; }
+    .btn2 { background: white; color: var(--navy); border: 2px solid var(--navy); }
+    @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } }
+    @media print {
+      body { background: white; }
+      .wrap { max-width: none; padding: 0; }
+      .card { box-shadow:none; border:0; border-radius:0; padding: 0; }
+      .printbar { display:none; }
+      .recipe { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>${escapeHtml(title)}</h1>
+      <div class="subtitle">${escapeHtml(menuTitle)}</div>
+      <div class="topmeta">
+        <div><strong>Date:</strong> ${escapeHtml(context?.eventDate || "TBD")}</div>
+        <div><strong>Guests:</strong> ${escapeHtml(context?.guestCount || 6)}</div>
+        <div><strong>Service:</strong> ${escapeHtml(context?.serviceTime || "7:00 PM")}</div>
+        <div><strong>Staffing:</strong> ${escapeHtml(staffing || "solo")}</div>
+      </div>
+      <div class="printbar">
+        <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+        <button class="btn2" onclick="location.href='/'">Back to planner</button>
+      </div>
+
+      <div class="divider"></div>
+      <h2 style="color:var(--navy); margin:0 0 10px; font-size:22px;">Menu</h2>
+      ${courseHtml}
+
+      <div class="divider"></div>
+      <h2 style="color:var(--navy); margin:0 0 10px; font-size:22px;">Recipes</h2>
+      ${recipesHtml}
+    </div>
+  </div>
+</body>
+</html>`;
+
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
+});
+
 app.post("/api/download-cookbook", async (req, res) => {
   const { cookbookId } = req.body || {};
   const cookbookData = global.cookbooks?.[cookbookId];

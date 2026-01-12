@@ -824,6 +824,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           
           <div class="actions">
             <button class="btn btn-gold" onclick="downloadCookbook()">📥 Download DOCX Cookbook</button>
+            <button class="btn btn-outline" onclick="viewCookbookHtml()">View / Print HTML Cookbook</button>
           </div>
         </div>
         
@@ -1578,6 +1579,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       } catch (err) {
         alert('Connection error. Please try again.');
       }
+    }
+
+    function viewCookbookHtml() {
+      if (!cookbookId) {
+        alert('Cookbook not ready yet.');
+        return;
+      }
+      window.open(`/cookbook/${cookbookId}`, '_blank', 'noopener,noreferrer');
     }
     
     function downloadPrintProduct(type, sku) {

@@ -403,17 +403,67 @@ function buildShoppingList(menu, context, recipes) {
   ];
   
   const categories = ['Proteins', 'Seafood', 'Produce', 'Dairy & Eggs', 'Pantry', 'Wine & Beverages', 'Special Ingredients'];
-  
-  categories.forEach(cat => {
+
+  const categorizeIngredient = (raw) => {
+    const s = String(raw || '').toLowerCase();
+    if (!s.trim()) return { cat: 'Pantry', item: '' };
+
+    // Strip leading quantities/units for nicer list items.
+    const cleaned = String(raw)
+      .replace(/^\s*[\d\s\/\.\-–—]+/g, '')
+      .replace(/^\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|ounces?|oz|grams?|g|kg|ml|l|liters?|pounds?|lb|cloves?|pinch|handful|bunch|sprigs?)\b\s*/i, '')
+      .trim();
+
+    const seafood = ['fish', 'salmon', 'tuna', 'cod', 'halibut', 'bass', 'shrimp', 'prawn', 'lobster', 'crab', 'scallop', 'oyster', 'mussel', 'clam'];
+    const proteins = ['beef', 'steak', 'lamb', 'pork', 'chicken', 'duck', 'turkey', 'veal', 'sausage', 'bacon', 'prosciutto'];
+    const produce = ['onion', 'shallot', 'garlic', 'leek', 'tomato', 'pepper', 'spinach', 'lettuce', 'arugula', 'herb', 'parsley', 'cilantro', 'basil', 'thyme', 'rosemary', 'mint', 'lemon', 'lime', 'orange', 'apple', 'pear', 'mushroom', 'carrot', 'celery', 'potato', 'radish', 'pea', 'asparagus'];
+    const dairy = ['butter', 'milk', 'cream', 'crème', 'creme', 'cheese', 'yogurt', 'egg', 'parmesan', 'gruyere', 'ricotta', 'mascarpone'];
+    const beverages = ['wine', 'champagne', 'sancerre', 'riesling', 'port', 'vermouth', 'beer', 'cider', 'sparkling water', 'soda', 'coffee', 'tea'];
+    const pantry = ['salt', 'pepper', 'olive oil', 'oil', 'vinegar', 'mustard', 'flour', 'sugar', 'honey', 'stock', 'broth', 'rice', 'pasta', 'breadcrumbs', 'spice', 'paprika', 'cumin', 'coriander', 'vanilla', 'cocoa', 'chocolate'];
+
+    const includesAny = (arr) => arr.some((k) => s.includes(k));
+
+    if (includesAny(seafood)) return { cat: 'Seafood', item: cleaned };
+    if (includesAny(proteins)) return { cat: 'Proteins', item: cleaned };
+    if (includesAny(dairy)) return { cat: 'Dairy & Eggs', item: cleaned };
+    if (includesAny(beverages)) return { cat: 'Wine & Beverages', item: cleaned };
+    if (includesAny(produce)) return { cat: 'Produce', item: cleaned };
+    if (includesAny(pantry)) return { cat: 'Pantry', item: cleaned };
+    return { cat: 'Special Ingredients', item: cleaned };
+  };
+
+  const byCategory = Object.fromEntries(categories.map((c) => [c, new Set()]));
+
+  if (Array.isArray(recipes) && recipes.length) {
+    recipes.forEach((r) => {
+      (r?.ingredients || []).forEach((ing) => {
+        const { cat, item } = categorizeIngredient(ing);
+        if (item) byCategory[cat]?.add(item);
+      });
+    });
+  }
+
+  categories.forEach((cat) => {
+    const items = Array.from(byCategory[cat] || []);
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
         children: [new TextRun({ text: cat, size: 26, bold: true, color: COLORS.gold })]
-      }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Items based on your menu')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] })
+      })
     );
+
+    if (items.length) {
+      items.forEach((item) => {
+        children.push(
+          new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(`□  ${item}`)] })
+        );
+      });
+    } else {
+      // Fallback if recipes weren't generated
+      children.push(
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  (Generated list unavailable — see recipes section)')] })
+      );
+    }
   });
   
   children.push(
