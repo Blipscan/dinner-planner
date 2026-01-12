@@ -749,11 +749,11 @@ async function generateRecipes({ menu, context, code, format, chatHistory }) {
       ingredients: [
         `Kosher salt (to taste)`,
         `Freshly ground black pepper (to taste)`,
-        `Extra-virgin olive oil (2 tbsp)`,
-        `Unsalted butter (2 tbsp)`,
-        `Garlic (2 cloves), minced`,
-        `Lemon (1), zest and juice`,
-        `Fresh herbs (2 tbsp), chopped`,
+        `Extra-virgin olive oil (2 tbsp / 30 mL)`,
+        `Unsalted butter (2 tbsp / 28 g)`,
+        `Garlic (2 cloves / ~6 g), minced`,
+        `Lemon (1 / ~120 g), zest and juice`,
+        `Fresh herbs (2 tbsp / 8 g), chopped`,
         `Main ingredient(s) for "${course?.name || "this dish"}" (scaled for ${guestCount})`,
       ],
       steps: [
@@ -761,6 +761,8 @@ async function generateRecipes({ menu, context, code, format, chatHistory }) {
         "Season thoughtfully in layers; taste early and often.",
         "Build flavor: gently sauté aromatics in olive oil/butter until fragrant.",
         "Cook the main component using appropriate heat control, aiming for proper doneness and texture.",
+        "If baking/roasting: preheat oven to 400°F / 205°C (180°C fan) unless the dish calls for a different temperature.",
+        "If cooking proteins, include an internal temperature check where appropriate (e.g., 165°F / 74°C for poultry).",
         "Finish with acid (lemon) and fresh herbs to brighten and lift the dish.",
         "Hold warm (or chill, if appropriate) and plate with intention just before serving.",
       ],
@@ -847,8 +849,15 @@ Return ONLY valid JSON (no markdown) with this exact shape:
 
 Rules:
 - Output exactly 5 recipes in the same order as the menu courses.
-- Ingredients must include quantities scaled for ${guestCount} guests.
-- Steps must be specific and executable (temps, times, visual cues), but not overly long.
+- Ingredients must include quantities scaled for ${guestCount} guests AND written with **US + metric** in the same line.
+  - Example formats:
+    - "Unsalted butter (2 tbsp / 28 g)"
+    - "All-purpose flour (1 cup / 125 g)"
+    - "Olive oil (3 tbsp / 45 mL)"
+- Temperatures:
+  - Internal/food temps must include **°F and °C** (e.g., "165°F / 74°C").
+  - Oven temps must include **°F, °C, and fan** (e.g., "400°F / 205°C (180°C fan)").
+- Steps must be specific and executable (times, temps, visual cues), but not overly long.
 - whyItWorks must be 3–6 bullets explaining the cooking logic and the menu role.
 - pairingWhy must explicitly reference the named wine pairing when present.
 - Include at least 3 practical equipment items per recipe.
@@ -1009,16 +1018,12 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
 
   // Shopping list from recipes (same categorization logic as DOCX)
   const categorizeIngredient = (raw) => {
-    const s = String(raw || "").toLowerCase();
+    const rawTrim = String(raw || "").trim();
+    const s = rawTrim.toLowerCase();
     if (!s.trim()) return { cat: "Pantry", item: "" };
 
-    const cleaned = String(raw)
-      .replace(/^\s*[\d\s\/\.\-–—]+/g, "")
-      .replace(
-        /^\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|ounces?|oz|grams?|g|kg|ml|l|liters?|pounds?|lb|cloves?|pinch|handful|bunch|sprigs?)\b\s*/i,
-        ""
-      )
-      .trim();
+    // Keep quantities (US + metric) in shopping list items.
+    const itemText = rawTrim;
 
     const seafood = ["fish", "salmon", "tuna", "cod", "halibut", "bass", "shrimp", "prawn", "lobster", "crab", "scallop", "oyster", "mussel", "clam"];
     const proteins = ["beef", "steak", "lamb", "pork", "chicken", "duck", "turkey", "veal", "sausage", "bacon", "prosciutto"];
@@ -1028,13 +1033,13 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     const pantry = ["salt", "pepper", "olive oil", "oil", "vinegar", "mustard", "flour", "sugar", "honey", "stock", "broth", "rice", "pasta", "breadcrumbs", "spice", "paprika", "cumin", "coriander", "vanilla", "cocoa", "chocolate"];
 
     const includesAny = (arr) => arr.some((k) => s.includes(k));
-    if (includesAny(seafood)) return { cat: "Seafood", item: cleaned };
-    if (includesAny(proteins)) return { cat: "Proteins", item: cleaned };
-    if (includesAny(dairy)) return { cat: "Dairy & Eggs", item: cleaned };
-    if (includesAny(beverages)) return { cat: "Wine & Beverages", item: cleaned };
-    if (includesAny(produce)) return { cat: "Produce", item: cleaned };
-    if (includesAny(pantry)) return { cat: "Pantry", item: cleaned };
-    return { cat: "Special Ingredients", item: cleaned };
+    if (includesAny(seafood)) return { cat: "Seafood", item: itemText };
+    if (includesAny(proteins)) return { cat: "Proteins", item: itemText };
+    if (includesAny(dairy)) return { cat: "Dairy & Eggs", item: itemText };
+    if (includesAny(beverages)) return { cat: "Wine & Beverages", item: itemText };
+    if (includesAny(produce)) return { cat: "Produce", item: itemText };
+    if (includesAny(pantry)) return { cat: "Pantry", item: itemText };
+    return { cat: "Special Ingredients", item: itemText };
   };
 
   const categories = ["Proteins", "Seafood", "Produce", "Dairy & Eggs", "Pantry", "Wine & Beverages", "Special Ingredients"];

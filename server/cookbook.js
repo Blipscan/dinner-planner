@@ -518,14 +518,12 @@ function buildShoppingList(menu, context, recipes) {
   const categories = ['Proteins', 'Seafood', 'Produce', 'Dairy & Eggs', 'Pantry', 'Wine & Beverages', 'Special Ingredients'];
 
   const categorizeIngredient = (raw) => {
-    const s = String(raw || '').toLowerCase();
+    const rawTrim = String(raw || '').trim();
+    const s = rawTrim.toLowerCase();
     if (!s.trim()) return { cat: 'Pantry', item: '' };
 
-    // Strip leading quantities/units for nicer list items.
-    const cleaned = String(raw)
-      .replace(/^\s*[\d\s\/\.\-–—]+/g, '')
-      .replace(/^\s*(cups?|tbsp|tsp|tablespoons?|teaspoons?|ounces?|oz|grams?|g|kg|ml|l|liters?|pounds?|lb|cloves?|pinch|handful|bunch|sprigs?)\b\s*/i, '')
-      .trim();
+    // Keep quantities (US + metric) in shopping list items.
+    const itemText = rawTrim;
 
     const seafood = ['fish', 'salmon', 'tuna', 'cod', 'halibut', 'bass', 'shrimp', 'prawn', 'lobster', 'crab', 'scallop', 'oyster', 'mussel', 'clam'];
     const proteins = ['beef', 'steak', 'lamb', 'pork', 'chicken', 'duck', 'turkey', 'veal', 'sausage', 'bacon', 'prosciutto'];
@@ -536,13 +534,13 @@ function buildShoppingList(menu, context, recipes) {
 
     const includesAny = (arr) => arr.some((k) => s.includes(k));
 
-    if (includesAny(seafood)) return { cat: 'Seafood', item: cleaned };
-    if (includesAny(proteins)) return { cat: 'Proteins', item: cleaned };
-    if (includesAny(dairy)) return { cat: 'Dairy & Eggs', item: cleaned };
-    if (includesAny(beverages)) return { cat: 'Wine & Beverages', item: cleaned };
-    if (includesAny(produce)) return { cat: 'Produce', item: cleaned };
-    if (includesAny(pantry)) return { cat: 'Pantry', item: cleaned };
-    return { cat: 'Special Ingredients', item: cleaned };
+    if (includesAny(seafood)) return { cat: 'Seafood', item: itemText };
+    if (includesAny(proteins)) return { cat: 'Proteins', item: itemText };
+    if (includesAny(dairy)) return { cat: 'Dairy & Eggs', item: itemText };
+    if (includesAny(beverages)) return { cat: 'Wine & Beverages', item: itemText };
+    if (includesAny(produce)) return { cat: 'Produce', item: itemText };
+    if (includesAny(pantry)) return { cat: 'Pantry', item: itemText };
+    return { cat: 'Special Ingredients', item: itemText };
   };
 
   const byCategory = Object.fromEntries(categories.map((c) => [c, new Set()]));
