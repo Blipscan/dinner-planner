@@ -874,8 +874,51 @@ function buildImagePrompts(menu, context) {
     })
   ];
   
+  const style = context?.menuStyle || 'classic';
+  const eventTitle = context?.eventTitle || 'Dinner Party';
+  const serviceTime = context?.serviceTime || '7:00 PM';
+  const vibeMap = {
+    classic: 'timeless, elegant, restrained luxury',
+    modern: 'clean, minimal, contemporary, negative space',
+    romantic: 'warm candlelight, soft glow, intimate, romantic',
+    artdeco: 'Art Deco glamour, geometric accents, gold and black details',
+    rustic: 'rustic-elegant, natural textures, linen, wood, stoneware',
+    botanical: 'vintage botanical, garden-inspired, floral details',
+    coastal: 'coastal elegance, airy light, subtle nautical cues',
+    urban: 'urban chic, modern city apartment, moody highlights'
+  };
+  const vibe = vibeMap[style] || vibeMap.classic;
+
+  // Tablescape prompt (magazine-quality)
+  const tablePrompt =
+    `Editorial interior + tablescape photograph for "${eventTitle}" at ${serviceTime}, ${vibe}. ` +
+    `Camera: Canon EOS R5 or Hasselblad X2D, 35mm, f/4, ISO 800, 1/125. ` +
+    `Lighting: warm candlelight + soft bounced practicals, gentle falloff, realistic shadows, no harsh speculars. ` +
+    `Composition: slightly elevated 45-degree angle, layered linens, place cards, menu cards, glassware arrangement, seasonal centerpiece with correct scale (no blocking faces), uncluttered negative space. ` +
+    `Color: rich navy and gold accents, creamy neutrals, true-to-life skin tones if hands appear. ` +
+    `Style: Architectural Digest dinner party editorial, ultra high detail, natural grain, no text, no watermark.`;
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Table / Tablescape', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    new Paragraph({
+      shading: { fill: 'f5f5f5', type: ShadingType.CLEAR },
+      spacing: { after: 200 },
+      children: [new TextRun({ text: tablePrompt, size: 20, font: 'Courier New' })]
+    })
+  );
+
   menu.courses.forEach(course => {
-    const prompt = `Professional food photography of ${course.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
+    const prompt =
+      `Magazine-cover food photograph of ${course.name}, ${vibe}. ` +
+      `Camera: Sony α7R V or Hasselblad X2D, 85mm, f/2.0, ISO 400, 1/160. ` +
+      `Lighting: soft directional window light from left, subtle fill card on right, gentle back rim light, controlled highlights, no blown whites. ` +
+      `Plating: refined fine-dining composition, intentional negative space, microtexture visible, sauce placement guides the eye, garnish is edible and purposeful. ` +
+      `Props: white porcelain, linen napkin, simple flatware, minimal background, shallow depth of field, bokeh. ` +
+      `Angle: 45-degree hero shot, plus hint of environment that matches "${eventTitle}". ` +
+      `Style reference: Food & Wine editorial, hyper-realistic, ultra high detail, no text, no watermark.`;
     
     children.push(
       new Paragraph({
