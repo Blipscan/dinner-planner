@@ -1592,7 +1592,29 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
     
     function downloadPrintProduct(type, sku) {
-      alert(`Print-ready PDF for Avery ${sku} coming in next release.\n\nFor now, your place cards and menu cards are included in the DOCX cookbook.`);
+      if (!cookbookId) {
+        alert('Generate your cookbook first.');
+        return;
+      }
+      // Download as a file via POST -> blob
+      fetch('/api/print-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cookbookId, type, sku })
+      }).then(async (res) => {
+        if (!res.ok) throw new Error('PDF generation failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Avery_${sku}_${type}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }).catch(() => {
+        alert('Error generating PDF. Please try again.');
+      });
     }
     
     function startOver() {

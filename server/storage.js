@@ -13,6 +13,10 @@ function hasPostgres() {
   return !!process.env.DATABASE_URL;
 }
 
+function storageMode() {
+  return hasPostgres() ? "postgres" : "memory";
+}
+
 function shouldUseSsl() {
   // Railway Postgres typically requires SSL. Local dev usually doesn't.
   if (process.env.PGSSLMODE === "disable") return false;
@@ -78,5 +82,6 @@ module.exports = {
   initStorage,
   saveCookbook,
   getCookbook,
+  storageMode,
 };
 

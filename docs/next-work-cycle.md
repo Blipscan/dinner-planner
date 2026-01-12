@@ -67,10 +67,16 @@ Fix direction (next cycle):
 
 ### 3) Print product PDFs are “stubbed”
 
-UI buttons currently show an alert (“coming in next release”).
+UI buttons previously showed an alert (“coming in next release”).
 
 Fix direction (next cycle):
 - Implement real PDF generation routes + templates per Avery SKU.
+
+Status update:
+- Implemented a **minimal v1** PDF generator:
+  - `POST /api/print-product` with `{ cookbookId, type, sku }`
+  - UI now downloads PDFs for place cards / menu cards / invitations
+  - Layouts are pragmatic for beta (not perfect Avery specs yet)
 
 ## What was fixed (this cycle)
 

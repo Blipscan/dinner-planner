@@ -6,7 +6,7 @@ const express = require("express");
 const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
  
-const { saveCookbook, getCookbook } = require("./storage");
+const { saveCookbook, getCookbook, initStorage, storageMode } = require("./storage");
 
 const {
   CUISINES,
@@ -20,6 +20,7 @@ const {
 } = require("./data");
  
 const { buildCookbook } = require("./cookbook");
+const { generatePrintPdf } = require("./pdf");
  
 const app = express();
  
@@ -58,12 +59,21 @@ const usageStats = {};
 // ============================================================
  
 // Health check
-app.get("/api/health", (req, res) => {
+app.get("/api/health", async (req, res) => {
+  // Best-effort init so health shows DB readiness.
+  try {
+    await initStorage();
+  } catch (e) {
+    // Don't fail health for storage issues; just report.
+    console.error("Storage init error (health):", e);
+  }
+
   res.json({
     status: "ok",
     apiConfigured: !!ANTHROPIC_API_KEY,
     betaExpiry: BETA_EXPIRY,
     version: "2.0.0-cadillac",
+    cookbookStorage: storageMode(),
   });
 });
  
@@ -553,6 +563,29 @@ app.post("/api/download-cookbook", async (req, res) => {
   }
 });
  
+// Print product PDFs (Avery) - minimal v1
+app.post("/api/print-product", async (req, res) => {
+  const { cookbookId, type, sku } = req.body || {};
+  if (!cookbookId || !type || !sku) {
+    return res.status(400).json({ error: "cookbookId, type, and sku are required" });
+  }
+
+  const cookbookData = await getCookbook(cookbookId);
+  if (!cookbookData) return res.status(404).json({ error: "Cookbook not found" });
+
+  try {
+    const pdfBuffer = await generatePrintPdf({ type, sku, cookbook: cookbookData });
+    const safeSku = String(sku).replace(/[^0-9A-Za-z_-]/g, "");
+    const filename = `Avery_${safeSku}_${type}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error("Print product PDF error:", err);
+    res.status(500).json({ error: "Error generating PDF" });
+  }
+});
+
 // ============================================================
 // START SERVER
 // ============================================================
