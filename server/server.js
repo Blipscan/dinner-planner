@@ -781,6 +781,10 @@ async function generateRecipes({ menu, context, code, format, chatHistory }) {
   const formatGuidance =
     formatChoice === "cards"
       ? "Recipe Cards: Keep headings tight and prioritize scannability, but still include full ingredients and complete steps."
+      : formatChoice === "lesson"
+        ? "Cooking School Lesson Plan: Write each recipe as a teachable lesson. Include learning objectives, mise en place, instructor cues, checkpoints, common mistakes, timing blocks, and sensory targets. Still include full ingredients and complete steps."
+        : formatChoice === "graphic"
+          ? "Graphic Novel (Storyboard): Write each recipe as a sequence of illustrated panels with scene descriptions and brief dialogue/voiceover. Break steps into panels; it can be multi-page. Still include full ingredients and complete steps."
       : formatChoice === "gift"
         ? "Gift Presentation: Write with a touch more narrative and hospitality (but still precise)."
         : "3-Ring Binder: Full cookbook style with detailed sections.";
@@ -839,6 +843,25 @@ Return ONLY valid JSON (no markdown) with this exact shape:
       "plating": ["string", "..."],
       "allergens": ["string", "..."],
       "variations": ["string", "..."],
+      "lessonPlan": {
+        "objectives": ["string", "..."],
+        "miseEnPlace": ["string", "..."],
+        "timeline": ["string", "..."],
+        "checkpoints": ["string", "..."],
+        "commonMistakes": ["string", "..."],
+        "instructorNotes": ["string", "..."]
+      },
+      "graphicNovel": {
+        "panels": [
+          {
+            "panel": number,
+            "scene": "string",
+            "caption": "string",
+            "dialogue": ["string", "..."],
+            "action": "string"
+          }
+        ]
+      },
       "ingredients": ["string", ...],
       "steps": ["string", ...],
       "notes": "string (optional but preferred)",
@@ -862,6 +885,8 @@ Rules:
 - pairingWhy must explicitly reference the named wine pairing when present.
 - Include at least 3 practical equipment items per recipe.
 - Provide at least 2 variations and at least 2 allergens per recipe (use "none known" if truly none).
+- If format is Cooking School Lesson Plan, fill the lessonPlan object with 3–8 items per list.
+- If format is Graphic Novel, include 8–14 panels per recipe. Panels must map to the cooking steps in order and be vivid but practical.
 - Respect restrictions (e.g., if gluten-free, avoid wheat flour / breadcrumbs unless you explicitly provide a GF alternative).`;
 
   const response = await client.messages.create({
@@ -986,6 +1011,8 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     const variations = Array.isArray(r?.variations) ? r.variations : [];
     const csNotes = Array.isArray(r?.chefSommelierNotes) ? r.chefSommelierNotes : [];
     const wine = r?.winePairing || c?.wine || null;
+    const lesson = r?.lessonPlan || null;
+    const panels = Array.isArray(r?.graphicNovel?.panels) ? r.graphicNovel.panels : [];
 
     return `<section class="recipe">
   <h2>${escapeHtml(c?.type || "Course")}: ${escapeHtml(c?.name || "Recipe")}</h2>
@@ -1013,6 +1040,38 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
   ${plating.length ? `<div class="subsection"><h3>Plating</h3><ul>${plating.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
   ${allergens.length ? `<div class="subsection"><h3>Allergens</h3><ul>${allergens.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
   ${variations.length ? `<div class="subsection"><h3>Variations</h3><ul>${variations.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
+  ${
+    formatChoice === "lesson" && lesson
+      ? `<div class="subsection"><h3>Cooking School Lesson Plan</h3>
+          ${Array.isArray(lesson.objectives) && lesson.objectives.length ? `<h3>Objectives</h3><ul>${lesson.objectives.map((x)=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
+          ${Array.isArray(lesson.miseEnPlace) && lesson.miseEnPlace.length ? `<h3>Mise en place</h3><ul>${lesson.miseEnPlace.map((x)=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
+          ${Array.isArray(lesson.timeline) && lesson.timeline.length ? `<h3>Timeline</h3><ul>${lesson.timeline.map((x)=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
+          ${Array.isArray(lesson.checkpoints) && lesson.checkpoints.length ? `<h3>Checkpoints</h3><ul>${lesson.checkpoints.map((x)=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
+          ${Array.isArray(lesson.commonMistakes) && lesson.commonMistakes.length ? `<h3>Common mistakes</h3><ul>${lesson.commonMistakes.map((x)=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
+          ${Array.isArray(lesson.instructorNotes) && lesson.instructorNotes.length ? `<h3>Instructor notes</h3><ul>${lesson.instructorNotes.map((x)=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
+        </div>`
+      : ""
+  }
+  ${
+    formatChoice === "graphic" && panels.length
+      ? `<div class="subsection"><h3>Graphic Novel (Storyboard)</h3>
+          <div class="panels">
+            ${panels
+              .map((p) => {
+                const dlg = Array.isArray(p.dialogue) ? p.dialogue : [];
+                return `<div class="panel">
+                  <div class="panel-num">Panel ${escapeHtml(p.panel)}</div>
+                  <div class="panel-scene">${escapeHtml(p.scene || "")}</div>
+                  ${p.caption ? `<div class="panel-caption">${escapeHtml(p.caption)}</div>` : ""}
+                  ${dlg.length ? `<div class="panel-dialogue">${dlg.map((d)=>`<div>“${escapeHtml(d)}”</div>`).join("")}</div>` : ""}
+                  ${p.action ? `<div class="panel-action">${escapeHtml(p.action)}</div>` : ""}
+                </div>`;
+              })
+              .join("")}
+          </div>
+        </div>`
+      : ""
+  }
 </section>`;
   }).join("\n");
 
@@ -1201,6 +1260,17 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     .render-links { display:flex; flex-wrap:wrap; gap:10px; margin-top: 10px; }
     .render-link { display:inline-flex; padding: 6px 10px; border: 1px solid rgba(17,24,39,0.14); border-radius: 999px; text-decoration:none; color: var(--navy); font-size: 13px; }
     .render-link:hover { border-color: var(--gold); }
+    .panels { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .panel { border: 1px solid rgba(17,24,39,0.12); border-radius: 12px; padding: 12px; background: rgba(17,24,39,0.02); }
+    .panel-num { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); font-weight: 800; }
+    .panel-scene { font-weight: 700; margin-top: 6px; color: var(--navy); }
+    .panel-caption { margin-top: 6px; color: var(--muted); font-style: italic; }
+    .panel-dialogue { margin-top: 8px; }
+    .panel-action { margin-top: 8px; color: var(--ink); }
+    @media print {
+      body.format-graphic .panel { break-inside: avoid; }
+      body.format-graphic .panels { break-inside: avoid; }
+    }
     body.format-cards .section { break-before: auto; }
     body.format-cards .toc { display:none; }
     body.format-cards .divider { display:none; }
@@ -1239,6 +1309,8 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
         <button class="btn2" onclick="location.href='?format=cards'">Recipe Cards</button>
         <button class="btn2" onclick="location.href='?format=binder'">Binder</button>
         <button class="btn2" onclick="location.href='?format=gift'">Gift</button>
+        <button class="btn2" onclick="location.href='?format=lesson'">Lesson Plan</button>
+        <button class="btn2" onclick="location.href='?format=graphic'">Graphic Novel</button>
       </div>
       <div class="toc">
         ${tocItems}
