@@ -265,6 +265,27 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     .chat-controls { display:flex; gap:0.6rem; align-items:center; }
     .chat-controls label { display:flex; gap:0.4rem; align-items:center; font-size:0.85rem; opacity:0.95; }
     .chat-controls input[type="checkbox"] { transform: translateY(1px); }
+    .status-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:0.45rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.20);
+      background: rgba(255,255,255,0.10);
+      font-size: 0.82rem;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+    }
+    .status-dot.listening { background: #22c55e; }
+    .status-dot.thinking { background: #f59e0b; }
+    .status-dot.speaking { background: #60a5fa; }
+    .status-dot.off { background: rgba(255,255,255,0.25); }
     .mic-banner {
       background: rgba(201,162,39,0.15);
       border-top: 1px solid rgba(201,162,39,0.35);
@@ -310,6 +331,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       box-shadow: 0 12px 30px rgba(0,0,0,0.25);
     }
     .toast.hidden { display:none; }
+    .interim {
+      padding: 0.6rem 1.25rem;
+      background: rgba(255,255,255,0.08);
+      border-top: 1px solid rgba(255,255,255,0.16);
+      color: rgba(255,255,255,0.92);
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+    .interim.hidden { display:none; }
     .chat-header .icon { font-size: 1.75rem; }
     .chat-header .name {
       font-family: 'Playfair Display', serif;
@@ -746,11 +776,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <span class="spacer"></span>
             <div class="chat-controls">
               <span class="mic-status"><span class="mic-dot" id="plannerMicDot"></span><span id="plannerMicText">Mic off</span></span>
+              <span class="status-pill"><span class="status-dot off" id="plannerStatusDot"></span><span id="plannerStatusText">Idle</span></span>
               <label><input type="checkbox" id="plannerVoiceToggle"> Voice</label>
               <label><input type="checkbox" id="plannerAutoSendToggle" checked> Auto-send</label>
+              <label><input type="checkbox" id="plannerHandsFreeToggle"> Hands-free</label>
+              <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
             </div>
           </div>
           <div class="mic-banner hidden" id="plannerMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
+          <div class="interim hidden" id="plannerInterim"></div>
           <div class="chat-messages" id="plannerMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="plannerInput" placeholder="Ask the Planner..." onkeypress="if(event.key==='Enter')sendPlannerChat()">
@@ -929,11 +963,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <span class="spacer"></span>
             <div class="chat-controls">
               <span class="mic-status"><span class="mic-dot" id="expertMicDot"></span><span id="expertMicText">Mic off</span></span>
+              <span class="status-pill"><span class="status-dot off" id="expertStatusDot"></span><span id="expertStatusText">Idle</span></span>
               <label><input type="checkbox" id="expertVoiceToggle"> Voice</label>
               <label><input type="checkbox" id="expertAutoSendToggle" checked> Auto-send</label>
+              <label><input type="checkbox" id="expertHandsFreeToggle"> Hands-free</label>
+              <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
             </div>
           </div>
           <div class="mic-banner hidden" id="expertMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
+          <div class="interim hidden" id="expertInterim"></div>
           <div class="chat-messages" id="chatMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Ask a question or share your vision..." onkeypress="if(event.key==='Enter')sendChat()">
@@ -1012,11 +1050,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <span class="spacer"></span>
             <div class="chat-controls">
               <span class="mic-status"><span class="mic-dot" id="sommMicDot"></span><span id="sommMicText">Mic off</span></span>
+              <span class="status-pill"><span class="status-dot off" id="sommStatusDot"></span><span id="sommStatusText">Idle</span></span>
               <label><input type="checkbox" id="sommVoiceToggle"> Voice</label>
               <label><input type="checkbox" id="sommAutoSendToggle" checked> Auto-send</label>
+              <label><input type="checkbox" id="sommHandsFreeToggle"> Hands-free</label>
+              <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
             </div>
           </div>
           <div class="mic-banner hidden" id="sommMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
+          <div class="interim hidden" id="sommInterim"></div>
           <div class="chat-messages" id="sommMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="sommInput" placeholder="Ask the Sommelier..." onkeypress="if(event.key==='Enter')sendSommChat()">
@@ -1134,6 +1176,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let sommHistory = [];
     let speech = { planner: null, expert: null, somm: null };
     let mic = { planner: false, expert: false, somm: false };
+    let audioUnlocked = false;
+    let speaking = { planner: false, expert: false, somm: false };
     
     // ============================================================
     // INITIALIZATION
@@ -1183,6 +1227,38 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       // Initialize planner + somm chat
       initPlannerChat();
       initSommChat();
+
+      // Hands-free toggles: start/stop listening automatically
+      const plannerHF = document.getElementById('plannerHandsFreeToggle');
+      if (plannerHF) plannerHF.addEventListener('change', () => {
+        if (plannerHF.checked) {
+          enableAudio();
+          togglePlannerMic();
+        } else {
+          if (speech.planner) speech.planner.stop();
+          setStatus('planner', 'idle');
+        }
+      });
+      const expertHF = document.getElementById('expertHandsFreeToggle');
+      if (expertHF) expertHF.addEventListener('change', () => {
+        if (expertHF.checked) {
+          enableAudio();
+          toggleExpertMic();
+        } else {
+          if (speech.expert) speech.expert.stop();
+          setStatus('expert', 'idle');
+        }
+      });
+      const sommHF = document.getElementById('sommHandsFreeToggle');
+      if (sommHF) sommHF.addEventListener('change', () => {
+        if (sommHF.checked) {
+          enableAudio();
+          toggleSommMic();
+        } else {
+          if (speech.somm) speech.somm.stop();
+          setStatus('somm', 'idle');
+        }
+      });
     }
     
     document.addEventListener('DOMContentLoaded', init);
@@ -1218,11 +1294,52 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       if (btn) btn.textContent = isOn ? 'Stop Mic' : 'Start Mic';
     }
 
+    async function enableAudio() {
+      // Must be called from a user gesture.
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          gain.gain.value = 0.0001; // effectively silent
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.03);
+          await ctx.resume().catch(()=>{});
+          setTimeout(() => ctx.close().catch(()=>{}), 80);
+        }
+        audioUnlocked = true;
+        showToast('Audio enabled.');
+      } catch {
+        audioUnlocked = true;
+        showToast('Audio enabled.');
+      }
+    }
+
+    function setStatus(role, status) {
+      const dot = document.getElementById(role + 'StatusDot');
+      const text = document.getElementById(role + 'StatusText');
+      if (!dot || !text) return;
+      dot.classList.remove('listening', 'thinking', 'speaking', 'off');
+      if (status === 'listening') { dot.classList.add('listening'); text.textContent = 'Listening'; return; }
+      if (status === 'thinking') { dot.classList.add('thinking'); text.textContent = 'Thinking'; return; }
+      if (status === 'speaking') { dot.classList.add('speaking'); text.textContent = 'Speaking'; return; }
+      dot.classList.add('off'); text.textContent = 'Idle';
+    }
+
     async function speak(text, voiceRole) {
       // Avoid speaking empty or placeholder responses.
       const t = String(text || '').trim();
       if (!t || t === '...') return;
       try {
+        // If audio isn't unlocked, playing may be blocked by the browser.
+        if (!audioUnlocked) {
+          showToast('Tap “Enable audio” once to allow voice replies.');
+          return;
+        }
+
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1230,8 +1347,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         });
         if (!res.ok) {
           const j = await res.json().catch(()=>null);
-          showToast(j?.error ? `Voice unavailable: ${j.error}` : 'Voice unavailable.');
-          return;
+          // Fallback to browser speech synthesis so user still hears something.
+          showToast(j?.error ? `ElevenLabs voice failed: ${j.error}. Using device voice.` : 'ElevenLabs voice failed. Using device voice.');
+          return speakWithDeviceVoice(t);
         }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -1239,7 +1357,22 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         audio.onended = () => URL.revokeObjectURL(url);
         await audio.play();
       } catch {
-        // Silent fail (voice is optional).
+        // If anything goes wrong, use device voice.
+        return speakWithDeviceVoice(t);
+      }
+    }
+
+    function speakWithDeviceVoice(text) {
+      try {
+        if (!('speechSynthesis' in window)) return;
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 1.0;
+        u.pitch = 1.0;
+        u.volume = 1.0;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+      } catch {
+        // ignore
       }
     }
 
@@ -1339,6 +1472,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
       plannerHistory.push({ role: 'assistant', content: '...' });
       renderPlannerChat();
+      setStatus('planner', 'thinking');
 
       try {
         const res = await fetch('/api/chat', {
@@ -1354,10 +1488,17 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         const reply = data.response || 'Please try again.';
         plannerHistory[plannerHistory.length - 1] = { role: 'assistant', content: reply };
         renderPlannerChat();
-        if (voiceEnabled('plannerVoiceToggle')) speak(reply, 'planner');
+        if (voiceEnabled('plannerVoiceToggle') || document.getElementById('plannerHandsFreeToggle')?.checked) {
+          setStatus('planner', 'speaking');
+          await speak(reply, 'planner');
+          setStatus('planner', document.getElementById('plannerHandsFreeToggle')?.checked ? 'listening' : 'idle');
+        } else {
+          setStatus('planner', 'idle');
+        }
       } catch {
         plannerHistory[plannerHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
         renderPlannerChat();
+        setStatus('planner', 'idle');
       }
     }
 
@@ -1371,15 +1512,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
         const rec = createRecognizer((text) => {
           document.getElementById('plannerInput').value = text;
+          const interim = document.getElementById('plannerInterim');
+          if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
         }, () => {
           speech.planner = null;
           setMicUi('planner', false);
+          const interim = document.getElementById('plannerInterim');
+          if (interim) interim.classList.add('hidden');
           if (autoSendEnabled('plannerAutoSendToggle')) sendPlannerChat();
           showToast('Microphone off.');
         });
         if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
         speech.planner = rec;
         setMicUi('planner', true);
+        setStatus('planner', 'listening');
         showToast('Microphone on. Speak now, then click Stop Mic.');
         rec.start();
       } else {
@@ -1400,15 +1546,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
         const rec = createRecognizer((text) => {
           document.getElementById('chatInput').value = text;
+          const interim = document.getElementById('expertInterim');
+          if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
         }, () => {
           speech.expert = null;
           setMicUi('expert', false);
+          const interim = document.getElementById('expertInterim');
+          if (interim) interim.classList.add('hidden');
           if (autoSendEnabled('expertAutoSendToggle')) sendChat();
           showToast('Microphone off.');
         });
         if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
         speech.expert = rec;
         setMicUi('expert', true);
+        setStatus('expert', 'listening');
         showToast('Microphone on. Speak now, then click Stop Mic.');
         rec.start();
       } else {
@@ -1902,6 +2053,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       // Typing indicator
       chatHistory.push({ role: 'assistant', content: '...' });
       renderChat();
+      setStatus('expert', 'thinking');
       
       try {
         const menuForChat = (selectedMenu !== null && menus && menus[selectedMenu]) ? menus[selectedMenu] : null;
@@ -1922,11 +2074,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         renderChat();
         if (voiceEnabled('expertVoiceToggle')) {
           const role = (selectedExpert === 'sommelier') ? 'sommelier' : (selectedExpert === 'chef' ? 'chef' : 'planner');
-          speak(chatHistory[chatHistory.length - 1].content, role);
+          setStatus('expert', 'speaking');
+          await speak(chatHistory[chatHistory.length - 1].content, role);
+          setStatus('expert', document.getElementById('expertHandsFreeToggle')?.checked ? 'listening' : 'idle');
+        } else if (document.getElementById('expertHandsFreeToggle')?.checked) {
+          // Hands-free without voice still cycles listening.
+          setStatus('expert', 'listening');
+        } else {
+          setStatus('expert', 'idle');
         }
       } catch (err) {
         chatHistory[chatHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
         renderChat();
+        setStatus('expert', 'idle');
       }
     }
 
@@ -1963,6 +2123,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
       sommHistory.push({ role: 'assistant', content: '...' });
       renderSommChat();
+      setStatus('somm', 'thinking');
 
       try {
         const menuForChat = (selectedMenu !== null && menus && menus[selectedMenu]) ? menus[selectedMenu] : null;
@@ -1980,10 +2141,17 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         const reply = data.response || 'Please try again.';
         sommHistory[sommHistory.length - 1] = { role: 'assistant', content: reply };
         renderSommChat();
-        if (voiceEnabled('sommVoiceToggle')) speak(reply, 'sommelier');
+        if (voiceEnabled('sommVoiceToggle') || document.getElementById('sommHandsFreeToggle')?.checked) {
+          setStatus('somm', 'speaking');
+          await speak(reply, 'sommelier');
+          setStatus('somm', document.getElementById('sommHandsFreeToggle')?.checked ? 'listening' : 'idle');
+        } else {
+          setStatus('somm', 'idle');
+        }
       } catch {
         sommHistory[sommHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
         renderSommChat();
+        setStatus('somm', 'idle');
       }
     }
 
@@ -1997,15 +2165,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
         const rec = createRecognizer((text) => {
           document.getElementById('sommInput').value = text;
+          const interim = document.getElementById('sommInterim');
+          if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
         }, () => {
           speech.somm = null;
           setMicUi('somm', false);
+          const interim = document.getElementById('sommInterim');
+          if (interim) interim.classList.add('hidden');
           if (autoSendEnabled('sommAutoSendToggle')) sendSommChat();
           showToast('Microphone off.');
         });
         if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
         speech.somm = rec;
         setMicUi('somm', true);
+        setStatus('somm', 'listening');
         showToast('Microphone on. Speak now, then click Stop Mic.');
         rec.start();
       } else {
