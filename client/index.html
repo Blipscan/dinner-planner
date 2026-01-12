@@ -761,7 +761,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div id="menuActions" class="actions hidden">
         <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
         <button class="btn btn-outline" onclick="rejectMenus()">None of These Work</button>
-        <button class="btn btn-outline" onclick="loadWineTiers()">Get 4-tier wine options</button>
+        <button class="btn btn-outline" onclick="loadWineTiers()">Get beverage options</button>
         <button class="btn btn-primary" id="selectMenuBtn" onclick="selectMenu()" disabled>Select This Menu</button>
       </div>
       
@@ -1454,14 +1454,25 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <div style="margin-top:0.75rem;font-size:0.9rem;color:var(--gold-dark)">Wine: ${menu.wineCost}</div>
           ${selectedMenu === i && wineTiers ? `
             <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.92rem">
-              <div style="font-weight:600;color:var(--navy);margin-bottom:0.5rem">4-tier wine options</div>
+              <div style="font-weight:600;color:var(--navy);margin-bottom:0.5rem">Beverage options</div>
+              ${wineTiers.alcoholAllowed === false ? `<div style="color:var(--text-light);font-style:italic;margin-bottom:0.6rem">Alcohol is disabled for this context (e.g., Ramadan/Halal). Showing mocktails; wine tiers omitted.</div>` : ''}
+              ${wineTiers.eventBeverages ? `
+                <div style="margin-bottom:0.75rem">
+                  <div style="font-weight:600;color:var(--gold-dark)">Welcome</div>
+                  ${wineTiers.eventBeverages.welcomeCocktail ? `<div><strong>Cocktail:</strong> ${wineTiers.eventBeverages.welcomeCocktail}</div>` : ''}
+                  ${wineTiers.eventBeverages.welcomeMocktail ? `<div><strong>Mocktail:</strong> ${wineTiers.eventBeverages.welcomeMocktail}</div>` : ''}
+                </div>
+              ` : ''}
               ${(wineTiers.courses || []).filter(x => x.selectedWine || x.type).map(x => `
                 <div style="margin-bottom:0.75rem">
                   <div style="font-weight:600;color:var(--gold-dark)">${x.type}: <span style="font-weight:400;color:var(--text)">${x.selectedWine || '—'}</span></div>
+                  ${x.cocktail ? `<div style="margin-top:0.25rem"><strong>Cocktail:</strong> ${x.cocktail.name}${x.cocktail.notes ? ` — <span style="color:var(--text-light)">${x.cocktail.notes}</span>` : ''}</div>` : ''}
+                  ${x.mocktail ? `<div style="margin-top:0.25rem"><strong>Mocktail:</strong> ${x.mocktail.name}${x.mocktail.notes ? ` — <span style="color:var(--text-light)">${x.mocktail.notes}</span>` : ''}</div>` : ''}
                   <div style="margin-top:0.35rem;display:grid;gap:0.35rem">
                     ${['topShelf','under80','under20','bond'].map(k => {
                       const t = x.tiers?.[k];
                       if (!t) return '';
+                      if (wineTiers.alcoholAllowed === false) return '';
                       const q = encodeURIComponent(t.vivinoQuery || t.wine || '');
                       const link = q ? `https://www.vivino.com/search/wines?q=${q}` : '';
                       return `<div><strong>${t.title}:</strong> ${t.wine}${t.notes ? ` — <span style="color:var(--text-light)">${t.notes}</span>` : ''}${link ? ` — <a href="${link}" target="_blank" rel="noopener noreferrer">Vivino search</a>` : ''}</div>`;

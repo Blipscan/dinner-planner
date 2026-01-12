@@ -70,6 +70,20 @@ function isValidBetaCode(code) {
   return ACCESS_CODES.map((c) => c.toUpperCase()).includes(upper);
 }
  
+function alcoholAllowedFromContext(context) {
+  const restrictions = Array.isArray(context?.restrictions)
+    ? context.restrictions.map((r) => String(r).toLowerCase())
+    : [];
+  const cuisine = String(context?.cuisine || "").toLowerCase();
+  const sub = String(context?.subCuisine || "").toLowerCase();
+
+  if (restrictions.includes("halal")) return false;
+  if (sub.includes("ramadan")) return false;
+  if (cuisine === "religion" && (sub.includes("muslim") || sub.includes("ramadan"))) return false;
+
+  return true;
+}
+
 let lastCookbookCleanup = null;
 async function runCookbookCleanup() {
   try {
@@ -330,6 +344,7 @@ app.post("/api/generate-menus", async (req, res) => {
       String(context?.cuisine || "").toLowerCase() === "religion" || String(context?.subCuisine || "").toLowerCase().includes("kosher") || String(context?.subCuisine || "").toLowerCase().includes("ramadan") || String(context?.subCuisine || "").toLowerCase().includes("lent")
         ? "\nReligious menu mode:\n- If Jewish/Kosher: avoid pork/shellfish, do not mix meat and dairy, use kosher-friendly preparations.\n- If Muslim/Ramadan: avoid pork and alcohol in cooking; emphasize shareable, evening-appropriate dishes.\n- If Catholic/Lent: avoid meat on fasting days; lean into seafood/vegetarian.\n"
         : "";
+    const alcoholAllowed = alcoholAllowedFromContext(context);
 
     let lastFailureSummary = "";
     for (let attempt = 1; attempt <= maxBatches && collected.length < 5; attempt++) {
@@ -350,6 +365,7 @@ ${chatContext}
 Hard constraints (must follow):
 - Do NOT include ingredients or dishes that conflict with Avoids or Dietary Restrictions.
 - If a restriction implies substitutions (e.g., gluten-free), choose naturally compliant dishes or explicitly gluten-free variants.
+${alcoholAllowed ? "" : "- Alcohol is NOT allowed: do not include alcohol in cooking, and set wine: null for all courses.\n"}
 ${preferenceMode}
 
 Validation enforcement:
@@ -526,43 +542,51 @@ function validateMenusAgainstPreferences(menus, context) {
 
 async function generateWineTiers({ menu, context, chatHistory }) {
   const courses = Array.isArray(menu?.courses) ? menu.courses : [];
+  const alcoholAllowed = alcoholAllowedFromContext(context);
 
   if (!ANTHROPIC_API_KEY) {
     // Demo fallback: deterministic, not "rated" claims.
     return {
+      alcoholAllowed,
+      eventBeverages: {
+        welcomeCocktail: alcoholAllowed ? "French 75 (classic, celebratory)" : null,
+        welcomeMocktail: "Citrus-spritz (lemon, mint, sparkling water)",
+      },
       courses: courses.map((c) => ({
         type: c?.type || "Course",
         name: c?.name || "",
         selectedWine: c?.wine || null,
+        cocktail: alcoholAllowed ? { name: "Martini (classic)", notes: "Only if it fits the vibe and course timing." } : null,
+        mocktail: { name: "Cucumber-lime spritz", notes: "Bright, low sweetness, resets the palate." },
         tiers: {
           topShelf: {
             title: "Top shelf (special occasion)",
-            wine: c?.wine || "Champagne (grower) or Grand Cru Burgundy (depending on the course)",
+            wine: alcoholAllowed ? (c?.wine || "Champagne (grower) or Grand Cru Burgundy (depending on the course)") : null,
             notes: "A splurge pick that matches the dish’s intensity and texture.",
-            vivinoQuery: c?.wine || "top shelf wine",
+            vivinoQuery: alcoholAllowed ? (c?.wine || "top shelf wine") : "",
           },
           under80: {
             title: "Highest-rated under $80",
-            wine: "A highly regarded regional classic under $80 (varies by market)",
+            wine: alcoholAllowed ? "A highly regarded regional classic under $80 (varies by market)" : null,
             notes: "Aim for a top producer in the same style as the selected pairing.",
-            vivinoQuery: c?.wine || "wine under 80",
+            vivinoQuery: alcoholAllowed ? (c?.wine || "wine under 80") : "",
           },
           under20: {
             title: "Highest-rated under $20",
-            wine: "A strong value bottle under $20 (varies by market)",
+            wine: alcoholAllowed ? "A strong value bottle under $20 (varies by market)" : null,
             notes: "Choose a fresh, clean style with good acidity to stay food-friendly.",
-            vivinoQuery: c?.wine || "wine under 20",
+            vivinoQuery: alcoholAllowed ? (c?.wine || "wine under 20") : "",
           },
           bond: {
             title: "What James Bond would request",
-            wine: "Bollinger (for bubbles) or a crisp Martini moment (if cocktail fits the course)",
+            wine: alcoholAllowed ? "Bollinger (for bubbles) or a crisp Martini moment (if cocktail fits the course)" : null,
             notes: "A cinematic pick—classic, confident, and instantly recognizable.",
-            vivinoQuery: "Bollinger",
+            vivinoQuery: alcoholAllowed ? "Bollinger" : "",
           },
         },
       })),
       disclaimer:
-        "“Highest-rated” is a guidance label; exact availability/pricing/ratings vary by market. Use the Vivino link to confirm.",
+        "“Highest-rated” is a guidance label; exact availability/pricing/ratings vary by market. Use the Vivino link to confirm. If alcohol is restricted (e.g., Ramadan/Halal), wine tiers are omitted and mocktails are provided.",
     };
   }
 
@@ -577,7 +601,7 @@ async function generateWineTiers({ menu, context, chatHistory }) {
           .join("\n")
       : "";
 
-  const systemPrompt = `You are a Master Sommelier generating tiered wine options for a dinner party menu.
+  const systemPrompt = `You are a Master Sommelier generating tiered wine options AND cocktail/mocktail options for a dinner party menu.
 
 You must return 4 tiers for each course:
 1) Top shelf (special occasion)
@@ -590,11 +614,14 @@ Important:
 - “Highest-rated” must be phrased as a market-dependent recommendation (do not claim exact ratings you cannot verify).
 - Keep suggestions realistic and widely available, with producer + region style guidance.
 - Include a Vivino search query string per tier (not a URL).
+- Also provide a cocktail and a mocktail pairing idea per course (short, practical).
+- If alcohol is NOT allowed, set all wine tier wines to null and cocktail to null; provide mocktails only.
 
 Event context:
 - Guests: ${context?.guestCount || 6}
 - Wine budget: ${context?.wineBudget || "$80-120"} total
 - Restrictions: ${(context?.restrictions || []).join(", ") || "none"}
+- Alcohol allowed: ${alcoholAllowed ? "yes" : "no"}
 
 Menu:
 ${menuSummary}
@@ -607,16 +634,23 @@ ${chatText || "(none)"}
 
 Return ONLY valid JSON with shape:
 {
+  "alcoholAllowed": boolean,
+  "eventBeverages": {
+    "welcomeCocktail": "string|null",
+    "welcomeMocktail": "string"
+  },
   "courses": [
     {
       "type": "string",
       "name": "string",
       "selectedWine": "string|null",
+      "cocktail": { "name": "string", "notes": "string" } | null,
+      "mocktail": { "name": "string", "notes": "string" },
       "tiers": {
-        "topShelf": { "title": "string", "wine": "string", "notes": "string", "vivinoQuery": "string" },
-        "under80": { "title": "string", "wine": "string", "notes": "string", "vivinoQuery": "string" },
-        "under20": { "title": "string", "wine": "string", "notes": "string", "vivinoQuery": "string" },
-        "bond": { "title": "string", "wine": "string", "notes": "string", "vivinoQuery": "string" }
+        "topShelf": { "title": "string", "wine": "string|null", "notes": "string", "vivinoQuery": "string" },
+        "under80": { "title": "string", "wine": "string|null", "notes": "string", "vivinoQuery": "string" },
+        "under20": { "title": "string", "wine": "string|null", "notes": "string", "vivinoQuery": "string" },
+        "bond": { "title": "string", "wine": "string|null", "notes": "string", "vivinoQuery": "string" }
       }
     }
   ],

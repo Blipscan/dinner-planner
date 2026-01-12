@@ -99,6 +99,14 @@ const CUISINES = {
   southAmerican: {
     label: 'South American',
     regions: ['Argentine', 'Peruvian', 'Brazilian', 'Chilean', 'Colombian']
+  },
+  religion: {
+    label: 'Religion',
+    countries: {
+      catholic: { label: 'Catholic', regions: ['Lent'] },
+      jewish: { label: 'Jewish', regions: ['Kosher'] },
+      muslim: { label: 'Muslim', regions: ['Ramadan'] }
+    }
   }
 };
 
