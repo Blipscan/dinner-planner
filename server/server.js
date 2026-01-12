@@ -570,11 +570,19 @@ app.post("/api/print-product", async (req, res) => {
     return res.status(400).json({ error: "cookbookId, type, and sku are required" });
   }
 
+  const productList = AVERY_PRODUCTS?.[type];
+  const product = Array.isArray(productList)
+    ? productList.find((p) => String(p.sku) === String(sku))
+    : null;
+  if (!product) {
+    return res.status(400).json({ error: "Unknown Avery product (type/sku)" });
+  }
+
   const cookbookData = await getCookbook(cookbookId);
   if (!cookbookData) return res.status(404).json({ error: "Cookbook not found" });
 
   try {
-    const pdfBuffer = await generatePrintPdf({ type, sku, cookbook: cookbookData });
+    const pdfBuffer = await generatePrintPdf({ type, sku, product, cookbook: cookbookData });
     const safeSku = String(sku).replace(/[^0-9A-Za-z_-]/g, "");
     const filename = `Avery_${safeSku}_${type}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
