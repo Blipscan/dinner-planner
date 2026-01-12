@@ -307,6 +307,59 @@ function buildRecipes(menu, recipes) {
           children: [new TextRun({ text: `Serves: ${recipe.serves || 6} | Active: ${recipe.activeTime || '30 min'} | Total: ${recipe.totalTime || '1 hour'}`, size: 20, italics: true, color: COLORS.textLight })]
         })
       );
+
+      // Wine pairing + rationale
+      if (recipe.winePairing || course.wine) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Wine Pairing', size: 26, bold: true, color: COLORS.gold })]
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: recipe.winePairing || course.wine, bold: true, color: COLORS.navy })
+            ]
+          })
+        );
+        if (recipe.pairingWhy) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 80, after: 120 },
+              children: [new TextRun({ text: recipe.pairingWhy, italics: true, color: COLORS.textLight })]
+            })
+          );
+        }
+      }
+
+      // Why it works
+      if (Array.isArray(recipe.whyItWorks) && recipe.whyItWorks.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Why This Works', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.whyItWorks.forEach((w) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(w))] })
+          );
+        });
+      }
+
+      // Equipment
+      if (Array.isArray(recipe.equipment) && recipe.equipment.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Equipment', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.equipment.forEach((e) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(e))] })
+          );
+        });
+      }
       
       // Ingredients
       children.push(
@@ -372,6 +425,66 @@ function buildRecipes(menu, recipes) {
             children: [new TextRun({ text: recipe.makeAhead, color: COLORS.text })]
           })
         );
+      }
+
+      // Chef + Sommelier notes (from consultation)
+      if (Array.isArray(recipe.chefSommelierNotes) && recipe.chefSommelierNotes.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Chef & Sommelier Notes', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.chefSommelierNotes.forEach((n) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(n))] })
+          );
+        });
+      }
+
+      // Plating
+      if (Array.isArray(recipe.plating) && recipe.plating.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Plating', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.plating.forEach((p) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(p))] })
+          );
+        });
+      }
+
+      // Allergens
+      if (Array.isArray(recipe.allergens) && recipe.allergens.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Allergens', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.allergens.forEach((a) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(a))] })
+          );
+        });
+      }
+
+      // Variations
+      if (Array.isArray(recipe.variations) && recipe.variations.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Variations', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.variations.forEach((v) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(v))] })
+          );
+        });
       }
     } else {
       // Placeholder

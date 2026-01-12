@@ -798,6 +798,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         <h3 class="card-title" style="font-size:1.2rem">Your Selected Menu</h3>
         <div id="selectedMenuSummary"></div>
       </div>
+
+      <div class="card">
+        <h2 class="card-title">Cookbook Format</h2>
+        <p class="card-subtitle">Choose a layout for printing and sharing.</p>
+        <div class="form-group">
+          <label for="cookbookFormat">Format</label>
+          <select id="cookbookFormat" onchange="selectCookbookFormat(this.value)">
+            <option value="cards">Recipe Cards</option>
+            <option value="binder" selected>3-Ring Binder (Full Cookbook)</option>
+            <option value="gift">Gift Presentation</option>
+          </select>
+        </div>
+      </div>
       
       <div class="actions">
         <button class="btn btn-secondary" onclick="goToStep(5)">Back</button>
@@ -880,6 +893,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let menus = [];
     let selectedMenu = null;
     let selectedStaffing = 'solo';
+    let selectedCookbookFormat = 'binder';
     let rejectionHistory = [];
     let cookbookId = null;
     
@@ -1514,6 +1528,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       selectedStaffing = id;
       initStaffingOptions();
     }
+
+    function selectCookbookFormat(value) {
+      selectedCookbookFormat = value || 'binder';
+    }
     
     // ============================================================
     // STEP 7: COOKBOOK
@@ -1532,7 +1550,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             menu: menus[selectedMenu],
             context: getContext(),
             staffing: selectedStaffing,
-            chatHistory: chatHistory
+            chatHistory: chatHistory,
+            format: selectedCookbookFormat
           })
         });
         const data = await res.json();

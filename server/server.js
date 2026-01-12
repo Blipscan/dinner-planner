@@ -11,6 +11,7 @@ const {
   getCookbook,
   initStorage,
   storageMode,
+  listRecentCookbooksByCode,
   getCodeUsage,
   bumpCodeUsage,
   listCodeUsage,
@@ -393,7 +394,28 @@ function buildWinePairingSummary(menu) {
   return wines.map((c) => `- ${c.type}: ${c.wine} (paired with ${c.name})`).join("\n");
 }
 
-async function generateRecipes({ menu, context }) {
+function buildAvoidanceSummary(previousCookbooks = []) {
+  const seen = [];
+  for (const cb of previousCookbooks) {
+    const m = cb?.menu;
+    const title = m?.title ? String(m.title) : "";
+    const courses = Array.isArray(m?.courses) ? m.courses : [];
+    const courseNames = courses.map((c) => c?.name).filter(Boolean).slice(0, 5);
+    const recipeTitles = Array.isArray(cb?.recipes)
+      ? cb.recipes.map((r) => r?.title).filter(Boolean).slice(0, 5)
+      : [];
+    const parts = [
+      title ? `Menu: ${title}` : null,
+      courseNames.length ? `Courses: ${courseNames.join(" | ")}` : null,
+      recipeTitles.length ? `Recipes: ${recipeTitles.join(" | ")}` : null,
+    ].filter(Boolean);
+    if (parts.length) seen.push(`- ${parts.join(" • ")}`);
+    if (seen.length >= 30) break;
+  }
+  return seen.join("\n");
+}
+
+async function generateRecipes({ menu, context, code, format, chatHistory }) {
   const guestCount = parseInt(context?.guestCount || "6", 10) || 6;
 
   // Demo-mode fallback: still return *real-looking* recipes, not empty placeholders.
@@ -430,10 +452,33 @@ async function generateRecipes({ menu, context }) {
 
   const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
   const menuSummary = buildMenuContextSummary(menu);
+  const winePairings = buildWinePairingSummary(menu);
+
+  const formatChoice = String(format || "binder").toLowerCase();
+  const formatGuidance =
+    formatChoice === "cards"
+      ? "Recipe Cards: Keep headings tight and prioritize scannability, but still include full ingredients and complete steps."
+      : formatChoice === "gift"
+        ? "Gift Presentation: Write with a touch more narrative and hospitality (but still precise)."
+        : "3-Ring Binder: Full cookbook style with detailed sections.";
+
+  const chatText =
+    Array.isArray(chatHistory) && chatHistory.length
+      ? chatHistory
+          .slice(-30)
+          .map((m) => `${m.role}: ${m.content}`.trim())
+          .join("\n")
+      : "";
+
+  const previous = code ? await listRecentCookbooksByCode(code, 30) : [];
+  const avoidance = buildAvoidanceSummary(previous);
 
   const systemPrompt = `You are a Michelin-caliber test-kitchen team writing complete, usable recipes for a home cook hosting a dinner party.
 
 You MUST generate recipes that match the exact menu courses provided. Be consistent: if a wine pairing is listed, do not ask the user what wine it is—treat it as already recommended.
+
+Output format preference:
+- ${formatGuidance}
 
 Event context:
 - Guests: ${guestCount}
@@ -445,6 +490,16 @@ Event context:
 Menu (5 courses):
 ${menuSummary}
 
+Known wine pairings (authoritative):
+${winePairings || "(none provided)"}
+
+Chef/Sommelier consultation notes (if any; incorporate relevant guidance and call it out in notes):
+${chatText || "(none)"}
+
+Non-repetition requirement:
+- Do NOT repeat dish concepts, signatures, or recipe titles from the last 30 cookbooks for this access code.
+${avoidance ? `Previously generated (avoid repeating):\n${avoidance}` : "Previously generated (avoid repeating): (no history)"}
+
 Return ONLY valid JSON (no markdown) with this exact shape:
 {
   "recipes": [
@@ -453,6 +508,14 @@ Return ONLY valid JSON (no markdown) with this exact shape:
       "serves": number,
       "activeTime": "string (e.g. 35 min)",
       "totalTime": "string (e.g. 1 hr 20 min)",
+      "winePairing": "string|null (MUST match the menu wine for that course if present)",
+      "whyItWorks": ["string", "..."] ,
+      "pairingWhy": "string (why this wine works with this course, referencing the listed wine)",
+      "chefSommelierNotes": ["string", "..."] ,
+      "equipment": ["string", "..."],
+      "plating": ["string", "..."],
+      "allergens": ["string", "..."],
+      "variations": ["string", "..."],
       "ingredients": ["string", ...],
       "steps": ["string", ...],
       "notes": "string (optional but preferred)",
@@ -465,6 +528,10 @@ Rules:
 - Output exactly 5 recipes in the same order as the menu courses.
 - Ingredients must include quantities scaled for ${guestCount} guests.
 - Steps must be specific and executable (temps, times, visual cues), but not overly long.
+- whyItWorks must be 3–6 bullets explaining the cooking logic and the menu role.
+- pairingWhy must explicitly reference the named wine pairing when present.
+- Include at least 3 practical equipment items per recipe.
+- Provide at least 2 variations and at least 2 allergens per recipe (use "none known" if truly none).
 - Respect restrictions (e.g., if gluten-free, avoid wheat flour / breadcrumbs unless you explicitly provide a GF alternative).`;
 
   const response = await client.messages.create({
@@ -486,16 +553,44 @@ Rules:
 
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
-  const { menu, context, staffing } = req.body || {};
+  const { code, menu, context, staffing, chatHistory, format } = req.body || {};
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
  
   try {
-    const recipes = await generateRecipes({ menu, context });
-    await saveCookbook(cookbookId, { menu, context, staffing, recipes });
+    const upperCode = code?.trim?.().toUpperCase?.();
+    const isAdmin = upperCode && upperCode === ADMIN_CODE.toUpperCase();
+    const isBeta = upperCode && isValidBetaCode(upperCode);
+    if (upperCode && !isAdmin && !isBeta) {
+      return res.status(403).json({ success: false, message: "Invalid access code." });
+    }
+
+    const safeFormat = String(format || "binder").toLowerCase();
+    const contextWithFormat = { ...(context || {}), cookbookFormat: safeFormat };
+
+    const recipes = await generateRecipes({
+      menu,
+      context: contextWithFormat,
+      code: upperCode,
+      format: safeFormat,
+      chatHistory,
+    });
+
+    await saveCookbook(
+      cookbookId,
+      { code: upperCode, format: safeFormat, menu, context: contextWithFormat, staffing, chatHistory, recipes },
+      { code: upperCode, format: safeFormat }
+    );
     res.json({ success: true, cookbookId });
   } catch (err) {
     console.error("Cookbook generation error:", err);
-    await saveCookbook(cookbookId, { menu, context, staffing, recipes: null });
+    const upperCode = code?.trim?.().toUpperCase?.();
+    const safeFormat = String(format || "binder").toLowerCase();
+    const contextWithFormat = { ...(context || {}), cookbookFormat: safeFormat };
+    await saveCookbook(
+      cookbookId,
+      { code: upperCode, format: safeFormat, menu, context: contextWithFormat, staffing, chatHistory, recipes: null },
+      { code: upperCode, format: safeFormat }
+    );
     res.json({
       success: true,
       cookbookId,
@@ -510,7 +605,8 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
   const cookbookData = await getCookbook(cookbookId);
   if (!cookbookData) return res.status(404).send("Cookbook not found");
 
-  const { menu, context, staffing, recipes } = cookbookData;
+  const { menu, context, staffing, recipes, format: storedFormat } = cookbookData;
+  const formatChoice = String(req.query?.format || storedFormat || context?.cookbookFormat || "binder").toLowerCase();
   const staffingInfo = STAFFING.find((s) => s.id === staffing) || STAFFING[0];
   const guestNames = String(context?.guestList || "")
     .split("\n")
@@ -551,6 +647,13 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     const r = Array.isArray(recipes) ? recipes[idx] : null;
     const ingredients = (r?.ingredients || []).map((i) => `<li>${escapeHtml(i)}</li>`).join("");
     const steps = (r?.steps || []).map((s) => `<li>${escapeHtml(s)}</li>`).join("");
+    const why = Array.isArray(r?.whyItWorks) ? r.whyItWorks : [];
+    const equip = Array.isArray(r?.equipment) ? r.equipment : [];
+    const plating = Array.isArray(r?.plating) ? r.plating : [];
+    const allergens = Array.isArray(r?.allergens) ? r.allergens : [];
+    const variations = Array.isArray(r?.variations) ? r.variations : [];
+    const csNotes = Array.isArray(r?.chefSommelierNotes) ? r.chefSommelierNotes : [];
+    const wine = r?.winePairing || c?.wine || null;
 
     return `<section class="recipe">
   <h2>${escapeHtml(c?.type || "Course")}: ${escapeHtml(c?.name || "Recipe")}</h2>
@@ -559,6 +662,10 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
       ? `<div class="meta">Serves ${escapeHtml(r.serves)} · Active ${escapeHtml(r.activeTime)} · Total ${escapeHtml(r.totalTime)}</div>`
       : `<div class="meta muted">Recipe details unavailable (placeholder).</div>`
   }
+  ${wine ? `<div class="subsection"><h3>Wine Pairing</h3><div><strong>${escapeHtml(wine)}</strong></div>${r?.pairingWhy ? `<p class="muted" style="margin-top:6px">${escapeHtml(r.pairingWhy)}</p>` : ""}</div>` : ""}
+  ${why.length ? `<div class="subsection"><h3>Why This Works</h3><ul>${why.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
+  ${csNotes.length ? `<div class="subsection"><h3>Chef & Sommelier Notes</h3><ul>${csNotes.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
+  ${equip.length ? `<div class="subsection"><h3>Equipment</h3><ul>${equip.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
   <div class="cols">
     <div>
       <h3>Ingredients</h3>
@@ -571,6 +678,9 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
   </div>
   ${r?.notes ? `<h3>Chef's Notes</h3><p>${escapeHtml(r.notes)}</p>` : ""}
   ${r?.makeAhead ? `<h3>Make Ahead</h3><p>${escapeHtml(r.makeAhead)}</p>` : ""}
+  ${plating.length ? `<div class="subsection"><h3>Plating</h3><ul>${plating.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
+  ${allergens.length ? `<div class="subsection"><h3>Allergens</h3><ul>${allergens.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
+  ${variations.length ? `<div class="subsection"><h3>Variations</h3><ul>${variations.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul></div>` : ""}
 </section>`;
   }).join("\n");
 
@@ -737,6 +847,14 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     .timeline td { padding: 8px 0; border-bottom: 1px dashed rgba(17,24,39,0.12); vertical-align: top; }
     .timeline td:first-child { width: 110px; color: var(--gold); font-weight: 700; }
     pre.prompt { background: rgba(17,24,39,0.04); border: 1px solid rgba(17,24,39,0.10); padding: 10px 12px; border-radius: 10px; overflow: auto; }
+    body.format-cards .section { break-before: auto; }
+    body.format-cards .toc { display:none; }
+    body.format-cards .divider { display:none; }
+    body.format-cards .topmeta { display:none; }
+    body.format-cards .recipe { border: 1px solid rgba(17,24,39,0.10); border-radius: 14px; padding: 14px; margin-top: 14px; }
+    body.format-cards .cols { grid-template-columns: 1fr; }
+    body.format-gift h1 { font-size: 40px; }
+    body.format-gift .subtitle { font-size: 18px; }
     @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } }
     @media print {
       body { background: white; }
@@ -750,7 +868,7 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     }
   </style>
 </head>
-<body>
+<body class="format-${escapeHtml(formatChoice)}">
   <div class="wrap">
     <div class="card">
       <h1>${escapeHtml(title)}</h1>
@@ -764,6 +882,9 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
       <div class="printbar">
         <button class="btn" onclick="window.print()">Print / Save as PDF</button>
         <button class="btn2" onclick="location.href='/'">Back to planner</button>
+        <button class="btn2" onclick="location.href='?format=cards'">Recipe Cards</button>
+        <button class="btn2" onclick="location.href='?format=binder'">Binder</button>
+        <button class="btn2" onclick="location.href='?format=gift'">Gift</button>
       </div>
       <div class="toc">
         ${tocItems}

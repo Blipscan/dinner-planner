@@ -54,6 +54,11 @@ async function initStorage() {
     );
   `);
 
+  // Backwards-compatible metadata columns (optional, but useful for querying)
+  await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS code TEXT;`);
+  await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS format TEXT;`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ${table}_code_created_at_idx ON ${table} (code, created_at DESC);`);
+
   const usageTable = process.env.CODE_USAGE_TABLE || "access_code_usage";
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ${usageTable} (
@@ -66,17 +71,19 @@ async function initStorage() {
   ready = true;
 }
 
-async function saveCookbook(id, data) {
+async function saveCookbook(id, data, meta = {}) {
   await initStorage();
+  const code = meta?.code ? String(meta.code).trim().toUpperCase() : null;
+  const format = meta?.format ? String(meta.format).trim() : null;
   if (!hasPostgres()) {
-    memoryStore[id] = { data, createdAt: new Date().toISOString() };
+    memoryStore[id] = { data, createdAt: new Date().toISOString(), code, format };
     return;
   }
   const table = process.env.COOKBOOKS_TABLE || DEFAULT_TABLE;
   await pool.query(
-    `INSERT INTO ${table} (id, data) VALUES ($1, $2)
-     ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data`,
-    [id, data]
+    `INSERT INTO ${table} (id, data, code, format) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, code = EXCLUDED.code, format = EXCLUDED.format`,
+    [id, data, code, format]
   );
 }
 
@@ -92,6 +99,30 @@ async function getCookbook(id) {
   const table = process.env.COOKBOOKS_TABLE || DEFAULT_TABLE;
   const res = await pool.query(`SELECT data FROM ${table} WHERE id = $1`, [id]);
   return res?.rows?.[0]?.data || null;
+}
+
+async function listRecentCookbooksByCode(code, limit = 30) {
+  await initStorage();
+  const upper = String(code || "").trim().toUpperCase();
+  const lim = Math.max(1, Math.min(100, Number(limit) || 30));
+  if (!upper) return [];
+
+  if (!hasPostgres()) {
+    const rows = Object.entries(memoryStore)
+      .map(([id, v]) => ({ id, createdAt: v?.createdAt, code: v?.code, data: v?.data }))
+      .filter((r) => r.code === upper)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+      .slice(0, lim)
+      .map((r) => r.data);
+    return rows;
+  }
+
+  const table = process.env.COOKBOOKS_TABLE || DEFAULT_TABLE;
+  const res = await pool.query(
+    `SELECT data FROM ${table} WHERE code = $1 ORDER BY created_at DESC LIMIT $2`,
+    [upper, lim]
+  );
+  return (res?.rows || []).map((r) => r.data);
 }
 
 async function cleanupCookbooks(ttlDays = 30) {
@@ -207,6 +238,7 @@ module.exports = {
   initStorage,
   saveCookbook,
   getCookbook,
+  listRecentCookbooksByCode,
   storageMode,
   getCodeUsage,
   bumpCodeUsage,
