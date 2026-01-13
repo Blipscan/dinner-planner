@@ -318,11 +318,18 @@ app.post("/api/chat", async (req, res) => {
         ? `\nSommelier continuity rules:\n- If a wine is already listed in the menu OR you already recommended a specific bottle earlier in this conversation, treat that as authoritative unless the user explicitly asks to change it.\n- Before asking a question, scan the prior messages for your own earlier recommendations.\n- Do NOT ask basic classification questions about a bottle already named (e.g., “is it red/white?”).\n`
         : "";
 
+    const hostAddressRaw = String(context?.hostAddress || "").trim();
+    const hostAddress = hostAddressRaw && hostAddressRaw.length < 80 ? hostAddressRaw : "";
+    const addressingRule = hostAddress
+      ? `\nAddressing rule:\n- Address the user as "${hostAddress}" (e.g., "Mr. Smith") in your replies. Do not use the user's first name.\n`
+      : "";
+
     const systemPrompt =
       (personaData?.systemPrompt || "") +
       `
  
 Current event context:
+- Host: ${hostAddress || "Host"}
 - Event: ${context?.eventTitle || "Dinner Party"}
 - Date: ${context?.eventDate || "TBD"}
 - Guests: ${context?.guestCount || 6}
@@ -339,6 +346,7 @@ Current event context:
 ${menuSummary ? `\nSelected/Current Menu (if provided):\n${menuSummary}\n` : ""}
 ${winePairings ? `\nKnown Wine Pairings (from the menu; treat as authoritative):\n${winePairings}\n` : ""}
 ${wineGuidance}
+${addressingRule}
  
 Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.`;
  

@@ -1165,6 +1165,23 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
               <label for="accessCode">Access Code</label>
               <input type="text" id="accessCode" placeholder="Enter your beta access code" autocomplete="off">
             </div>
+            <div class="form-row" style="margin-top:0.75rem">
+              <div class="form-group">
+                <label for="hostHonorific">How should we address you?</label>
+                <select id="hostHonorific">
+                  <option value="Mr.">Mr.</option>
+                  <option value="Mrs.">Mrs.</option>
+                  <option value="Ms.">Ms.</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="hostFullName">Your name</label>
+                <input type="text" id="hostFullName" placeholder="e.g., Alex Johnson" autocomplete="name">
+              </div>
+            </div>
+            <div style="margin-top:-0.25rem;color:var(--text-light);font-size:0.9rem;line-height:1.4">
+              We’ll address you as <span id="hostAddressPreview" style="font-weight:700;color:var(--navy)">Mr. —</span>.
+            </div>
             <div id="codeMessage"></div>
             <div class="actions" style="margin-top:1rem">
               <button class="btn btn-primary" onclick="validateCode()">Begin Planning</button>
@@ -1568,6 +1585,10 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     let currentStep = 1;
     let maxStepReached = 1;
     let accessCode = '';
+    // Tester identity (installation)
+    let hostHonorific = 'Mr.';
+    let hostFullName = '';
+    let hostSurname = '';
     let selectedStyle = 'classic';
     let selectedInspiration = 'chefs-tasting';
     let selectedCuisine = null;
@@ -1632,6 +1653,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       document.getElementById('accessCode').addEventListener('keypress', e => {
         if (e.key === 'Enter') validateCode();
       });
+
+      // Keep address preview in sync
+      const honorificEl = document.getElementById('hostHonorific');
+      const nameEl = document.getElementById('hostFullName');
+      if (honorificEl) honorificEl.addEventListener('change', () => updateHostPreview());
+      if (nameEl) nameEl.addEventListener('input', () => updateHostPreview());
 
       // Any attempt to use voice should unlock audio automatically.
       ['plannerVoiceToggle','expertVoiceToggle','sommVoiceToggle'].forEach((id) => {
@@ -2391,9 +2418,17 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     async function validateCode() {
       const code = document.getElementById('accessCode').value.trim();
       const msgEl = document.getElementById('codeMessage');
+      const honorific = (document.getElementById('hostHonorific')?.value || 'Mr.').trim();
+      const fullName = (document.getElementById('hostFullName')?.value || '').trim();
+      const surname = extractSurname(fullName);
       
       if (!code) {
         msgEl.innerHTML = '<div class="error-msg">Please enter an access code.</div>';
+        return;
+      }
+
+      if (!fullName || !surname) {
+        msgEl.innerHTML = '<div class="error-msg">Please enter your name (so we can address you properly).</div>';
         return;
       }
       
@@ -2408,6 +2443,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         if (data.valid) {
           accessCode = code;
           sessionStorage.setItem('dpp_accessCode', accessCode);
+          hostHonorific = (honorific === 'Mr.' || honorific === 'Mrs.' || honorific === 'Ms.') ? honorific : 'Mr.';
+          hostFullName = fullName;
+          hostSurname = surname;
+          localStorage.setItem('dpp_hostHonorific', hostHonorific);
+          localStorage.setItem('dpp_hostFullName', hostFullName);
+          localStorage.setItem('dpp_hostSurname', hostSurname);
           msgEl.innerHTML = `<div class="success-msg">✓ Access granted! ${data.remaining ? `(${data.remaining} generations remaining)` : ''}</div>`;
           setTimeout(() => goToStep(2), 800);
         } else {
@@ -2418,7 +2459,32 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       }
     }
 
+    function extractSurname(fullName) {
+      const s = String(fullName || '').trim();
+      if (!s) return '';
+      if (s.includes(',')) {
+        const left = s.split(',')[0].trim();
+        const leftParts = left.split(/\s+/).filter(Boolean);
+        return leftParts[leftParts.length - 1] || '';
+      }
+      const parts = s.split(/\s+/).filter(Boolean);
+      return parts[parts.length - 1] || '';
+    }
+
     async function restoreSession() {
+      // Restore identity (installation-level) even if code isn't restored.
+      const h = localStorage.getItem('dpp_hostHonorific');
+      const n = localStorage.getItem('dpp_hostFullName');
+      const s = localStorage.getItem('dpp_hostSurname');
+      if (h) hostHonorific = h;
+      if (n) hostFullName = n;
+      if (s) hostSurname = s;
+      const hEl = document.getElementById('hostHonorific');
+      const nEl = document.getElementById('hostFullName');
+      if (hEl && hostHonorific) hEl.value = hostHonorific;
+      if (nEl && hostFullName) nEl.value = hostFullName;
+      updateHostPreview();
+
       const saved = sessionStorage.getItem('dpp_accessCode');
       if (!saved) return;
       try {
@@ -2439,6 +2505,15 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       } catch {
         // If offline, keep them on step 1; they can retry.
       }
+    }
+
+    function updateHostPreview() {
+      const preview = document.getElementById('hostAddressPreview');
+      if (!preview) return;
+      const h = (document.getElementById('hostHonorific')?.value || hostHonorific || 'Mr.').trim();
+      const n = (document.getElementById('hostFullName')?.value || hostFullName || '').trim();
+      const sur = extractSurname(n) || hostSurname || '—';
+      preview.textContent = `${h} ${sur}`;
     }
     
     // ============================================================
@@ -2736,6 +2811,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     
     function getContext() {
       return {
+        hostHonorific,
+        hostSurname,
+        hostAddress: (hostHonorific && hostSurname) ? `${hostHonorific} ${hostSurname}` : null,
         eventTitle: document.getElementById('eventTitle').value,
         eventDate: document.getElementById('eventDate').value,
         guestCount: document.getElementById('guestCount').value,
