@@ -1950,6 +1950,13 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       }
     }
 
+    function timeOfDayGreeting() {
+      const h = new Date().getHours();
+      if (h >= 5 && h < 12) return 'Good morning';
+      if (h >= 12 && h < 17) return 'Good afternoon';
+      return 'Good evening';
+    }
+
     function formalHostAddress() {
       const h = (hostHonorific || 'Mr.').trim() || 'Mr.';
       const s = (hostSurname || '').trim();
@@ -1960,6 +1967,11 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       const who = formalHostAddress();
       const label = personaLabel || (role === 'planner' ? 'Event Planner' : role === 'somm' ? 'Sommelier' : 'Chef');
       return `Hello ${who}, I’m your ${label}. How can I be of service?`;
+    }
+
+    function plannerCheckInGreeting() {
+      // Requested: “good morning/afternoon/evening Mrs. -----
+      return `${timeOfDayGreeting()} ${formalHostAddress()}, I’m your Event Planner. How can I be of service?`;
     }
 
     async function playShortRing() {
@@ -2958,6 +2970,29 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           localStorage.setItem('dpp_hostFullName', hostFullName);
           localStorage.setItem('dpp_hostSurname', hostSurname);
           msgEl.innerHTML = `<div class="success-msg">✓ Access granted! ${data.remaining ? `(${data.remaining} generations remaining)` : ''}</div>`;
+
+          // On check-in: unlock audio and have the Planner greet formally.
+          try {
+            await enableAudio();
+            const greet = plannerCheckInGreeting();
+            plannerHistory = [{ role: 'assistant', content: greet }];
+            renderPlannerChat();
+            const v = document.getElementById('plannerVoiceToggle');
+            if (v) v.checked = true;
+            // Speak the greeting (no ring; this is check-in).
+            setStatus('planner', 'speaking');
+            speaking.planner = true;
+            await speak(greet, 'planner');
+            speaking.planner = false;
+            // Start hands-free listening right after the greeting.
+            const hf = document.getElementById('plannerHandsFreeToggle');
+            if (hf) hf.checked = true;
+            await setHandsFree('planner', true);
+            setStatus('planner', handsFreeOn('planner') ? 'listening' : 'idle');
+          } catch {
+            // ignore; check-in should still proceed
+          }
+
           setTimeout(() => goToStep(2), 800);
         } else {
           msgEl.innerHTML = `<div class="error-msg">${data.message || 'Invalid access code.'}</div>`;
