@@ -26,6 +26,7 @@ body{
     linear-gradient(180deg, #ffffff 0%, var(--cream) 55%, var(--cream) 100%);
   color:var(--text);
 }
+html{ scroll-behavior: smooth; }
 
 /* ===== BASE LAYOUT ===== */
 .container{
@@ -36,16 +37,20 @@ body{
 
 /* ===== STEP "SCREEN" FRAME ===== */
 section[id^="step"]{
-  border: 2px solid rgba(30,58,95,0.18);
+  border: 3px solid rgba(30,58,95,0.28);
   border-radius: 18px;
-  background: rgba(255,255,255,0.70);
-  box-shadow: 0 16px 44px rgba(0,0,0,0.07);
-  padding: 1.25rem;
-  margin: 0.75rem 0 1.5rem;
+  background: rgba(255,255,255,0.86);
+  box-shadow: 0 18px 54px rgba(0,0,0,0.10);
+  padding: 1.35rem;
+  margin: 0.9rem 0 1.75rem;
+  outline: 10px solid rgba(201,162,39,0.06);
 }
 section[id^="step"] .card{
   background: rgba(255,255,255,0.94);
 }
+.card{ margin-bottom: 1.6rem; }
+.card:last-child{ margin-bottom: 0; }
+.section-title{ scroll-margin-top: 130px; }
 
 /* ===== TOP BAR ===== */
 .topbar{
@@ -159,7 +164,7 @@ section[id^="step"] .card{
   margin: 0.3rem 0 0.85rem;
   border-radius: 14px;
   background: rgba(255,255,255,0.88);
-  border: 1px solid rgba(17,24,39,0.10);
+  border: 1px solid rgba(17,24,39,0.14);
   backdrop-filter: blur(8px);
 }
 .section-nav.hidden{ display:none !important; }
@@ -192,6 +197,28 @@ section[id^="step"] .card{
   border-color: rgba(30,58,95,0.35);
   background: rgba(30,58,95,0.08);
   color: var(--navy);
+}
+.section-nav .nav-spacer{ flex: 1 1 auto; min-width: 16px; }
+.section-nav-jump{
+  appearance:none;
+  border: 1px solid rgba(17,24,39,0.14);
+  background: rgba(255,255,255,0.92);
+  color: rgba(17,24,39,0.78);
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 900;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.section-nav-jump:hover{
+  border-color: rgba(30,58,95,0.28);
+  color: var(--navy);
+}
+.section-nav-jump:disabled{
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 [data-screen]{ scroll-margin-top: 120px; }
 
@@ -1721,6 +1748,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     // across async boundaries once user gesture has resumed the context).
     let ttsAudio = { ctx: null };
     let speaking = { planner: false, expert: false, somm: false };
+    // Prevent auto-send when we stop the mic for TTS.
+    let suppressAutoSend = { planner: false, expert: false, somm: false };
     
     // ============================================================
     // INITIALIZATION
@@ -1902,14 +1931,14 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         plannerHistory = [{ role: 'assistant', content: intro }];
         renderPlannerChat();
         if (!document.getElementById('plannerVoiceToggle')?.checked) document.getElementById('plannerVoiceToggle').checked = true;
-        if (!document.getElementById('plannerHandsFreeToggle')?.checked) document.getElementById('plannerHandsFreeToggle').checked = true;
-        await setHandsFree('planner', true);
+        // Speak first, then start hands-free listening (prevents mic from "hearing" the intro).
         setStatus('planner', 'speaking');
         speaking.planner = true;
         await speak(intro, 'planner');
         speaking.planner = false;
+        if (!document.getElementById('plannerHandsFreeToggle')?.checked) document.getElementById('plannerHandsFreeToggle').checked = true;
+        await setHandsFree('planner', true);
         setStatus('planner', handsFreeOn('planner') ? 'listening' : 'idle');
-        await resumeHandsFree('planner');
         return;
       }
 
@@ -1919,14 +1948,13 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         sommHistory = [{ role: 'assistant', content: intro }];
         renderSommChat();
         if (!document.getElementById('sommVoiceToggle')?.checked) document.getElementById('sommVoiceToggle').checked = true;
-        if (!document.getElementById('sommHandsFreeToggle')?.checked) document.getElementById('sommHandsFreeToggle').checked = true;
-        await setHandsFree('somm', true);
         setStatus('somm', 'speaking');
         speaking.somm = true;
         await speak(intro, 'sommelier');
         speaking.somm = false;
+        if (!document.getElementById('sommHandsFreeToggle')?.checked) document.getElementById('sommHandsFreeToggle').checked = true;
+        await setHandsFree('somm', true);
         setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
-        await resumeHandsFree('somm');
         return;
       }
 
@@ -1941,14 +1969,13 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         chatHistory = [{ role: 'assistant', content: intro }];
         renderChat();
         if (!document.getElementById('expertVoiceToggle')?.checked) document.getElementById('expertVoiceToggle').checked = true;
-        if (!document.getElementById('expertHandsFreeToggle')?.checked) document.getElementById('expertHandsFreeToggle').checked = true;
-        await setHandsFree('expert', true);
         setStatus('expert', 'speaking');
         speaking.expert = true;
         await speak(intro, voice);
         speaking.expert = false;
+        if (!document.getElementById('expertHandsFreeToggle')?.checked) document.getElementById('expertHandsFreeToggle').checked = true;
+        await setHandsFree('expert', true);
         setStatus('expert', handsFreeOn('expert') ? 'listening' : 'idle');
-        await resumeHandsFree('expert');
       }
     }
 
@@ -2140,13 +2167,19 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         if (input) input.value = text;
         const interim = document.getElementById(cfg.interimId);
         if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
-      }, () => {
+      }, (finalText) => {
         speech[role] = null;
         // In hands-free mode, we'll restart after the assistant finishes speaking.
         if (!handsFreeOn(role)) setMicUi(role, false);
         const interim = document.getElementById(cfg.interimId);
         if (interim) interim.classList.add('hidden');
-        if (autoSendEnabled(cfg.autoSendId)) cfg.send();
+        const text = String(finalText || '').trim();
+        if (text) {
+          const input = document.getElementById(cfg.inputId);
+          if (input) input.value = text;
+        }
+        // Only auto-send when we actually captured user speech and we didn't stop for TTS.
+        if (autoSendEnabled(cfg.autoSendId) && text && !suppressAutoSend[role]) cfg.send();
         if (!handsFreeOn(role)) showToast('Microphone off.');
       });
 
@@ -2302,9 +2335,13 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         renderPlannerChat();
         if (voiceEnabled('plannerVoiceToggle') || handsFreeOn('planner')) {
           setStatus('planner', 'speaking');
+          // Don't let hands-free capture our own voice.
+          suppressAutoSend.planner = true;
+          stopRoleMic('planner');
           speaking.planner = true;
           await speak(reply, 'planner');
           speaking.planner = false;
+          suppressAutoSend.planner = false;
           setStatus('planner', handsFreeOn('planner') ? 'listening' : 'idle');
         } else {
           setStatus('planner', 'idle');
@@ -2634,7 +2671,10 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       nav.classList.remove('hidden');
       nav.innerHTML =
         `<span class="label">On this step</span>` +
-        items.map((it, i) => `<button class="section-nav-btn ${i === 0 ? 'active' : ''}" data-target="${it.id}">${escapeHtml(it.label)}</button>`).join('');
+        `<button class="section-nav-jump" id="prevPanelBtn" type="button">← Prev</button>` +
+        `<button class="section-nav-jump" id="nextPanelBtn" type="button">Next →</button>` +
+        `<span class="nav-spacer"></span>` +
+        items.map((it, i) => `<button class="section-nav-btn ${i === 0 ? 'active' : ''}" data-target="${it.id}" type="button">${escapeHtml(it.label)}</button>`).join('');
 
       const buttons = Array.from(nav.querySelectorAll('.section-nav-btn'));
       buttons.forEach((btn) => {
@@ -2647,6 +2687,28 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           }
         });
       });
+
+      const getPanels = () => items.map((it) => document.getElementById(it.id)).filter(Boolean);
+      const scrollToAdjacent = (dir) => {
+        const panels = getPanels();
+        if (!panels.length) return;
+        const tops = panels.map((p) => p.getBoundingClientRect().top);
+        const threshold = 16;
+        let idx = 0;
+        // Current = last panel whose top <= threshold
+        for (let i = 0; i < tops.length; i++) {
+          if (tops[i] <= threshold) idx = i;
+        }
+        const nextIdx = Math.max(0, Math.min(panels.length - 1, idx + dir));
+        panels[nextIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Update active pill best-effort.
+        buttons.forEach((b, i) => b.classList.toggle('active', i === nextIdx));
+      };
+
+      const prevBtn = document.getElementById('prevPanelBtn');
+      const nextBtn = document.getElementById('nextPanelBtn');
+      if (prevBtn) prevBtn.addEventListener('click', () => scrollToAdjacent(-1));
+      if (nextBtn) nextBtn.addEventListener('click', () => scrollToAdjacent(1));
     }
     
     // ============================================================
@@ -2956,9 +3018,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         if (voiceEnabled('expertVoiceToggle')) {
           const role = (selectedExpert === 'sommelier') ? 'sommelier' : (selectedExpert === 'chef' ? 'chef' : 'planner');
           setStatus('expert', 'speaking');
+          suppressAutoSend.expert = true;
+          stopRoleMic('expert');
           speaking.expert = true;
           await speak(chatHistory[chatHistory.length - 1].content, role);
           speaking.expert = false;
+          suppressAutoSend.expert = false;
           setStatus('expert', handsFreeOn('expert') ? 'listening' : 'idle');
         } else if (handsFreeOn('expert')) {
           // Hands-free without voice still cycles listening.
@@ -3027,9 +3092,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         renderSommChat();
         if (voiceEnabled('sommVoiceToggle') || handsFreeOn('somm')) {
           setStatus('somm', 'speaking');
+          suppressAutoSend.somm = true;
+          stopRoleMic('somm');
           speaking.somm = true;
           await speak(reply, 'sommelier');
           speaking.somm = false;
+          suppressAutoSend.somm = false;
           setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
         } else {
           setStatus('somm', 'idle');
@@ -3421,9 +3489,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       renderSommChat();
       if (voiceEnabled('sommVoiceToggle') || handsFreeOn('somm')) {
         setStatus('somm', 'speaking');
+        suppressAutoSend.somm = true;
+        stopRoleMic('somm');
         speaking.somm = true;
         await speak(program, 'sommelier');
         speaking.somm = false;
+        suppressAutoSend.somm = false;
         setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
         await resumeHandsFree('somm');
       }
