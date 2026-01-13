@@ -1885,23 +1885,28 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         if (!ttsAudio.ctx) ttsAudio.ctx = new AudioCtx();
         if (ttsAudio.ctx.state !== 'running') await ttsAudio.ctx.resume().catch(()=>{});
         const ctx = ttsAudio.ctx;
-        const o1 = ctx.createOscillator();
-        const o2 = ctx.createOscillator();
-        const g = ctx.createGain();
-        g.gain.value = 0.0001;
-        o1.type = 'sine'; o2.type = 'sine';
-        o1.frequency.value = 440;
-        o2.frequency.value = 660;
-        o1.connect(g); o2.connect(g);
-        g.connect(ctx.destination);
-        const t0 = ctx.currentTime + 0.02;
-        const dur = 0.38;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.linearRampToValueAtTime(0.10, t0 + 0.03);
-        g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
-        o1.start(t0); o2.start(t0);
-        o1.stop(t0 + dur + 0.02);
-        o2.stop(t0 + dur + 0.02);
+        const ringOnce = (startAt) => {
+          const o1 = ctx.createOscillator();
+          const o2 = ctx.createOscillator();
+          const g = ctx.createGain();
+          g.gain.value = 0.0001;
+          o1.type = 'sine'; o2.type = 'sine';
+          o1.frequency.value = 440;
+          o2.frequency.value = 660;
+          o1.connect(g); o2.connect(g);
+          g.connect(ctx.destination);
+          const dur = 0.52;
+          g.gain.setValueAtTime(0.0001, startAt);
+          g.gain.linearRampToValueAtTime(0.22, startAt + 0.03);
+          g.gain.linearRampToValueAtTime(0.0001, startAt + dur);
+          o1.start(startAt); o2.start(startAt);
+          o1.stop(startAt + dur + 0.02);
+          o2.stop(startAt + dur + 0.02);
+        };
+        const t0 = ctx.currentTime + 0.03;
+        ringOnce(t0);
+        ringOnce(t0 + 0.78); // double-ring
+        if (navigator.vibrate) navigator.vibrate([60, 80, 60]);
       } catch {
         // ignore
       }
@@ -3451,7 +3456,11 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     function formatWineProgramForSomm(tiers) {
       if (!tiers) return '';
       const lines = [];
-      lines.push(`Here’s your 4-tier wine program for each course. Tell me your vibe (classic / adventurous) and whether you want red-forward, white-forward, or balanced.`);
+      lines.push(
+        `Here’s how my tiered wine program works, ${formalHostAddress()}: for EACH course I’ll give you four options — ` +
+        `Top shelf (special occasion), Under $80 (best value-premium), Under $20 (strong value), and a Bond pick (fun classic). ` +
+        `You do NOT need to buy all four — pick ONE tier per course, or keep the menu’s suggested pairing and use tiers as alternates.`
+      );
       if (tiers.eventBeverages?.welcomeCocktail || tiers.eventBeverages?.welcomeMocktail) {
         const w = [];
         if (tiers.eventBeverages.welcomeCocktail) w.push(`Welcome cocktail: ${tiers.eventBeverages.welcomeCocktail}`);
@@ -3466,7 +3475,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         const bond = t?.bond?.wine ? `Bond: ${t.bond.wine}` : null;
         const tierBits = [top, u80, u20, bond].filter(Boolean).join(' | ');
         const header = `${c.type || 'Course'} — ${c.name || ''}`;
-        const selected = c.selectedWine ? `Selected pairing: ${c.selectedWine}` : '';
+        const selected = c.selectedWine ? `Menu pairing (baseline): ${c.selectedWine}` : '';
         const bev = [];
         if (c.cocktail?.name) bev.push(`Cocktail: ${c.cocktail.name}`);
         if (c.mocktail?.name) bev.push(`Mocktail: ${c.mocktail.name}`);
