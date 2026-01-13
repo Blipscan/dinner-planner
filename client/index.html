@@ -1802,6 +1802,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     let suppressAutoSend = { planner: false, expert: false, somm: false };
     // Wake-phrase gating helps avoid accidental sends in hands-free.
     let lastSent = { planner: "", expert: "", somm: "" };
+    // When a call is "answered", we don't require wake phrases for every turn.
+    let callActive = { planner: false, expert: false, somm: false };
     
     // ============================================================
     // INITIALIZATION
@@ -1855,8 +1857,6 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       // Also unlock audio on the first tap/click anywhere (required by some browsers).
       window.addEventListener('pointerdown', async () => {
         await enableAudio();
-        // If an incoming call panel is visible, play a short ring (requires user gesture).
-        if (isAnyCallPanelVisible()) playShortRing();
       }, { once: true, passive: true });
 
       // Restore access code for this tab session (so refresh doesn’t force re-entry)
@@ -2035,6 +2035,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
 
       if (role === 'planner') {
         hideCallPanel('planner');
+        callActive.planner = true;
         const intro = personaIntro('planner', 'Event Planner');
         plannerHistory = [{ role: 'assistant', content: intro }];
         renderPlannerChat();
@@ -2052,6 +2053,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
 
       if (role === 'somm') {
         hideCallPanel('somm');
+        callActive.somm = true;
         const intro = personaIntro('somm', 'Sommelier');
         sommHistory = [{ role: 'assistant', content: intro }];
         renderSommChat();
@@ -2069,6 +2071,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       // Expert call depends on which expert is selected.
       if (role === 'expert') {
         hideCallPanel('expert');
+        callActive.expert = true;
         const persona = (selectedExpert || 'chef');
         const label = persona === 'sommelier' ? 'Sommelier' : (persona === 'instructor' ? 'Instructor' : 'Chef');
         const voice = persona === 'sommelier' ? 'sommelier' : (persona === 'chef' ? 'chef' : 'planner');
@@ -2220,6 +2223,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       return !!el && el.checked;
     }
 
+    function wakeRequired(role) {
+      // During an active "call", don't require the wake phrase each turn.
+      if (callActive[role]) return false;
+      return wakeEnabled(role);
+    }
+
     function wakePhrasesFor(role) {
       if (role === 'planner') return ['planner', 'hey planner', 'okay planner'];
       if (role === 'somm') return ['sommelier', 'hey sommelier', 'okay sommelier'];
@@ -2328,7 +2337,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           if (input) input.value = text;
         }
         let toSend = text;
-        if (handsFreeOn(role) && wakeEnabled(role)) {
+        if (handsFreeOn(role) && wakeRequired(role)) {
           const parsed = stripWake(text, wakePhrasesFor(role));
           if (!parsed.ok) {
             showToast(`Hands‑free: start with “${wakePhrasesFor(role)[0]} …”`, 2400);
