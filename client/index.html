@@ -1767,10 +1767,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           // Prefer ElevenLabs; avoid "stock voice" fallback when it isn't configured.
           const msg = j?.error ? String(j.error) : 'ElevenLabs voice failed.';
           const extra = j?.upstreamStatus ? ` (upstream ${j.upstreamStatus})` : '';
-          showToast(`ElevenLabs: ${msg}${extra}`);
-          // Only fall back if ElevenLabs is up but transiently fails.
-          const shouldFallback = !/not configured/i.test(msg);
-          if (shouldFallback) return speakWithDeviceVoice(t);
+          const body = j?.upstreamBody ? ` — ${String(j.upstreamBody).slice(0, 180)}` : '';
+          showToast(`ElevenLabs: ${msg}${extra}${body}`, 5200);
+          // Do NOT fall back to device voices (they sound bad and hide the real issue).
           return;
         }
         const ab = await res.arrayBuffer();
@@ -1798,9 +1797,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           src.onended = () => resolve();
           try { src.start(0); } catch { resolve(); }
         });
-      } catch {
-        // If anything goes wrong, use device voice (best-effort).
-        return speakWithDeviceVoice(t);
+      } catch (e) {
+        showToast(`ElevenLabs: playback failed (${String(e?.message || e || 'unknown')})`, 5200);
+        return;
       }
     }
 
