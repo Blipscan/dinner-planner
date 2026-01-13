@@ -222,6 +222,37 @@ section[id^="step"] .card{
 }
 [data-screen]{ scroll-margin-top: 120px; }
 
+/* ===== WINE CHOOSER ===== */
+.wine-chooser{ margin-top: 0.75rem; }
+.wine-course{
+  border: 1px solid rgba(17,24,39,0.10);
+  background: rgba(255,255,255,0.90);
+  border-radius: 14px;
+  padding: 0.95rem;
+  margin: 0 0 0.75rem;
+}
+.wine-course:last-child{ margin-bottom: 0; }
+.wine-course h4{
+  margin: 0 0 0.5rem;
+  font-family: 'Playfair Display', serif;
+  color: var(--navy);
+  font-size: 1.05rem;
+}
+.wine-options{ display:grid; gap: 0.5rem; margin-top: 0.5rem; }
+.wine-opt{
+  display:flex; gap: 0.7rem; align-items:flex-start;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(17,24,39,0.10);
+  background: rgba(255,255,255,0.92);
+  cursor: pointer;
+}
+.wine-opt:hover{ border-color: rgba(30,58,95,0.22); }
+.wine-opt input{ margin-top: 0.15rem; transform: scale(1.15); }
+.wine-opt .t{ font-weight: 900; color: rgba(17,24,39,0.86); }
+.wine-opt .w{ color: rgba(17,24,39,0.78); }
+.wine-opt .n{ color: var(--text-light); font-size: 0.92rem; margin-top: 0.1rem; }
+
 /* ===== VOICE "INCOMING CALL" UI ===== */
 .call-panel{
   border: 1px solid rgba(17,24,39,0.10);
@@ -1629,6 +1660,10 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
             <button class="btn btn-primary" onclick="sendSommChat()">Send</button>
           </div>
         </div>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-outline" onclick="requestSommelierTiers()">Get 4-tier recommendations (per course)</button>
+        </div>
+        <div id="wineChooser" class="wine-chooser"></div>
       </div>
 
       <div class="card" data-screen="Cookbook format">
@@ -1738,6 +1773,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     let cookbookId = null;
     let wineTiers = null;
     let wineTiersLoading = false;
+    let wineChoices = {}; // per course key -> chosen wine string
     let guests = [];
     let plannerHistory = [];
     let sommHistory = [];
@@ -2789,6 +2825,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       if (nEl && hostFullName) nEl.value = hostFullName;
       updateHostPreview();
 
+      // Restore sommelier tier selections for this tab (table menu + cookbook).
+      try {
+        const raw = sessionStorage.getItem('dpp_wineChoices');
+        if (raw) wineChoices = JSON.parse(raw) || {};
+      } catch {}
+
       const saved = sessionStorage.getItem('dpp_accessCode');
       if (!saved) return;
       try {
@@ -3080,7 +3122,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       setStatus('somm', 'thinking');
 
       try {
-        const menuForChat = (selectedMenu !== null && menus && menus[selectedMenu]) ? menus[selectedMenu] : null;
+        const menuForChat = (selectedMenu !== null && menus && menus[selectedMenu]) ? menuWithChosenWines(menus[selectedMenu]) : null;
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3444,6 +3486,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         if (!res.ok) throw new Error(data?.error || 'Wine tiers failed');
         wineTiers = data;
         renderMenus();
+        renderWineChooser();
         return wineTiers;
       } catch (e) {
         showToast(`Beverage options failed: ${e?.message || 'Please try again.'}`, 4200);
@@ -3451,6 +3494,121 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       } finally {
         wineTiersLoading = false;
       }
+    }
+
+    function courseKey(c, idx) {
+      const type = String(c?.type || '').trim();
+      const name = String(c?.name || '').trim();
+      return `${idx}::${type}::${name}`.slice(0, 180);
+    }
+
+    function renderWineChooser() {
+      const el = document.getElementById('wineChooser');
+      if (!el) return;
+      if (!wineTiers || !wineTiers.courses || wineTiers.alcoholAllowed === false) {
+        el.innerHTML = '';
+        return;
+      }
+
+      const list = wineTiers.courses || [];
+      el.innerHTML = `
+        <div class="card" style="margin-top:1rem">
+          <h3 class="card-title" style="font-size:1.25rem">Choose your bottles (remembered)</h3>
+          <p class="card-subtitle">
+            Select <strong>one</strong> tier per course. These choices will be used for your <strong>table menu</strong> and included in the <strong>cookbook</strong> as your “go buy this” list.
+          </p>
+          <div>
+            ${list.map((c, idx) => {
+              const key = courseKey(c, idx);
+              const tiers = c.tiers || {};
+              const options = [
+                { id:'baseline', title:'Menu pairing (baseline)', wine: c.selectedWine || null, notes:'Keep the pairing listed in the menu.' },
+                { id:'topShelf', title: tiers.topShelf?.title || 'Top shelf', wine: tiers.topShelf?.wine || null, notes: tiers.topShelf?.notes || '' },
+                { id:'under80', title: tiers.under80?.title || 'Under $80', wine: tiers.under80?.wine || null, notes: tiers.under80?.notes || '' },
+                { id:'under20', title: tiers.under20?.title || 'Under $20', wine: tiers.under20?.wine || null, notes: tiers.under20?.notes || '' },
+                { id:'bond', title: tiers.bond?.title || 'Bond', wine: tiers.bond?.wine || null, notes: tiers.bond?.notes || '' },
+              ].filter(o => o.wine);
+              const chosen = wineChoices[key] || '';
+              return `
+                <div class="wine-course">
+                  <h4>${escapeHtml(c.type || 'Course')}: <span style="font-weight:400;color:var(--text)">${escapeHtml(c.name || '')}</span></h4>
+                  <div class="wine-options">
+                    ${options.map((o) => `
+                      <label class="wine-opt">
+                        <input type="radio" name="wine_${escapeHtml(key)}" value="${escapeHtml(o.wine)}" ${chosen === o.wine ? 'checked' : ''} onchange="chooseWineForCourse('${escapeHtml(key)}', this.value)">
+                        <div>
+                          <div class="t">${escapeHtml(o.title)}</div>
+                          <div class="w">${escapeHtml(o.wine)}</div>
+                          ${o.notes ? `<div class="n">${escapeHtml(o.notes)}</div>` : ''}
+                        </div>
+                      </label>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function chooseWineForCourse(key, wine) {
+      wineChoices = wineChoices || {};
+      wineChoices[key] = String(wine || '').trim();
+      try { sessionStorage.setItem('dpp_wineChoices', JSON.stringify(wineChoices)); } catch {}
+      // Reflect on-screen menu summary (table menu).
+      updateSelectedMenuSummaryWithWines();
+    }
+
+    function menuWithChosenWines(menu) {
+      const m = JSON.parse(JSON.stringify(menu || null));
+      if (!m || !Array.isArray(m.courses)) return menu;
+      m.courses = m.courses.map((c, idx) => {
+        const key = courseKey(c, idx);
+        const chosen = wineChoices?.[key];
+        if (chosen) c.wine = chosen;
+        return c;
+      });
+      return m;
+    }
+
+    function updateSelectedMenuSummaryWithWines() {
+      if (selectedMenu === null) return;
+      const base = menus[selectedMenu];
+      if (!base) return;
+      const menu = menuWithChosenWines(base);
+      document.getElementById('selectedMenuSummary').innerHTML = `
+        <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--navy);margin-bottom:0.5rem">${menu.title}</div>
+        <div style="font-style:italic;color:var(--text-light);margin-bottom:1rem">${menu.personality}</div>
+        ${menu.courses.map(c => `
+          <div style="padding:0.45rem 0;font-size:0.95rem">
+            <div style="display:flex;gap:0.75rem">
+              <strong style="color:var(--gold-dark);min-width:100px">${c.type}:</strong>
+              <span>${escapeHtml(c.name)}</span>
+            </div>
+            ${c.wine ? `<div style="margin-left:100px;color:var(--text-light);font-size:0.9rem;margin-top:0.2rem"><strong>Wine:</strong> ${escapeHtml(c.wine)}</div>` : ''}
+          </div>
+        `).join('')}
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.9rem;color:var(--text-light)">
+          Food: ${menu.foodCost} | Wine: ${menu.wineCost}
+        </div>
+      `;
+    }
+
+    async function requestSommelierTiers() {
+      if (selectedMenu === null) return;
+      // Sommelier should ask first, not assume.
+      const ask = `${timeOfDayGreeting()} ${formalHostAddress()}. Would you like my full four-tier recommendations for each course? If so, I’ll generate them now and you can tick one choice per course for your table menu and cookbook.`;
+      sommHistory = [{ role: 'assistant', content: ask }];
+      renderSommChat();
+      if (voiceEnabled('sommVoiceToggle')) {
+        setStatus('somm', 'speaking');
+        speaking.somm = true;
+        await speak(ask, 'sommelier');
+        speaking.somm = false;
+        setStatus('somm', 'idle');
+      }
+      await loadWineTiers();
     }
 
     function formatWineProgramForSomm(tiers) {
@@ -3486,50 +3644,15 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       return msg.length > 2400 ? (msg.slice(0, 2350) + '\n\nIf you want, I can tighten this to a 60‑second version.') : msg;
     }
 
-    async function autoSommelierProgram() {
-      if (selectedMenu === null) return;
-      // Ensure the user sees the tiers in Step 5 AND hears them in Step 6.
-      const tiers = await loadWineTiers();
-      if (!tiers) return;
-      const program = formatWineProgramForSomm(tiers);
-      if (!program) return;
-      // Replace the initial sommelier greeting with the program once menu is chosen.
-      sommHistory = [{ role: 'assistant', content: program }];
-      renderSommChat();
-      if (voiceEnabled('sommVoiceToggle') || handsFreeOn('somm')) {
-        setStatus('somm', 'speaking');
-        suppressAutoSend.somm = true;
-        stopRoleMic('somm');
-        speaking.somm = true;
-        await speak(program, 'sommelier');
-        speaking.somm = false;
-        suppressAutoSend.somm = false;
-        setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
-        await resumeHandsFree('somm');
-      }
-    }
+    // (Sommelier tiers are now opt-in via requestSommelierTiers(), so we don't assume.)
     
     function selectMenu() {
       if (selectedMenu === null) return;
       
-      const menu = menus[selectedMenu];
-      document.getElementById('selectedMenuSummary').innerHTML = `
-        <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--navy);margin-bottom:0.5rem">${menu.title}</div>
-        <div style="font-style:italic;color:var(--text-light);margin-bottom:1rem">${menu.personality}</div>
-        ${menu.courses.map(c => `
-          <div style="padding:0.4rem 0;font-size:0.95rem;display:flex;gap:0.75rem">
-            <strong style="color:var(--gold-dark);min-width:100px">${c.type}:</strong>
-            <span>${c.name}</span>
-          </div>
-        `).join('')}
-        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.9rem;color:var(--text-light)">
-          Food: ${menu.foodCost} | Wine: ${menu.wineCost}
-        </div>
-      `;
+      updateSelectedMenuSummaryWithWines();
       
       goToStep(6);
-      // Sommelier should proactively present the 4-tier program after a menu is chosen.
-      autoSommelierProgram();
+      renderWineChooser();
     }
     
     function rejectMenus() {
@@ -3621,12 +3744,13 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       document.getElementById('cookbookComplete').classList.add('hidden');
       
       try {
+        const menuForCookbook = (selectedMenu !== null && menus && menus[selectedMenu]) ? menuWithChosenWines(menus[selectedMenu]) : null;
         const res = await fetch('/api/generate-cookbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: accessCode,
-            menu: menus[selectedMenu],
+            menu: menuForCookbook,
             context: getContext(),
             staffing: selectedStaffing,
             chatHistory: chatHistory,
