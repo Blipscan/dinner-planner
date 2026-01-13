@@ -3051,10 +3051,61 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         if (!res.ok) throw new Error(data?.error || 'Wine tiers failed');
         wineTiers = data;
         renderMenus();
+        return wineTiers;
       } catch (e) {
-        alert('Error generating wine tiers. Please try again.');
+        showToast(`Beverage options failed: ${e?.message || 'Please try again.'}`, 4200);
+        return null;
       } finally {
         wineTiersLoading = false;
+      }
+    }
+
+    function formatWineProgramForSomm(tiers) {
+      if (!tiers) return '';
+      const lines = [];
+      lines.push(`Here’s your 4-tier wine program for each course. Tell me your vibe (classic / adventurous) and whether you want red-forward, white-forward, or balanced.`);
+      if (tiers.eventBeverages?.welcomeCocktail || tiers.eventBeverages?.welcomeMocktail) {
+        const w = [];
+        if (tiers.eventBeverages.welcomeCocktail) w.push(`Welcome cocktail: ${tiers.eventBeverages.welcomeCocktail}`);
+        if (tiers.eventBeverages.welcomeMocktail) w.push(`Welcome mocktail: ${tiers.eventBeverages.welcomeMocktail}`);
+        if (w.length) lines.push(`\n${w.join(' · ')}`);
+      }
+      (tiers.courses || []).forEach((c) => {
+        const t = c?.tiers || {};
+        const top = t?.topShelf?.wine ? `Top shelf: ${t.topShelf.wine}` : null;
+        const u80 = t?.under80?.wine ? `Under $80: ${t.under80.wine}` : null;
+        const u20 = t?.under20?.wine ? `Under $20: ${t.under20.wine}` : null;
+        const bond = t?.bond?.wine ? `Bond: ${t.bond.wine}` : null;
+        const tierBits = [top, u80, u20, bond].filter(Boolean).join(' | ');
+        const header = `${c.type || 'Course'} — ${c.name || ''}`;
+        const selected = c.selectedWine ? `Selected pairing: ${c.selectedWine}` : '';
+        const bev = [];
+        if (c.cocktail?.name) bev.push(`Cocktail: ${c.cocktail.name}`);
+        if (c.mocktail?.name) bev.push(`Mocktail: ${c.mocktail.name}`);
+        lines.push(`\n${header}${selected ? `\n${selected}` : ''}${tierBits ? `\n${tierBits}` : ''}${bev.length ? `\n${bev.join(' · ')}` : ''}`);
+      });
+      const msg = lines.join('\n');
+      // Keep voice-friendly length.
+      return msg.length > 2400 ? (msg.slice(0, 2350) + '\n\nIf you want, I can tighten this to a 60‑second version.') : msg;
+    }
+
+    async function autoSommelierProgram() {
+      if (selectedMenu === null) return;
+      // Ensure the user sees the tiers in Step 5 AND hears them in Step 6.
+      const tiers = await loadWineTiers();
+      if (!tiers) return;
+      const program = formatWineProgramForSomm(tiers);
+      if (!program) return;
+      // Replace the initial sommelier greeting with the program once menu is chosen.
+      sommHistory = [{ role: 'assistant', content: program }];
+      renderSommChat();
+      if (voiceEnabled('sommVoiceToggle') || handsFreeOn('somm')) {
+        setStatus('somm', 'speaking');
+        speaking.somm = true;
+        await speak(program, 'sommelier');
+        speaking.somm = false;
+        setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
+        await resumeHandsFree('somm');
       }
     }
     
@@ -3077,6 +3128,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       `;
       
       goToStep(6);
+      // Sommelier should proactively present the 4-tier program after a menu is chosen.
+      autoSommelierProgram();
     }
     
     function rejectMenus() {
