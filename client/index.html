@@ -1630,6 +1630,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         if (e.key === 'Enter') validateCode();
       });
 
+      // Any attempt to use voice should unlock audio automatically.
+      ['plannerVoiceToggle','expertVoiceToggle','sommVoiceToggle'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => { if (el.checked) enableAudio(); });
+      });
+
       // Restore access code for this tab session (so refresh doesn’t force re-entry)
       restoreSession();
 
@@ -1710,10 +1716,10 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           setTimeout(() => ctx.close().catch(()=>{}), 80);
         }
         audioUnlocked = true;
-        showToast('Audio enabled.');
+        // Keep this silent; hands-free should feel automatic.
       } catch {
         audioUnlocked = true;
-        showToast('Audio enabled.');
+        // Keep this silent; hands-free should feel automatic.
       }
     }
 
@@ -1750,11 +1756,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       const t = sanitizeSpeechText(text);
       if (!t || t === '...') return;
       try {
-        // If audio isn't unlocked, playing may be blocked by the browser.
-        if (!audioUnlocked) {
-          showToast('Tap “Enable audio” once to allow voice replies.');
-          return;
-        }
+        // Try to unlock audio automatically (Send/Hands-free is a user gesture).
+        if (!audioUnlocked) await enableAudio();
 
         const res = await fetch('/api/tts', {
           method: 'POST',
@@ -1765,7 +1768,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           const j = await res.json().catch(()=>null);
           // Prefer ElevenLabs; avoid "stock voice" fallback when it isn't configured.
           const msg = j?.error ? String(j.error) : 'ElevenLabs voice failed.';
-          showToast(`ElevenLabs: ${msg}`);
+          const extra = j?.upstreamStatus ? ` (upstream ${j.upstreamStatus})` : '';
+          showToast(`ElevenLabs: ${msg}${extra}`);
           // Only fall back if ElevenLabs is up but transiently fails.
           const shouldFallback = !/not configured/i.test(msg);
           if (shouldFallback) return speakWithDeviceVoice(t);
@@ -1778,7 +1782,12 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
           audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
           // play() resolves when playback *starts*, not when it finishes
-          audio.play().then(() => {}).catch(() => resolve());
+          audio.play()
+            .then(() => {})
+            .catch(() => {
+              showToast('Audio playback blocked by the browser. Tap anywhere once, then try again.');
+              resolve();
+            });
         });
       } catch {
         // If anything goes wrong, use device voice (best-effort).
