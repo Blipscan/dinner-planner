@@ -2478,12 +2478,16 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       let noSpeechTimer = null;
       let lastTranscript = '';
       let lastFinal = '';
+      let gotFinal = false;
       const resetSilence = () => {
         clearTimeout(silenceTimer);
-        // Hands-free should feel natural: give a bit more time before cutting off.
+        // Hands-free should feel natural: allow normal pauses without cutting off.
         silenceTimer = setTimeout(() => {
-          try { rec.stop(); } catch {}
-        }, 900);
+          // If we have a final transcript, it's safe to stop.
+          if (gotFinal) {
+            try { rec.stop(); } catch {}
+          }
+        }, 1600);
       };
       const clearNoSpeech = () => {
         clearTimeout(noSpeechTimer);
@@ -2495,7 +2499,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         const result = e.results?.[idx];
         const text = (result?.[0]?.transcript || '').trim();
         if (text) lastTranscript = text;
-        if (result?.isFinal && text) lastFinal = text;
+        if (result?.isFinal && text) { lastFinal = text; gotFinal = true; }
         // Show interim/live text; auto-send will use final if available.
         if (text) onText(text);
         resetSilence();
@@ -2510,11 +2514,14 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       };
       rec.onspeechstart = () => resetSilence();
       rec.onspeechend = () => {
-        // When browser thinks speech ended, stop soon
+        // When browser thinks speech ended, wait a moment in case the user continues.
         clearTimeout(silenceTimer);
         silenceTimer = setTimeout(() => {
-          try { rec.stop(); } catch {}
-        }, 250);
+          // Only stop quickly if we already got a final result.
+          if (gotFinal) {
+            try { rec.stop(); } catch {}
+          }
+        }, 900);
       };
       rec.onend = () => {
         clearNoSpeech();
