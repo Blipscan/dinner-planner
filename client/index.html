@@ -195,6 +195,66 @@ section[id^="step"] .card{
 }
 [data-screen]{ scroll-margin-top: 120px; }
 
+/* ===== VOICE "INCOMING CALL" UI ===== */
+.call-panel{
+  border: 1px solid rgba(17,24,39,0.10);
+  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.90) 100%);
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+  margin: 0.9rem 1.25rem 0;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.06);
+}
+.call-panel.hidden{ display:none !important; }
+.call-row{ display:flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.call-left{ display:flex; gap: 0.95rem; align-items: center; min-width: 220px; }
+.phone{
+  width: 54px; height: 54px;
+  border-radius: 16px;
+  display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(135deg, rgba(30,58,95,0.14) 0%, rgba(201,162,39,0.16) 100%);
+  border: 1px solid rgba(17,24,39,0.10);
+  position: relative;
+}
+.phone::after{
+  content:'';
+  position:absolute;
+  inset:-10px;
+  border-radius: 22px;
+  border: 2px solid rgba(201,162,39,0.28);
+  opacity: 0.0;
+  animation: ring 1.6s ease-in-out infinite;
+}
+@keyframes ring{
+  0%{ opacity:0.0; transform: scale(0.95); }
+  12%{ opacity:0.65; transform: scale(1.00); }
+  28%{ opacity:0.0; transform: scale(1.06); }
+  100%{ opacity:0.0; transform: scale(1.06); }
+}
+.call-meta{ display:flex; flex-direction: column; gap: 0.1rem; }
+.call-title{ font-weight: 800; color: rgba(17,24,39,0.88); }
+.call-sub{ color: var(--text-light); font-size: 0.92rem; }
+.call-actions{ display:flex; gap: 0.6rem; align-items:center; }
+.btn-answer{
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.btn-answer:hover{ filter: brightness(1.03); }
+.btn-decline{
+  background: rgba(220,38,38,0.08);
+  color: #991b1b;
+  border: 1px solid rgba(220,38,38,0.25);
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.btn-decline:hover{ background: rgba(220,38,38,0.12); }
+
 /* ===== CARDS + FORMS ===== */
 .card{
   background: rgba(255,255,255,0.92);
@@ -1211,6 +1271,21 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
                     <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
                   </div>
                 </div>
+                <div class="call-panel" id="plannerCallPanel">
+                  <div class="call-row">
+                    <div class="call-left">
+                      <div class="phone">📱</div>
+                      <div class="call-meta">
+                        <div class="call-title">Incoming call: The Planner</div>
+                        <div class="call-sub">Answer to begin a hands‑free conversation.</div>
+                      </div>
+                    </div>
+                    <div class="call-actions">
+                      <button class="btn-decline" onclick="declineCall('planner')">Decline</button>
+                      <button class="btn-answer" onclick="answerCall('planner')">Answer</button>
+                    </div>
+                  </div>
+                </div>
                 <div class="mic-banner hidden" id="plannerMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
                 <div class="interim hidden" id="plannerInterim"></div>
                 <div class="chat-messages" id="plannerMessages"></div>
@@ -1401,6 +1476,21 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
               <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
             </div>
           </div>
+          <div class="call-panel" id="expertCallPanel">
+            <div class="call-row">
+              <div class="call-left">
+                <div class="phone">📱</div>
+                <div class="call-meta">
+                  <div class="call-title">Incoming call: <span id="expertCallName">The Chef</span></div>
+                  <div class="call-sub">Answer to begin a hands‑free conversation.</div>
+                </div>
+              </div>
+              <div class="call-actions">
+                <button class="btn-decline" onclick="declineCall('expert')">Decline</button>
+                <button class="btn-answer" onclick="answerCall('expert')">Answer</button>
+              </div>
+            </div>
+          </div>
           <div class="mic-banner hidden" id="expertMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
           <div class="interim hidden" id="expertInterim"></div>
           <div class="chat-messages" id="chatMessages"></div>
@@ -1486,6 +1576,21 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
               <label><input type="checkbox" id="sommAutoSendToggle" checked> Auto-send</label>
               <label><input type="checkbox" id="sommHandsFreeToggle"> Hands-free</label>
               <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
+            </div>
+          </div>
+          <div class="call-panel" id="sommCallPanel">
+            <div class="call-row">
+              <div class="call-left">
+                <div class="phone">📱</div>
+                <div class="call-meta">
+                  <div class="call-title">Incoming call: The Sommelier</div>
+                  <div class="call-sub">Answer to begin a hands‑free conversation.</div>
+                </div>
+              </div>
+              <div class="call-actions">
+                <button class="btn-decline" onclick="declineCall('somm')">Decline</button>
+                <button class="btn-answer" onclick="answerCall('somm')">Answer</button>
+              </div>
             </div>
           </div>
           <div class="mic-banner hidden" id="sommMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
@@ -1697,6 +1802,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
 
       // Build the in-step nav on first load (Step 1).
       updateSectionNav();
+
+      // Incoming call UI (voice start) for each persona.
+      initCallPanels();
     }
     
     document.addEventListener('DOMContentLoaded', init);
@@ -1718,6 +1826,135 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       t.classList.remove('hidden');
       clearTimeout(window.__toastTimer);
       window.__toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
+    }
+
+    function timeOfDayGreeting() {
+      const h = new Date().getHours();
+      if (h >= 5 && h < 12) return 'Good morning';
+      if (h >= 12 && h < 17) return 'Good afternoon';
+      return 'Good evening';
+    }
+
+    function formalHostAddress() {
+      const h = (hostHonorific || 'Mr.').trim() || 'Mr.';
+      const s = (hostSurname || '').trim();
+      return s ? `${h} ${s}` : 'Host';
+    }
+
+    function personaIntro(role, personaLabel) {
+      const greet = timeOfDayGreeting();
+      const who = formalHostAddress();
+      const label = personaLabel || (role === 'planner' ? 'Event Planner' : role === 'somm' ? 'Sommelier' : 'Chef');
+      return `${greet} ${who}, I’m your ${label}. How can I be of service?`;
+    }
+
+    async function playShortRing() {
+      // A tiny "ring" tone played only after a user gesture.
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!ttsAudio.ctx) ttsAudio.ctx = new AudioCtx();
+        if (ttsAudio.ctx.state !== 'running') await ttsAudio.ctx.resume().catch(()=>{});
+        const ctx = ttsAudio.ctx;
+        const o1 = ctx.createOscillator();
+        const o2 = ctx.createOscillator();
+        const g = ctx.createGain();
+        g.gain.value = 0.0001;
+        o1.type = 'sine'; o2.type = 'sine';
+        o1.frequency.value = 440;
+        o2.frequency.value = 660;
+        o1.connect(g); o2.connect(g);
+        g.connect(ctx.destination);
+        const t0 = ctx.currentTime + 0.02;
+        const dur = 0.38;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.linearRampToValueAtTime(0.10, t0 + 0.03);
+        g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+        o1.start(t0); o2.start(t0);
+        o1.stop(t0 + dur + 0.02);
+        o2.stop(t0 + dur + 0.02);
+      } catch {
+        // ignore
+      }
+    }
+
+    function initCallPanels() {
+      // Show panels by default until the user answers once per persona.
+      ['planner', 'expert', 'somm'].forEach((role) => {
+        const panel = document.getElementById(role + 'CallPanel');
+        if (!panel) return;
+        panel.classList.remove('hidden');
+      });
+    }
+
+    function hideCallPanel(role) {
+      const panel = document.getElementById(role + 'CallPanel');
+      if (panel) panel.classList.add('hidden');
+    }
+
+    async function answerCall(role) {
+      await enableAudio();
+      await playShortRing();
+
+      if (role === 'planner') {
+        hideCallPanel('planner');
+        const intro = personaIntro('planner', 'Event Planner');
+        plannerHistory = [{ role: 'assistant', content: intro }];
+        renderPlannerChat();
+        if (!document.getElementById('plannerVoiceToggle')?.checked) document.getElementById('plannerVoiceToggle').checked = true;
+        if (!document.getElementById('plannerHandsFreeToggle')?.checked) document.getElementById('plannerHandsFreeToggle').checked = true;
+        await setHandsFree('planner', true);
+        setStatus('planner', 'speaking');
+        speaking.planner = true;
+        await speak(intro, 'planner');
+        speaking.planner = false;
+        setStatus('planner', handsFreeOn('planner') ? 'listening' : 'idle');
+        await resumeHandsFree('planner');
+        return;
+      }
+
+      if (role === 'somm') {
+        hideCallPanel('somm');
+        const intro = personaIntro('somm', 'Sommelier');
+        sommHistory = [{ role: 'assistant', content: intro }];
+        renderSommChat();
+        if (!document.getElementById('sommVoiceToggle')?.checked) document.getElementById('sommVoiceToggle').checked = true;
+        if (!document.getElementById('sommHandsFreeToggle')?.checked) document.getElementById('sommHandsFreeToggle').checked = true;
+        await setHandsFree('somm', true);
+        setStatus('somm', 'speaking');
+        speaking.somm = true;
+        await speak(intro, 'sommelier');
+        speaking.somm = false;
+        setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
+        await resumeHandsFree('somm');
+        return;
+      }
+
+      // Expert call depends on which expert is selected.
+      if (role === 'expert') {
+        hideCallPanel('expert');
+        const persona = (selectedExpert || 'chef');
+        const label = persona === 'sommelier' ? 'Sommelier' : (persona === 'instructor' ? 'Instructor' : 'Chef');
+        const voice = persona === 'sommelier' ? 'sommelier' : (persona === 'chef' ? 'chef' : 'planner');
+        const intro = personaIntro('expert', label);
+        // Replace greeting bubble so it feels like a phone pickup, not a long paragraph.
+        chatHistory = [{ role: 'assistant', content: intro }];
+        renderChat();
+        if (!document.getElementById('expertVoiceToggle')?.checked) document.getElementById('expertVoiceToggle').checked = true;
+        if (!document.getElementById('expertHandsFreeToggle')?.checked) document.getElementById('expertHandsFreeToggle').checked = true;
+        await setHandsFree('expert', true);
+        setStatus('expert', 'speaking');
+        speaking.expert = true;
+        await speak(intro, voice);
+        speaking.expert = false;
+        setStatus('expert', handsFreeOn('expert') ? 'listening' : 'idle');
+        await resumeHandsFree('expert');
+      }
+    }
+
+    function declineCall(role) {
+      hideCallPanel(role);
+      showToast('Call declined.');
     }
 
     function setMicUi(role, isOn) {
@@ -2638,6 +2875,11 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       document.getElementById('chatSection').classList.remove('hidden');
       document.getElementById('chatIcon').textContent = persona.icon;
       document.getElementById('chatName').textContent = persona.name;
+      const callName = document.getElementById('expertCallName');
+      if (callName) callName.textContent = persona.name || 'The Chef';
+      // Reset incoming call panel when switching experts
+      const callPanel = document.getElementById('expertCallPanel');
+      if (callPanel) callPanel.classList.remove('hidden');
       
       // Initialize chat with greeting
       chatHistory = [];
