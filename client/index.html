@@ -67,10 +67,12 @@ section[id^="step"] .card{
   padding: 0.85rem 0;
   display:flex;
   align-items:center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
+  position: relative;
 }
-.brand{display:flex;align-items:center;gap:0.85rem;min-width:0;}
+.brand{display:flex;align-items:center;gap:0.85rem;min-width:0; justify-content:center;}
+.topbar-right{ position:absolute; right:0; }
 .brand-icon{
   width: 40px; height: 40px;
   display:flex;align-items:center;justify-content:center;
@@ -333,6 +335,18 @@ section[id^="step"] .card{
   box-shadow: 0 12px 30px rgba(0,0,0,0.06);
   margin: 0 0 1.25rem 0;
 }
+.card ul, .card ol{
+  margin: 0.9rem 0 0.9rem 1.25rem;
+  padding: 0;
+}
+.card li{
+  margin: 0.75rem 0;
+  line-height: 1.6;
+}
+.card li > ul, .card li > ol{
+  margin-top: 0.55rem;
+}
+.panel-hidden{ display:none !important; }
 .card-title{
   font-family: 'Playfair Display', serif;
   font-size: 1.6rem;
@@ -1806,6 +1820,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     let callActive = { planner: false, expert: false, somm: false };
     // Ring loop when incoming call panel is visible.
     let callRingTimer = { planner: null, expert: null, somm: null };
+    // One-panel-per-step navigation (reduces stacked scrolling cards).
+    let panelIndexByStep = {};
     
     // ============================================================
     // INITIALIZATION
@@ -2825,11 +2841,13 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       // Show target step
       document.getElementById('step' + step).classList.remove('hidden');
       currentStep = step;
+      if (panelIndexByStep[currentStep] === undefined) panelIndexByStep[currentStep] = 0;
       
       // Update progress
       updateProgress();
       updateSectionNav();
       updateIncomingCallRings();
+      applyPanelVisibility();
       
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2902,41 +2920,45 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         `<button class="section-nav-jump" id="prevPanelBtn" type="button">← Prev</button>` +
         `<button class="section-nav-jump" id="nextPanelBtn" type="button">Next →</button>` +
         `<span class="nav-spacer"></span>` +
-        items.map((it, i) => `<button class="section-nav-btn ${i === 0 ? 'active' : ''}" data-target="${it.id}" type="button">${escapeHtml(it.label)}</button>`).join('');
+        items.map((it, i) => `<button class="section-nav-btn ${i === 0 ? 'active' : ''}" data-target="${it.id}" data-idx="${i}" type="button">${escapeHtml(it.label)}</button>`).join('');
 
       const buttons = Array.from(nav.querySelectorAll('.section-nav-btn'));
+      const setActive = (idx) => {
+        panelIndexByStep[currentStep] = idx;
+        applyPanelVisibility();
+        buttons.forEach((b, i) => b.classList.toggle('active', i === idx));
+      };
       buttons.forEach((btn) => {
         btn.addEventListener('click', () => {
-          const id = btn.getAttribute('data-target');
-          const target = id ? document.getElementById(id) : null;
-          if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            buttons.forEach((b) => b.classList.toggle('active', b === btn));
-          }
+          const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
+          setActive(Math.max(0, Math.min(items.length - 1, idx)));
         });
       });
 
-      const getPanels = () => items.map((it) => document.getElementById(it.id)).filter(Boolean);
-      const scrollToAdjacent = (dir) => {
-        const panels = getPanels();
-        if (!panels.length) return;
-        const tops = panels.map((p) => p.getBoundingClientRect().top);
-        const threshold = 16;
-        let idx = 0;
-        // Current = last panel whose top <= threshold
-        for (let i = 0; i < tops.length; i++) {
-          if (tops[i] <= threshold) idx = i;
-        }
-        const nextIdx = Math.max(0, Math.min(panels.length - 1, idx + dir));
-        panels[nextIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // Update active pill best-effort.
-        buttons.forEach((b, i) => b.classList.toggle('active', i === nextIdx));
+      const move = (dir) => {
+        const cur = panelIndexByStep[currentStep] ?? 0;
+        const nextIdx = Math.max(0, Math.min(items.length - 1, cur + dir));
+        setActive(nextIdx);
       };
-
       const prevBtn = document.getElementById('prevPanelBtn');
       const nextBtn = document.getElementById('nextPanelBtn');
-      if (prevBtn) prevBtn.addEventListener('click', () => scrollToAdjacent(-1));
-      if (nextBtn) nextBtn.addEventListener('click', () => scrollToAdjacent(1));
+      if (prevBtn) prevBtn.addEventListener('click', () => move(-1));
+      if (nextBtn) nextBtn.addEventListener('click', () => move(1));
+
+      const cur = panelIndexByStep[currentStep] ?? 0;
+      buttons.forEach((b, i) => b.classList.toggle('active', i === cur));
+    }
+
+    function applyPanelVisibility() {
+      // Show only one major panel per step to reduce "stacked cards" scrolling.
+      if (currentStep <= 1) return; // Step 1 is a special hero layout.
+      const stepEl = document.getElementById('step' + currentStep);
+      if (!stepEl) return;
+      const panels = Array.from(stepEl.querySelectorAll('[data-screen]')).filter((el) => !el.classList.contains('hidden'));
+      if (panels.length <= 1) return;
+      const idx = Math.max(0, Math.min(panels.length - 1, panelIndexByStep[currentStep] ?? 0));
+      panels.forEach((p, i) => p.classList.toggle('panel-hidden', i !== idx));
+      try { panels[idx].scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
     }
     
     // ============================================================
