@@ -255,30 +255,35 @@ section[id^="step"] .card{
 
 /* ===== VOICE "INCOMING CALL" UI ===== */
 .call-panel{
-  border: 1px solid rgba(17,24,39,0.10);
-  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.90) 100%);
-  border-radius: 16px;
-  padding: 1rem 1.1rem;
-  margin: 0.9rem 1.25rem 0;
-  box-shadow: 0 10px 26px rgba(0,0,0,0.06);
+  border: 2px solid rgba(30,58,95,0.18);
+  background:
+    radial-gradient(520px 260px at 20% 0%, rgba(201,162,39,0.14), transparent 55%),
+    radial-gradient(520px 260px at 90% 10%, rgba(30,58,95,0.14), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.92) 100%);
+  border-radius: 18px;
+  padding: 1.25rem 1.25rem;
+  margin: 0.95rem auto 0.2rem;
+  box-shadow: 0 16px 44px rgba(0,0,0,0.10);
+  max-width: 760px;
 }
 .call-panel.hidden{ display:none !important; }
-.call-row{ display:flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-.call-left{ display:flex; gap: 0.95rem; align-items: center; min-width: 220px; }
+.call-row{ display:flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap; text-align:center; }
+.call-left{ display:flex; gap: 1.05rem; align-items: center; justify-content:center; min-width: 240px; }
 .phone{
-  width: 54px; height: 54px;
-  border-radius: 16px;
+  width: 88px; height: 88px;
+  border-radius: 22px;
   display:flex; align-items:center; justify-content:center;
   background: linear-gradient(135deg, rgba(30,58,95,0.14) 0%, rgba(201,162,39,0.16) 100%);
-  border: 1px solid rgba(17,24,39,0.10);
+  border: 1px solid rgba(17,24,39,0.12);
   position: relative;
+  font-size: 2rem;
 }
 .phone::after{
   content:'';
   position:absolute;
-  inset:-10px;
-  border-radius: 22px;
-  border: 2px solid rgba(201,162,39,0.28);
+  inset:-14px;
+  border-radius: 30px;
+  border: 2px solid rgba(201,162,39,0.34);
   opacity: 0.0;
   animation: ring 1.6s ease-in-out infinite;
 }
@@ -289,8 +294,14 @@ section[id^="step"] .card{
   100%{ opacity:0.0; transform: scale(1.06); }
 }
 .call-meta{ display:flex; flex-direction: column; gap: 0.1rem; }
-.call-title{ font-weight: 800; color: rgba(17,24,39,0.88); }
-.call-sub{ color: var(--text-light); font-size: 0.92rem; }
+.call-title{
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  color: rgba(17,24,39,0.90);
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+.call-sub{ color: var(--text-light); font-size: 0.98rem; line-height: 1.35; }
 .call-actions{ display:flex; gap: 0.6rem; align-items:center; }
 .btn-answer{
   background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
@@ -1842,7 +1853,11 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       });
 
       // Also unlock audio on the first tap/click anywhere (required by some browsers).
-      window.addEventListener('pointerdown', () => enableAudio(), { once: true, passive: true });
+      window.addEventListener('pointerdown', async () => {
+        await enableAudio();
+        // If an incoming call panel is visible, play a short ring (requires user gesture).
+        if (isAnyCallPanelVisible()) playShortRing();
+      }, { once: true, passive: true });
 
       // Restore access code for this tab session (so refresh doesn’t force re-entry)
       restoreSession();
@@ -1967,13 +1982,14 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           const g = ctx.createGain();
           g.gain.value = 0.0001;
           o1.type = 'sine'; o2.type = 'sine';
-          o1.frequency.value = 440;
-          o2.frequency.value = 660;
+          // Slightly higher/lower pair reads more like a phone ring.
+          o1.frequency.value = 480;
+          o2.frequency.value = 620;
           o1.connect(g); o2.connect(g);
           g.connect(ctx.destination);
           const dur = 0.52;
           g.gain.setValueAtTime(0.0001, startAt);
-          g.gain.linearRampToValueAtTime(0.22, startAt + 0.03);
+          g.gain.linearRampToValueAtTime(0.34, startAt + 0.03);
           g.gain.linearRampToValueAtTime(0.0001, startAt + dur);
           o1.start(startAt); o2.start(startAt);
           o1.stop(startAt + dur + 0.02);
@@ -1986,6 +2002,17 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       } catch {
         // ignore
       }
+    }
+
+    function isAnyCallPanelVisible() {
+      const ids = ['plannerCallPanel','expertCallPanel','sommCallPanel'];
+      return ids.some((id) => {
+        const el = document.getElementById(id);
+        if (!el) return false;
+        if (el.classList.contains('hidden')) return false;
+        // basic visibility check
+        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+      });
     }
 
     function initCallPanels() {
