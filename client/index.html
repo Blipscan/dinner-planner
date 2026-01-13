@@ -1963,10 +1963,19 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       return s ? `${h} ${s}` : 'Host';
     }
 
-    function personaIntro(role, personaLabel) {
+    function personaIntroFor(role) {
       const who = formalHostAddress();
-      const label = personaLabel || (role === 'planner' ? 'Event Planner' : role === 'somm' ? 'Sommelier' : 'Chef');
-      return `Hello ${who}, I’m your ${label}. How can I be of service?`;
+      const r = String(role || '').toLowerCase();
+      if (r === 'planner') return { label: 'Event Planner', voice: 'planner', text: `Hello ${who}, I’m your Event Planner. How can I be of service?` };
+      if (r === 'somm') return { label: 'Sommelier', voice: 'sommelier', text: `Hello ${who}, I’m your Sommelier. How can I be of service?` };
+      if (r === 'expert') {
+        const persona = String(selectedExpert || 'chef').toLowerCase();
+        const label = persona === 'sommelier' ? 'Sommelier' : (persona === 'instructor' ? 'Instructor' : 'Chef');
+        const voice = persona === 'sommelier' ? 'sommelier' : (persona === 'chef' ? 'chef' : 'planner');
+        return { label, voice, text: `Hello ${who}, I’m your ${label}. How can I be of service?` };
+      }
+      // Safe default
+      return { label: 'Event Planner', voice: 'planner', text: `Hello ${who}, I’m your Event Planner. How can I be of service?` };
     }
 
     function plannerCheckInGreeting() {
@@ -2074,18 +2083,20 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     async function answerCall(role) {
       await enableAudio();
       stopIncomingCallRing(role);
+      const r = String(role || '').toLowerCase();
+      if (!['planner','somm','expert'].includes(r)) return;
 
-      if (role === 'planner') {
+      if (r === 'planner') {
         hideCallPanel('planner');
         callActive.planner = true;
-        const intro = personaIntro('planner', 'Event Planner');
-        plannerHistory = [{ role: 'assistant', content: intro }];
+        const intro = personaIntroFor('planner');
+        plannerHistory = [{ role: 'assistant', content: intro.text }];
         renderPlannerChat();
         if (!document.getElementById('plannerVoiceToggle')?.checked) document.getElementById('plannerVoiceToggle').checked = true;
         // Speak first, then start hands-free listening (prevents mic from "hearing" the intro).
         setStatus('planner', 'speaking');
         speaking.planner = true;
-        await speak(intro, 'planner');
+        await speak(intro.text, intro.voice);
         speaking.planner = false;
         if (!document.getElementById('plannerHandsFreeToggle')?.checked) document.getElementById('plannerHandsFreeToggle').checked = true;
         await setHandsFree('planner', true);
@@ -2093,16 +2104,16 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         return;
       }
 
-      if (role === 'somm') {
+      if (r === 'somm') {
         hideCallPanel('somm');
         callActive.somm = true;
-        const intro = personaIntro('somm', 'Sommelier');
-        sommHistory = [{ role: 'assistant', content: intro }];
+        const intro = personaIntroFor('somm');
+        sommHistory = [{ role: 'assistant', content: intro.text }];
         renderSommChat();
         if (!document.getElementById('sommVoiceToggle')?.checked) document.getElementById('sommVoiceToggle').checked = true;
         setStatus('somm', 'speaking');
         speaking.somm = true;
-        await speak(intro, 'sommelier');
+        await speak(intro.text, intro.voice);
         speaking.somm = false;
         if (!document.getElementById('sommHandsFreeToggle')?.checked) document.getElementById('sommHandsFreeToggle').checked = true;
         await setHandsFree('somm', true);
@@ -2111,20 +2122,17 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       }
 
       // Expert call depends on which expert is selected.
-      if (role === 'expert') {
+      if (r === 'expert') {
         hideCallPanel('expert');
         callActive.expert = true;
-        const persona = (selectedExpert || 'chef');
-        const label = persona === 'sommelier' ? 'Sommelier' : (persona === 'instructor' ? 'Instructor' : 'Chef');
-        const voice = persona === 'sommelier' ? 'sommelier' : (persona === 'chef' ? 'chef' : 'planner');
-        const intro = personaIntro('expert', label);
+        const intro = personaIntroFor('expert');
         // Replace greeting bubble so it feels like a phone pickup, not a long paragraph.
-        chatHistory = [{ role: 'assistant', content: intro }];
+        chatHistory = [{ role: 'assistant', content: intro.text }];
         renderChat();
         if (!document.getElementById('expertVoiceToggle')?.checked) document.getElementById('expertVoiceToggle').checked = true;
         setStatus('expert', 'speaking');
         speaking.expert = true;
-        await speak(intro, voice);
+        await speak(intro.text, intro.voice);
         speaking.expert = false;
         if (!document.getElementById('expertHandsFreeToggle')?.checked) document.getElementById('expertHandsFreeToggle').checked = true;
         await setHandsFree('expert', true);
