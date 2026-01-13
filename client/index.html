@@ -1326,6 +1326,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
                     <label><input type="checkbox" id="plannerVoiceToggle"> Voice</label>
                     <label><input type="checkbox" id="plannerAutoSendToggle" checked> Auto-send</label>
                     <label><input type="checkbox" id="plannerHandsFreeToggle"> Hands-free</label>
+                    <label><input type="checkbox" id="plannerWakeToggle" checked> Wake phrase</label>
                     <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
                   </div>
                 </div>
@@ -1531,6 +1532,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
               <label><input type="checkbox" id="expertVoiceToggle"> Voice</label>
               <label><input type="checkbox" id="expertAutoSendToggle" checked> Auto-send</label>
               <label><input type="checkbox" id="expertHandsFreeToggle"> Hands-free</label>
+              <label><input type="checkbox" id="expertWakeToggle" checked> Wake phrase</label>
               <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
             </div>
           </div>
@@ -1633,6 +1635,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
               <label><input type="checkbox" id="sommVoiceToggle"> Voice</label>
               <label><input type="checkbox" id="sommAutoSendToggle" checked> Auto-send</label>
               <label><input type="checkbox" id="sommHandsFreeToggle"> Hands-free</label>
+              <label><input type="checkbox" id="sommWakeToggle" checked> Wake phrase</label>
               <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
             </div>
           </div>
@@ -1786,6 +1789,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     let speaking = { planner: false, expert: false, somm: false };
     // Prevent auto-send when we stop the mic for TTS.
     let suppressAutoSend = { planner: false, expert: false, somm: false };
+    // Wake-phrase gating helps avoid accidental sends in hands-free.
+    let lastSent = { planner: "", expert: "", somm: "" };
     
     // ============================================================
     // INITIALIZATION
@@ -1842,6 +1847,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       // Restore access code for this tab session (so refresh doesn’t force re-entry)
       restoreSession();
 
+      // URL prefill (so you can send a training link with code + name).
+      applyUrlPrefill();
+
       // Guest details live formatting
       document.getElementById('guestList').addEventListener('input', () => rebuildGuests());
       document.getElementById('guestCount').addEventListener('change', () => rebuildGuests());
@@ -1891,6 +1899,38 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       t.classList.remove('hidden');
       clearTimeout(window.__toastTimer);
       window.__toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
+    }
+
+    function applyUrlPrefill() {
+      try {
+        const p = new URLSearchParams(window.location.search || "");
+        const code = (p.get("code") || "").trim();
+        const honorific = (p.get("honorific") || "").trim();
+        const name = (p.get("name") || "").trim();
+        if (honorific && (honorific === "Mr." || honorific === "Mrs." || honorific === "Ms.")) {
+          hostHonorific = honorific;
+          localStorage.setItem('dpp_hostHonorific', hostHonorific);
+        }
+        if (name) {
+          hostFullName = name;
+          hostSurname = extractSurname(name);
+          localStorage.setItem('dpp_hostFullName', hostFullName);
+          localStorage.setItem('dpp_hostSurname', hostSurname);
+        }
+        const hEl = document.getElementById('hostHonorific');
+        const nEl = document.getElementById('hostFullName');
+        if (hEl && hostHonorific) hEl.value = hostHonorific;
+        if (nEl && hostFullName) nEl.value = hostFullName;
+        updateHostPreview();
+
+        if (code) {
+          const cEl = document.getElementById('accessCode');
+          if (cEl) cEl.value = code;
+          sessionStorage.setItem('dpp_accessCode', code);
+        }
+      } catch {
+        // ignore
+      }
     }
 
     function timeOfDayGreeting() {
@@ -2053,6 +2093,16 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       }
     }
 
+    function stopTtsNow() {
+      try {
+        if (ttsAudio?.currentSource) {
+          try { ttsAudio.currentSource.stop(0); } catch {}
+        }
+      } catch {}
+      try { window.speechSynthesis?.cancel?.(); } catch {}
+      if (ttsAudio) ttsAudio.currentSource = null;
+    }
+
     function setStatus(role, status) {
       const dot = document.getElementById(role + 'StatusDot');
       const text = document.getElementById(role + 'StatusText');
@@ -2125,14 +2175,43 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         const src = ttsAudio.ctx.createBufferSource();
         src.buffer = audioBuffer;
         src.connect(ttsAudio.ctx.destination);
+        // Track current source so we can "barge in" (user speaking interrupts TTS).
+        ttsAudio.currentSource = src;
         await new Promise((resolve) => {
           src.onended = () => resolve();
           try { src.start(0); } catch { resolve(); }
         });
+        ttsAudio.currentSource = null;
       } catch (e) {
         showToast(`ElevenLabs: playback failed (${String(e?.message || e || 'unknown')})`, 5200);
         return;
       }
+    }
+    function wakeEnabled(role) {
+      const id = role === 'planner' ? 'plannerWakeToggle' : role === 'expert' ? 'expertWakeToggle' : 'sommWakeToggle';
+      const el = document.getElementById(id);
+      return !!el && el.checked;
+    }
+
+    function wakePhrasesFor(role) {
+      if (role === 'planner') return ['planner', 'hey planner', 'okay planner'];
+      if (role === 'somm') return ['sommelier', 'hey sommelier', 'okay sommelier'];
+      // expert: accept chef/sommelier/instructor depending on selectedExpert
+      const ex = String(selectedExpert || 'chef').toLowerCase();
+      if (ex === 'sommelier') return ['sommelier', 'hey sommelier', 'okay sommelier'];
+      if (ex === 'instructor') return ['instructor', 'hey instructor', 'okay instructor'];
+      return ['chef', 'hey chef', 'okay chef'];
+    }
+
+    function stripWake(text, phrases) {
+      const s = String(text || '').trim();
+      if (!s) return { ok: false, stripped: '' };
+      const lower = s.toLowerCase();
+      const hit = (phrases || []).find((p) => lower.startsWith(p));
+      if (!hit) return { ok: false, stripped: '' };
+      let out = s.slice(hit.length).trim();
+      out = out.replace(/^[:,\-—–]+\s*/, '').trim();
+      return { ok: true, stripped: out || '' };
     }
 
     function speakWithDeviceVoice(text) {
@@ -2204,6 +2283,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       if (speaking[role]) return;
 
       const rec = createRecognizer((text) => {
+        // Barge-in: if the user speaks while TTS is playing, stop it.
+        if (speaking[role]) stopTtsNow();
         const input = document.getElementById(cfg.inputId);
         if (input) input.value = text;
         const interim = document.getElementById(cfg.interimId);
@@ -2219,8 +2300,27 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           const input = document.getElementById(cfg.inputId);
           if (input) input.value = text;
         }
+        let toSend = text;
+        if (handsFreeOn(role) && wakeEnabled(role)) {
+          const parsed = stripWake(text, wakePhrasesFor(role));
+          if (!parsed.ok) {
+            showToast(`Hands‑free: start with “${wakePhrasesFor(role)[0]} …”`, 2400);
+            return resumeHandsFree(role);
+          }
+          toSend = parsed.stripped || '';
+        }
         // Only auto-send when we actually captured user speech and we didn't stop for TTS.
-        if (autoSendEnabled(cfg.autoSendId) && text && !suppressAutoSend[role]) cfg.send();
+        if (autoSendEnabled(cfg.autoSendId) && toSend && !suppressAutoSend[role]) {
+          // de-dupe fast repeats
+          const last = (lastSent[role] || '').trim().toLowerCase();
+          const cur = toSend.trim().toLowerCase();
+          if (cur && cur !== last) {
+            lastSent[role] = toSend;
+            const input = document.getElementById(cfg.inputId);
+            if (input) input.value = toSend;
+            cfg.send();
+          }
+        }
         if (!handsFreeOn(role)) showToast('Microphone off.');
       });
 
