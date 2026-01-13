@@ -1591,6 +1591,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     let speech = { planner: null, expert: null, somm: null };
     let mic = { planner: false, expert: false, somm: false };
     let audioUnlocked = false;
+    // Persistent WebAudio context for TTS playback (more reliable than HTMLAudioElement
+    // across async boundaries once user gesture has resumed the context).
+    let ttsAudio = { ctx: null };
     let speaking = { planner: false, expert: false, somm: false };
     
     // ============================================================
@@ -1635,6 +1638,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', () => { if (el.checked) enableAudio(); });
       });
+
+      // Also unlock audio on the first tap/click anywhere (required by some browsers).
+      window.addEventListener('pointerdown', () => enableAudio(), { once: true, passive: true });
 
       // Restore access code for this tab session (so refresh doesn’t force re-entry)
       restoreSession();
@@ -1703,17 +1709,9 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       // Must be called from a user gesture.
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          gain.gain.value = 0.0001; // effectively silent
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.03);
-          await ctx.resume().catch(()=>{});
-          setTimeout(() => ctx.close().catch(()=>{}), 80);
+        if (AudioCtx && !ttsAudio.ctx) ttsAudio.ctx = new AudioCtx();
+        if (ttsAudio.ctx && ttsAudio.ctx.state !== 'running') {
+          await ttsAudio.ctx.resume().catch(()=>{});
         }
         audioUnlocked = true;
         // Keep this silent; hands-free should feel automatic.
@@ -1775,19 +1773,30 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
           if (shouldFallback) return speakWithDeviceVoice(t);
           return;
         }
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
+        const ab = await res.arrayBuffer();
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!ttsAudio.ctx) ttsAudio.ctx = new AudioCtx();
+        if (ttsAudio.ctx.state !== 'running') {
+          // If this fails, browser is still blocking audio activation.
+          await ttsAudio.ctx.resume().catch(() => {});
+        }
+
+        const decode = (ctx, buf) => new Promise((resolve, reject) => {
+          try {
+            const p = ctx.decodeAudioData(buf, resolve, reject);
+            // Some browsers return a promise; if so, hook it too.
+            if (p && typeof p.then === 'function') p.then(resolve).catch(reject);
+          } catch (e) { reject(e); }
+        });
+
+        const audioBuffer = await decode(ttsAudio.ctx, ab.slice(0));
+        const src = ttsAudio.ctx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(ttsAudio.ctx.destination);
         await new Promise((resolve) => {
-          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-          // play() resolves when playback *starts*, not when it finishes
-          audio.play()
-            .then(() => {})
-            .catch(() => {
-              showToast('Audio playback blocked by the browser. Tap anywhere once, then try again.');
-              resolve();
-            });
+          src.onended = () => resolve();
+          try { src.start(0); } catch { resolve(); }
         });
       } catch {
         // If anything goes wrong, use device voice (best-effort).
