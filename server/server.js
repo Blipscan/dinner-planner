@@ -1235,36 +1235,80 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     { time: "+130 min", task: "Serve dessert and dessert wine" },
   ];
 
-  const pollinationsUrl = (prompt, seed) =>
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=768&seed=${seed}&nologo=true`;
+  const pollinationsUrl = (prompt) =>
+    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=768&seed=11&nologo=true`;
 
-  const renderLinksHtml = (prompt) => {
-    const seeds = [11, 22, 33, 44, 55];
+  const aiLinksHtml = (prompt) => {
+    // 5 popular image AI destinations (some require paste; we provide copy buttons below)
+    const links = [
+      { label: "Pollinations (fast preview)", href: pollinationsUrl(prompt) },
+      { label: "Bing Image Creator", href: `https://www.bing.com/images/create?q=${encodeURIComponent(prompt)}` },
+      { label: "Ideogram", href: "https://ideogram.ai/" },
+      { label: "Leonardo", href: "https://app.leonardo.ai/ai-generations" },
+      { label: "PlaygroundAI", href: "https://playgroundai.com/create" },
+    ];
     return `<div class="render-links">
-  ${seeds
+  ${links
     .map(
-      (s, i) =>
-        `<a class="render-link" href="${pollinationsUrl(prompt, s)}" target="_blank" rel="noopener noreferrer">Render ${i + 1}</a>`
+      (l) =>
+        `<a class="render-link" href="${l.href}" target="_blank" rel="noopener noreferrer">${escapeHtml(
+          l.label
+        )}</a>`
     )
     .join("")}
 </div>`;
   };
 
-  const tablePrompt = `Elegant dinner table tablescape for "${context?.eventTitle || "Dinner Party"}" in ${context?.menuStyle || "classic"} style, warm candlelight, layered linens, place cards, menu cards, wine glasses and water glasses, seasonal centerpiece, sophisticated and inviting, editorial photography, 35mm, soft shadows, high detail`;
+  const style = context?.menuStyle || "classic";
+  const eventTitle = context?.eventTitle || "Dinner Party";
+  const serviceTime = context?.serviceTime || "7:00 PM";
+  const vibeMap = {
+    classic: "timeless, elegant, restrained luxury",
+    modern: "clean, minimal, contemporary, negative space",
+    romantic: "warm candlelight, soft glow, intimate, romantic",
+    artdeco: "Art Deco glamour, geometric accents, gold and black details",
+    rustic: "rustic-elegant, natural textures, linen, wood, stoneware",
+    botanical: "vintage botanical, garden-inspired, floral details",
+    coastal: "coastal elegance, airy light, subtle nautical cues",
+    urban: "urban chic, modern city apartment, moody highlights",
+  };
+  const vibe = vibeMap[style] || vibeMap.classic;
+
+  let promptIdx = 0;
+  const promptBlock = (heading, prompt) => {
+    const id = `prompt_${promptIdx++}`;
+    return `<div class="subsection">
+  <h3>${escapeHtml(heading)}</h3>
+  <div class="prompt-actions">
+    <button class="copy-btn" type="button" onclick="copyPrompt('${id}')">Copy prompt</button>
+    <span class="prompt-hint">Paste into any generator, or use a link below.</span>
+  </div>
+  <pre class="prompt" id="${id}">${escapeHtml(prompt)}</pre>
+  ${aiLinksHtml(prompt)}
+</div>`;
+  };
+
+  // Magazine-quality prompts aligned with menu style
+  const tablePrompt =
+    `Editorial interior + tablescape photograph for "${eventTitle}" at ${serviceTime}, ${vibe}. ` +
+    `Camera: Canon EOS R5 or Hasselblad X2D, 35mm, f/4, ISO 800, 1/125. ` +
+    `Lighting: warm candlelight + soft bounced practicals, gentle falloff, realistic shadows, no harsh speculars. ` +
+    `Composition: slightly elevated 45-degree angle, layered linens, place cards, menu cards, glassware arrangement, seasonal centerpiece with correct scale (no blocking faces), uncluttered negative space. ` +
+    `Color: rich navy and gold accents, creamy neutrals, true-to-life skin tones if hands appear. ` +
+    `Style: Architectural Digest dinner party editorial, ultra high detail, natural grain, no text, no watermark.`;
 
   const imagePromptsHtml = [
-    `<div class="subsection">
-  <h3>Table / Tablescape</h3>
-  <pre class="prompt">${escapeHtml(tablePrompt)}</pre>
-  ${renderLinksHtml(tablePrompt)}
-</div>`,
+    promptBlock("Table / Tablescape", tablePrompt),
     ...courses.map((c) => {
-      const prompt = `Professional food photography of ${c?.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality`;
-      return `<div class="subsection">
-  <h3>${escapeHtml(c?.type || "Course")}</h3>
-  <pre class="prompt">${escapeHtml(prompt)}</pre>
-  ${renderLinksHtml(prompt)}
-</div>`;
+      const dishPrompt =
+        `Magazine-cover food photograph of ${c?.name}, ${vibe}. ` +
+        `Camera: Sony α7R V or Hasselblad X2D, 85mm, f/2.0, ISO 400, 1/160. ` +
+        `Lighting: soft directional window light from left, subtle fill card on right, gentle back rim light, controlled highlights, no blown whites. ` +
+        `Plating: refined fine-dining composition, intentional negative space, microtexture visible, sauce placement guides the eye, garnish is edible and purposeful. ` +
+        `Props: white porcelain, linen napkin, simple flatware, minimal background, shallow depth of field, bokeh. ` +
+        `Angle: 45-degree hero shot, plus hint of environment that matches "${eventTitle}". ` +
+        `Style reference: Food & Wine editorial, hyper-realistic, ultra high detail, no text, no watermark.`;
+      return promptBlock(c?.type || "Course", dishPrompt);
     }),
   ].join("\n");
 
@@ -1334,6 +1378,10 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     .timeline td { padding: 8px 0; border-bottom: 1px dashed rgba(17,24,39,0.12); vertical-align: top; }
     .timeline td:first-child { width: 110px; color: var(--gold); font-weight: 700; }
     pre.prompt { background: rgba(17,24,39,0.04); border: 1px solid rgba(17,24,39,0.10); padding: 10px 12px; border-radius: 10px; overflow: auto; }
+    .prompt-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top: 8px; margin-bottom: 10px; }
+    .copy-btn { border: 1px solid rgba(17,24,39,0.14); background: white; color: var(--navy); border-radius: 999px; padding: 6px 10px; font-weight: 800; cursor:pointer; font-size: 13px; }
+    .copy-btn:hover { border-color: var(--gold); }
+    .prompt-hint { color: var(--muted); font-size: 13px; }
     .render-links { display:flex; flex-wrap:wrap; gap:10px; margin-top: 10px; }
     .render-link { display:inline-flex; padding: 6px 10px; border: 1px solid rgba(17,24,39,0.14); border-radius: 999px; text-decoration:none; color: var(--navy); font-size: 13px; }
     .render-link:hover { border-color: var(--gold); }
