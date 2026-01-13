@@ -1970,8 +1970,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     }
 
     function plannerCheckInGreeting() {
-      // Requested: “good morning/afternoon/evening Mrs. -----
-      return `${timeOfDayGreeting()} ${formalHostAddress()}, I’m your Event Planner. How can I be of service?`;
+      return `${timeOfDayGreeting()} ${formalHostAddress()}. Please fill out the next few pages and we'll be calling soon to make your evening special.`;
     }
 
     async function playShortRing() {
@@ -2984,11 +2983,8 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
             speaking.planner = true;
             await speak(greet, 'planner');
             speaking.planner = false;
-            // Start hands-free listening right after the greeting.
-            const hf = document.getElementById('plannerHandsFreeToggle');
-            if (hf) hf.checked = true;
-            await setHandsFree('planner', true);
-            setStatus('planner', handsFreeOn('planner') ? 'listening' : 'idle');
+            // Do not start a call yet — user will fill out the next pages first.
+            setStatus('planner', 'idle');
           } catch {
             // ignore; check-in should still proceed
           }
@@ -3173,7 +3169,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     // ============================================================
     // STEP 4: EXPERT CONSULTATION
     // ============================================================
-    function selectExpert(key) {
+    async function selectExpert(key) {
       selectedExpert = key;
       const persona = DATA.personas[key];
       
@@ -3192,6 +3188,14 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       // Reset incoming call panel when switching experts
       const callPanel = document.getElementById('expertCallPanel');
       if (callPanel) callPanel.classList.remove('hidden');
+
+      // Center the communications panel and ring on selection (user gesture).
+      try {
+        await enableAudio();
+        await playShortRing();
+      } catch {}
+      if (callPanel) callPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      updateIncomingCallRings();
       
       // Initialize chat with greeting
       chatHistory = [];
