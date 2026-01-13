@@ -1821,12 +1821,6 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       });
     }
 
-    async function ensureMicPermission() {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error('Microphone not supported');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop());
-    }
-
     const ROLE_CFG = {
       planner: {
         inputId: 'plannerInput',
@@ -1877,15 +1871,6 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
       if (speech[role]) return;
       if (speaking[role]) return;
 
-      if (opts.ensurePermission) {
-        try {
-          await ensureMicPermission();
-        } catch {
-          showToast('Microphone permission denied or not available.');
-          return;
-        }
-      }
-
       const rec = createRecognizer((text) => {
         const input = document.getElementById(cfg.inputId);
         if (input) input.value = text;
@@ -1923,7 +1908,10 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
         setChecked(cfg.voiceId, true);
         setChecked(cfg.autoSendId, true);
         enableAudio();
-        await startRoleMic(role, { ensurePermission: true });
+        // IMPORTANT: Do not await an async getUserMedia permission call here.
+        // Many browsers treat SpeechRecognition.start() as requiring a direct user gesture;
+        // any await before start can break hands-free and force a button press.
+        await startRoleMic(role, { ensurePermission: false });
       } else {
         stopRoleMic(role);
         setMicUi(role, false);
@@ -2066,7 +2054,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     }
 
     async function togglePlannerMic() {
-      if (!speech.planner) return startRoleMic('planner', { ensurePermission: true });
+      if (!speech.planner) return startRoleMic('planner', { ensurePermission: false });
       stopRoleMic('planner');
       const cfg = ROLE_CFG.planner;
       if (cfg) setChecked(cfg.handsFreeId, false);
@@ -2078,7 +2066,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     // Expert mic + voice (Step 4)
     // =========================
     async function toggleExpertMic() {
-      if (!speech.expert) return startRoleMic('expert', { ensurePermission: true });
+      if (!speech.expert) return startRoleMic('expert', { ensurePermission: false });
       stopRoleMic('expert');
       const cfg = ROLE_CFG.expert;
       if (cfg) setChecked(cfg.handsFreeId, false);
@@ -2738,7 +2726,7 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
     }
 
     async function toggleSommMic() {
-      if (!speech.somm) return startRoleMic('somm', { ensurePermission: true });
+      if (!speech.somm) return startRoleMic('somm', { ensurePermission: false });
       stopRoleMic('somm');
       const cfg = ROLE_CFG.somm;
       if (cfg) setChecked(cfg.handsFreeId, false);
