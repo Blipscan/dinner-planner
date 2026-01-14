@@ -70,6 +70,31 @@
    - `ANTHROPIC_API_KEY` = your Claude API key from console.anthropic.com
 7. Deploy
 
+---
+
+### Deployment to Railway (recommended for beta)
+
+1. Create a new Railway project and add this repo.
+2. Create a **Service** from the repo.
+3. In the service settings, set **Root Directory** to `server`
+4. Set:
+   - Build Command: `npm ci`
+   - Start Command: `npm start`
+5. Ensure **Networking is Public** and generate a Railway domain.
+6. (Recommended) Add Postgres:
+   - Add Plugin → Postgres
+   - Ensure `DATABASE_URL` is set on the service (Railway usually wires this automatically)
+7. Add env vars (see `.env.example`):
+   - `ANTHROPIC_API_KEY`
+   - `ACCESS_CODES`
+   - `ADMIN_CODE`
+   - `MAX_GENERATIONS_PER_CODE`
+   - `BETA_EXPIRY`
+
+**Sanity checks**
+- `GET /api/health` should return JSON with `status: "ok"`
+- `/admin.html` lets you view access-code usage (requires `ADMIN_CODE`)
+
 **Optional Environment Variables:**
 - `ACCESS_CODES` — Comma-separated codes (default: BETA001,BETA002,BETA003)
 - `ADMIN_CODE` — Admin code (default: ADMIN2024)

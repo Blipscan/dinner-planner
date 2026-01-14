@@ -4,16 +4,528 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dinner Party Planner</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Montserrat:wght@400;600&family=Cormorant+Garamond:wght@400;600&family=Cinzel:wght@400;600&family=Libre+Baskerville:wght@400;700&family=Great+Vibes&display=swap">
   <style>
 :root{
   --navy:#1E3A5F; --navy-dark:#152b46;
-  --gold:#C9A227; --gold-light:#D4B03A;
+  --navy-light:#2B5B93;
+  --gold:#C9A227; --gold-light:#D4B03A; --gold-dark:#8b6c18;
   --cream:#FDF8F3; --cream-dark:#EFE6DD;
   --text:#1f2937; --text-light:#6b7280;
   --success:#16a34a; --success-light:#dcfce7;
   --error:#dc2626; --error-light:#fee2e2;
 }
-body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}    
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family: Georgia, serif;
+  background:
+    radial-gradient(1200px 600px at 20% 0%, rgba(201,162,39,0.10), transparent 55%),
+    radial-gradient(900px 520px at 95% 10%, rgba(30,58,95,0.12), transparent 52%),
+    linear-gradient(180deg, #ffffff 0%, var(--cream) 55%, var(--cream) 100%);
+  color:var(--text);
+}
+html{ scroll-behavior: smooth; }
+
+/* ===== BASE LAYOUT ===== */
+.container{
+  width: min(1100px, calc(100vw - 2.25rem));
+  margin: 0 auto;
+  padding: 1.25rem 0 3rem;
+}
+
+/* ===== STEP "SCREEN" FRAME ===== */
+section[id^="step"]{
+  border: 3px solid rgba(30,58,95,0.28);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.86);
+  box-shadow: 0 18px 54px rgba(0,0,0,0.10);
+  padding: 1.35rem;
+  margin: 0.9rem 0 1.75rem;
+  outline: 10px solid rgba(201,162,39,0.06);
+}
+section[id^="step"] .card{
+  background: rgba(255,255,255,0.94);
+}
+.card{ margin-bottom: 1.6rem; }
+.card:last-child{ margin-bottom: 0; }
+.section-title{ scroll-margin-top: 130px; }
+
+/* ===== TOP BAR ===== */
+.topbar{
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(17,24,39,0.06);
+}
+.topbar-inner{
+  width: min(1100px, calc(100vw - 2.25rem));
+  margin: 0 auto;
+  padding: 0.85rem 0;
+  display:flex;
+  align-items:center;
+  justify-content: center;
+  gap: 1rem;
+  position: relative;
+}
+.brand{display:flex;align-items:center;gap:0.85rem;min-width:0; justify-content:center;}
+.topbar-right{ position:absolute; right:0; }
+.brand-icon{
+  width: 40px; height: 40px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(30,58,95,0.10) 0%, rgba(201,162,39,0.14) 100%);
+  border: 1px solid rgba(17,24,39,0.08);
+  font-size: 1.25rem;
+}
+.brand-title{
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--navy);
+  line-height: 1.1;
+  font-size: 1.05rem;
+}
+.brand-tagline{
+  font-size: 0.88rem;
+  color: var(--text-light);
+  line-height: 1.25;
+}
+.beta-pill{
+  display:inline-flex;
+  align-items:center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--navy);
+  background: rgba(30,58,95,0.08);
+  border: 1px solid rgba(30,58,95,0.14);
+}
+
+/* ===== PROGRESS ===== */
+.progress{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 0.55rem;
+  padding: 0.8rem 0 1.25rem;
+}
+.progress-step{
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(17,24,39,0.10);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select:none;
+}
+.progress-step:hover{ border-color: rgba(30,58,95,0.25); color: var(--navy); }
+.progress-step.active{
+  color: white;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+  border-color: rgba(30,58,95,0.35);
+  box-shadow: 0 8px 18px rgba(30,58,95,0.20);
+}
+.progress-step.complete{
+  color: var(--navy);
+  background: rgba(30,58,95,0.08);
+  border-color: rgba(30,58,95,0.18);
+}
+.progress-line{
+  width: 26px; height: 2px;
+  background: rgba(17,24,39,0.12);
+  border-radius: 999px;
+}
+.progress-line.complete{
+  background: rgba(30,58,95,0.35);
+}
+
+/* ===== IN-STEP NAV (MAJOR POINTS) ===== */
+.section-nav{
+  position: sticky;
+  top: 74px; /* below topbar */
+  z-index: 40;
+  display:flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items:center;
+  justify-content: center;
+  padding: 0.75rem 0.8rem;
+  margin: 0.3rem 0 0.85rem;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(17,24,39,0.14);
+  backdrop-filter: blur(8px);
+}
+.section-nav.hidden{ display:none !important; }
+.section-nav .label{
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(17,24,39,0.55);
+  margin-right: 0.25rem;
+}
+.section-nav-btn{
+  appearance:none;
+  border: 1px solid rgba(17,24,39,0.12);
+  background: rgba(255,255,255,0.92);
+  color: rgba(17,24,39,0.78);
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.section-nav-btn:hover{
+  border-color: rgba(30,58,95,0.25);
+  color: var(--navy);
+}
+.section-nav-btn.active{
+  border-color: rgba(30,58,95,0.35);
+  background: rgba(30,58,95,0.08);
+  color: var(--navy);
+}
+.section-nav .nav-spacer{ flex: 1 1 auto; min-width: 16px; }
+.section-nav-jump{
+  appearance:none;
+  border: 1px solid rgba(17,24,39,0.14);
+  background: rgba(255,255,255,0.92);
+  color: rgba(17,24,39,0.78);
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 900;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.section-nav-jump:hover{
+  border-color: rgba(30,58,95,0.28);
+  color: var(--navy);
+}
+.section-nav-jump:disabled{
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+[data-screen]{ scroll-margin-top: 120px; }
+
+/* ===== WINE CHOOSER ===== */
+.wine-chooser{ margin-top: 0.75rem; }
+.wine-course{
+  border: 1px solid rgba(17,24,39,0.10);
+  background: rgba(255,255,255,0.90);
+  border-radius: 14px;
+  padding: 0.95rem;
+  margin: 0 0 0.75rem;
+}
+.wine-course:last-child{ margin-bottom: 0; }
+.wine-course h4{
+  margin: 0 0 0.5rem;
+  font-family: 'Playfair Display', serif;
+  color: var(--navy);
+  font-size: 1.05rem;
+}
+.wine-options{ display:grid; gap: 0.5rem; margin-top: 0.5rem; }
+.wine-opt{
+  display:flex; gap: 0.7rem; align-items:flex-start;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(17,24,39,0.10);
+  background: rgba(255,255,255,0.92);
+  cursor: pointer;
+}
+.wine-opt:hover{ border-color: rgba(30,58,95,0.22); }
+.wine-opt input{ margin-top: 0.15rem; transform: scale(1.15); }
+.wine-opt .t{ font-weight: 900; color: rgba(17,24,39,0.86); }
+.wine-opt .w{ color: rgba(17,24,39,0.78); }
+.wine-opt .n{ color: var(--text-light); font-size: 0.92rem; margin-top: 0.1rem; }
+
+/* ===== VOICE "INCOMING CALL" UI ===== */
+.call-panel{
+  border: 2px solid rgba(30,58,95,0.18);
+  background:
+    radial-gradient(520px 260px at 20% 0%, rgba(201,162,39,0.14), transparent 55%),
+    radial-gradient(520px 260px at 90% 10%, rgba(30,58,95,0.14), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.92) 100%);
+  border-radius: 18px;
+  padding: 1.25rem 1.25rem;
+  margin: 0.95rem auto 0.2rem;
+  box-shadow: 0 16px 44px rgba(0,0,0,0.10);
+  max-width: 760px;
+}
+.call-panel.hidden{ display:none !important; }
+.call-row{ display:flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap; text-align:center; }
+.call-left{ display:flex; gap: 1.05rem; align-items: center; justify-content:center; min-width: 240px; }
+.phone{
+  width: 88px; height: 88px;
+  border-radius: 22px;
+  display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(135deg, rgba(30,58,95,0.14) 0%, rgba(201,162,39,0.16) 100%);
+  border: 1px solid rgba(17,24,39,0.12);
+  position: relative;
+  font-size: 2rem;
+}
+.phone::after{
+  content:'';
+  position:absolute;
+  inset:-14px;
+  border-radius: 30px;
+  border: 2px solid rgba(201,162,39,0.34);
+  opacity: 0.0;
+  animation: ring 1.6s ease-in-out infinite;
+}
+@keyframes ring{
+  0%{ opacity:0.0; transform: scale(0.95); }
+  12%{ opacity:0.65; transform: scale(1.00); }
+  28%{ opacity:0.0; transform: scale(1.06); }
+  100%{ opacity:0.0; transform: scale(1.06); }
+}
+.call-meta{ display:flex; flex-direction: column; gap: 0.1rem; }
+.call-title{
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  color: rgba(17,24,39,0.90);
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+.call-sub{ color: var(--text-light); font-size: 0.98rem; line-height: 1.35; }
+.call-actions{ display:flex; gap: 0.6rem; align-items:center; }
+.btn-answer{
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.btn-answer:hover{ filter: brightness(1.03); }
+.btn-decline{
+  background: rgba(220,38,38,0.08);
+  color: #991b1b;
+  border: 1px solid rgba(220,38,38,0.25);
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.btn-decline:hover{ background: rgba(220,38,38,0.12); }
+
+/* ===== CARDS + FORMS ===== */
+.card{
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(17,24,39,0.10);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.06);
+  margin: 0 0 1.25rem 0;
+}
+.card ul, .card ol{
+  margin: 0.9rem 0 0.9rem 1.25rem;
+  padding: 0;
+}
+.card li{
+  margin: 0.75rem 0;
+  line-height: 1.6;
+}
+.card li > ul, .card li > ol{
+  margin-top: 0.55rem;
+}
+.panel-hidden{ display:none !important; }
+.card-title{
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  margin: 0 0 0.45rem;
+  color: var(--navy);
+}
+.card-subtitle{
+  margin: 0 0 1.25rem;
+  color: var(--text-light);
+  line-height: 1.55;
+  font-size: 1.02rem;
+}
+.form-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.form-group{ margin: 0 0 1rem; }
+label{
+  display:block;
+  font-weight: 700;
+  margin: 0 0 0.45rem;
+  color: rgba(17,24,39,0.88);
+}
+input[type="text"], input[type="date"], textarea, select{
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(17,24,39,0.14);
+  background: rgba(255,255,255,0.95);
+  font: inherit;
+  outline: none;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+textarea{ resize: vertical; }
+input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus{
+  border-color: rgba(30,58,95,0.45);
+  box-shadow: 0 0 0 4px rgba(30,58,95,0.10);
+}
+
+/* ===== CHIPS ===== */
+.chip-group{ display:flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.75rem; }
+.chip{
+  display:inline-flex;
+  align-items:center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(17,24,39,0.12);
+  background: rgba(255,255,255,0.92);
+  color: rgba(17,24,39,0.80);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.18s ease;
+}
+.chip:hover{ border-color: rgba(30,58,95,0.25); color: var(--navy); }
+.chip.selected{
+  border-color: rgba(30,58,95,0.35);
+  background: rgba(30,58,95,0.08);
+  color: var(--navy);
+}
+
+/* ===== STEP 1 HERO ===== */
+#step1{ padding-bottom: 0.5rem; }
+.step1-hero{
+  display:grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 0.25rem;
+}
+.hero-panel{
+  border-radius: 18px;
+  padding: 2.25rem;
+  background:
+    radial-gradient(700px 380px at 15% 10%, rgba(201,162,39,0.18), transparent 60%),
+    radial-gradient(640px 360px at 95% 30%, rgba(30,58,95,0.18), transparent 58%),
+    linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.86) 100%);
+  border: 1px solid rgba(17,24,39,0.10);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.08);
+  overflow: hidden;
+  position: relative;
+}
+.hero-kicker{
+  display:inline-flex;
+  align-items:center;
+  gap: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: rgba(30,58,95,0.85);
+  margin-bottom: 0.75rem;
+}
+.hero-title{
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.1rem, 3.4vw, 3rem);
+  line-height: 1.06;
+  color: var(--navy);
+  margin: 0 0 0.75rem;
+}
+.hero-lede{
+  font-size: 1.08rem;
+  line-height: 1.65;
+  color: rgba(17,24,39,0.74);
+  margin: 0 0 1.25rem;
+}
+.hero-points{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.hero-point{
+  display:flex;
+  gap: 0.75rem;
+  align-items:flex-start;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(17,24,39,0.08);
+}
+.hero-point .dot{
+  width: 12px; height: 12px; border-radius: 999px;
+  background: var(--gold);
+  box-shadow: 0 0 0 4px rgba(201,162,39,0.16);
+  margin-top: 0.25rem;
+  flex: 0 0 auto;
+}
+.hero-point .text{ color: rgba(17,24,39,0.78); line-height: 1.5; }
+.hero-point .text strong{ color: rgba(17,24,39,0.92); }
+.hero-mini{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1.15rem;
+}
+.mini-pill{
+  display:inline-flex;
+  align-items:center;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: rgba(17,24,39,0.72);
+  border: 1px solid rgba(17,24,39,0.10);
+  background: rgba(255,255,255,0.75);
+}
+.hero-entry{ display:flex; flex-direction: column; gap: 1rem; }
+.entry-card{ margin: 0; }
+.drawer{
+  padding: 0;
+  overflow: hidden;
+}
+.drawer > summary{
+  list-style: none;
+  cursor: pointer;
+  padding: 1.25rem 1.35rem;
+  border-bottom: 1px solid rgba(17,24,39,0.08);
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.drawer > summary::-webkit-details-marker{ display:none; }
+.drawer > summary .sum-title{
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  color: var(--navy);
+}
+.drawer > summary .sum-hint{
+  color: var(--text-light);
+  font-size: 0.92rem;
+}
+.drawer[open] > summary{ background: rgba(30,58,95,0.04); }
+.drawer-body{ padding: 1.25rem 1.35rem 1.35rem; }
+
     /* ===== INSPIRATION CARDS ===== */
     .inspiration-grid {
       display: grid;
@@ -58,6 +570,106 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
       gap: 1rem;
       margin-top: 1rem;
+    }
+    .style-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      gap: 1.25rem;
+      margin-top: 1rem;
+      align-items: start;
+    }
+    .style-panel {
+      background: var(--cream);
+      border: 1px solid var(--cream-dark);
+      border-radius: 14px;
+      padding: 1rem;
+    }
+    .style-panel h4 {
+      font-size: 0.8rem;
+      color: var(--text-light);
+      margin: 0 0 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+    }
+    .style-preview {
+      background: white;
+      border: 2px solid var(--cream-dark);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    }
+    .style-preview-header {
+      padding: 0.9rem 1.1rem;
+      border-bottom: 1px solid var(--cream-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+    }
+    .style-preview-header .label {
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      font-weight: 700;
+    }
+    .style-preview-header .hint {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      font-style: italic;
+      text-align: right;
+    }
+    .menu-card-preview {
+      padding: 1.6rem 1.5rem;
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .menu-card-preview .preview-title {
+      font-size: 1.9rem;
+      color: var(--navy);
+      line-height: 1.1;
+    }
+    .menu-card-preview .preview-meta {
+      font-size: 0.95rem;
+      color: var(--text-light);
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .menu-card-preview .preview-divider {
+      height: 1px;
+      background: rgba(17,24,39,0.10);
+      margin: 0.6rem 0 0.2rem;
+    }
+    .menu-card-preview .preview-course {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 0.75rem;
+      padding: 0.35rem 0;
+      align-items: baseline;
+    }
+    .menu-card-preview .preview-course-type {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .menu-card-preview .preview-course-name {
+      font-size: 1.02rem;
+      color: var(--text);
+    }
+    .menu-card-preview .preview-footer {
+      margin-top: auto;
+      font-size: 0.85rem;
+      color: var(--text-light);
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
     }
     .style-card {
       background: white;
@@ -160,6 +772,85 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       align-items: center;
       gap: 0.875rem;
     }
+    .chat-header .spacer { margin-left: auto; }
+    .chat-controls { display:flex; gap:0.6rem; align-items:center; }
+    .chat-controls label { display:flex; gap:0.4rem; align-items:center; font-size:0.85rem; opacity:0.95; }
+    .chat-controls input[type="checkbox"] { transform: translateY(1px); }
+    .status-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:0.45rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.20);
+      background: rgba(255,255,255,0.10);
+      font-size: 0.82rem;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+    }
+    .status-dot.listening { background: #22c55e; }
+    .status-dot.thinking { background: #f59e0b; }
+    .status-dot.speaking { background: #60a5fa; }
+    .status-dot.off { background: rgba(255,255,255,0.25); }
+    .mic-banner {
+      background: rgba(201,162,39,0.15);
+      border-top: 1px solid rgba(201,162,39,0.35);
+      border-bottom: 1px solid rgba(201,162,39,0.35);
+      color: white;
+      padding: 0.55rem 1.25rem;
+      font-size: 0.85rem;
+    }
+    .mic-banner strong { color: white; }
+    .mic-status {
+      display: inline-flex;
+      gap: 0.5rem;
+      align-items: center;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.92);
+    }
+    .mic-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 0 rgba(201,162,39,0.0);
+    }
+    .mic-dot.on {
+      background: var(--gold);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(201,162,39,0.55); }
+      100% { box-shadow: 0 0 0 10px rgba(201,162,39,0); }
+    }
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 9999;
+      background: rgba(17,24,39,0.92);
+      color: white;
+      padding: 12px 14px;
+      border-radius: 12px;
+      max-width: min(520px, calc(100vw - 32px));
+      font-size: 0.92rem;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }
+    .toast.hidden { display:none; }
+    .interim {
+      padding: 0.6rem 1.25rem;
+      background: rgba(255,255,255,0.08);
+      border-top: 1px solid rgba(255,255,255,0.16);
+      color: rgba(255,255,255,0.92);
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+    .interim.hidden { display:none; }
     .chat-header .icon { font-size: 1.75rem; }
     .chat-header .name {
       font-family: 'Playfair Display', serif;
@@ -200,6 +891,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       background: white;
     }
     .chat-input-area input { flex: 1; }
+    .mic-btn { padding: 0.95rem 1rem; min-width: 120px; }
     
     /* ===== MENU CARDS ===== */
     .menu-card {
@@ -526,26 +1218,41 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     /* ===== RESPONSIVE ===== */
     @media (max-width: 700px) {
       body { font-size: 16px; }
-      .header h1 { font-size: 2rem; }
-      .header { padding: 2rem 1rem 3rem; }
+      .brand-title { font-size: 1rem; }
+      .brand-tagline { display:none; }
       .card { padding: 1.5rem; }
       .form-row { grid-template-columns: 1fr; }
       .inspiration-grid { grid-template-columns: repeat(2, 1fr); }
       .expert-grid { grid-template-columns: 1fr; }
       .menu-card .course { grid-template-columns: 1fr; gap: 0.25rem; }
       .menu-card .course-wine { margin-left: 0; }
+      .style-layout { grid-template-columns: 1fr; }
+      .menu-card-preview { min-height: 360px; padding: 1.25rem; }
+      .menu-card-preview .preview-course { grid-template-columns: 1fr; gap: 0.2rem; }
       .progress-step { width: 30px; height: 30px; font-size: 0.8rem; }
       .progress-line { width: 18px; }
       .btn { padding: 0.85rem 1.5rem; }
+      .step1-hero { grid-template-columns: 1fr; }
+      .hero-panel { padding: 1.75rem; }
+      .hero-mini { margin-top: 0.9rem; }
+      section[id^="step"]{ padding: 1rem; }
+      .section-nav{ top: 62px; padding: 0.65rem 0.65rem; }
     }
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="header-content">
-      <div class="header-icon">🍽️</div>
-      <h1>Dinner Party Planner</h1>
-      <p>Create Unforgettable Experiences</p>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-icon">🍽️</div>
+        <div class="brand-text">
+          <div class="brand-title">Dinner Party Planner</div>
+          <div class="brand-tagline">Create unforgettable experiences</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="beta-pill">Beta</span>
+      </div>
     </div>
   </header>
   
@@ -566,26 +1273,121 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div class="progress-line" id="line6"></div>
       <div class="progress-step" id="dot7" onclick="jumpToStep(7)">7</div>
     </div>
+
+    <div class="section-nav hidden" id="sectionNav" aria-label="On this step"></div>
     
     <!-- Step 1: Access Code -->
     <section id="step1">
-      <div class="card">
-        <h2 class="card-title">Welcome, Host</h2>
-        <p class="card-subtitle">Enter your access code to begin planning an unforgettable dinner party experience.</p>
-        <div class="form-group">
-          <label for="accessCode">Access Code</label>
-          <input type="text" id="accessCode" placeholder="Enter your beta access code" autocomplete="off">
+      <div class="step1-hero">
+        <div class="hero-panel">
+          <div class="hero-kicker">Your private dinner-party concierge</div>
+          <h2 class="hero-title">Make a beautiful plan — then enjoy your own party.</h2>
+          <p class="hero-lede">
+            In a few minutes, you’ll have a complete menu, a beverage program, a shopping list, and a cooking timeline —
+            all tailored to your guests and your style.
+          </p>
+          <div class="hero-points">
+            <div class="hero-point"><span class="dot"></span><div class="text"><strong>Fast decisions.</strong> One clear choice at a time — no overwhelm.</div></div>
+            <div class="hero-point"><span class="dot"></span><div class="text"><strong>Execution-ready.</strong> Recipes, prep plan, and service flow that actually works.</div></div>
+            <div class="hero-point"><span class="dot"></span><div class="text"><strong>Printables included.</strong> Place cards, menus, invitations, and a polished cookbook.</div></div>
+          </div>
+          <div class="hero-mini" aria-label="What you’ll get">
+            <span class="mini-pill">Menus</span>
+            <span class="mini-pill">Shopping list</span>
+            <span class="mini-pill">Timeline</span>
+            <span class="mini-pill">Wine tiers</span>
+            <span class="mini-pill">Cookbook (DOCX + HTML)</span>
+          </div>
         </div>
-        <div id="codeMessage"></div>
-        <div class="actions">
-          <button class="btn btn-primary" onclick="validateCode()">Begin Planning</button>
+
+        <div class="hero-entry">
+          <div class="card entry-card" data-screen="Access">
+            <h2 class="card-title">Welcome, Host</h2>
+            <p class="card-subtitle">Enter your access code to start.</p>
+            <div class="form-group">
+              <label for="accessCode">Access Code</label>
+              <input type="text" id="accessCode" placeholder="Enter your beta access code" autocomplete="off">
+            </div>
+            <div class="form-row" style="margin-top:0.75rem">
+              <div class="form-group">
+                <label for="hostHonorific">How should we address you?</label>
+                <select id="hostHonorific">
+                  <option value="Mr.">Mr.</option>
+                  <option value="Mrs.">Mrs.</option>
+                  <option value="Ms.">Ms.</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="hostFullName">Your name</label>
+                <input type="text" id="hostFullName" placeholder="e.g., Alex Johnson" autocomplete="name">
+              </div>
+            </div>
+            <div style="margin-top:-0.25rem;color:var(--text-light);font-size:0.9rem;line-height:1.4">
+              We’ll address you as <span id="hostAddressPreview" style="font-weight:700;color:var(--navy)">Mr. —</span>.
+            </div>
+            <div id="codeMessage"></div>
+            <div class="actions" style="margin-top:1rem">
+              <button class="btn btn-primary" onclick="validateCode()">Begin Planning</button>
+            </div>
+          </div>
+
+          <details class="card drawer" data-screen="Planner (optional)">
+            <summary>
+              <div>
+                <div class="sum-title">Talk to your Planner (optional)</div>
+                <div class="sum-hint">Ask a quick question — voice or type.</div>
+              </div>
+              <span class="beta-pill" style="letter-spacing:0.02em;text-transform:none;font-weight:700;font-size:0.85rem">🗂️</span>
+            </summary>
+            <div class="drawer-body">
+              <div class="chat-container">
+                <div class="chat-header">
+                  <span class="icon">🗂️</span>
+                  <span class="name">The Planner</span>
+                  <span class="spacer"></span>
+                  <div class="chat-controls">
+                    <span class="mic-status"><span class="mic-dot" id="plannerMicDot"></span><span id="plannerMicText">Mic off</span></span>
+                    <span class="status-pill"><span class="status-dot off" id="plannerStatusDot"></span><span id="plannerStatusText">Idle</span></span>
+                    <label><input type="checkbox" id="plannerVoiceToggle"> Voice</label>
+                    <label><input type="checkbox" id="plannerAutoSendToggle" checked> Auto-send</label>
+                    <label><input type="checkbox" id="plannerHandsFreeToggle"> Hands-free</label>
+                    <label><input type="checkbox" id="plannerWakeToggle" checked> Wake phrase</label>
+                    <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
+                  </div>
+                </div>
+                <div class="call-panel" id="plannerCallPanel">
+                  <div class="call-row">
+                    <div class="call-left">
+                      <div class="phone">📱</div>
+                      <div class="call-meta">
+                        <div class="call-title">Incoming call: The Planner</div>
+                        <div class="call-sub">Answer to begin a hands‑free conversation.</div>
+                      </div>
+                    </div>
+                    <div class="call-actions">
+                      <button class="btn-decline" onclick="declineCall('planner')">Decline</button>
+                      <button class="btn-answer" onclick="answerCall('planner')">Answer</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="mic-banner hidden" id="plannerMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
+                <div class="interim hidden" id="plannerInterim"></div>
+                <div class="chat-messages" id="plannerMessages"></div>
+                <div class="chat-input-area">
+                  <input type="text" id="plannerInput" placeholder="Ask the Planner..." onkeypress="if(event.key==='Enter')sendPlannerChat()">
+                  <button class="btn btn-outline mic-btn" id="plannerMicBtn" onclick="togglePlannerMic()">Start Mic</button>
+                  <button class="btn btn-primary" onclick="sendPlannerChat()">Send</button>
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </section>
     
     <!-- Step 2: Event Details -->
     <section id="step2" class="hidden">
-      <div class="card">
+      <div class="card" data-screen="Event details">
         <h2 class="card-title">Event Details</h2>
         <p class="card-subtitle">Tell us about your dinner party — the basics help us personalize everything.</p>
         <div class="form-row">
@@ -626,12 +1428,28 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <label for="guestList">Guest Names <span style="font-weight:normal;color:var(--text-light)">(for place cards, one per line)</span></label>
           <textarea id="guestList" rows="4" placeholder="Jane Smith&#10;John Smith&#10;..."></textarea>
         </div>
+        <div class="form-group">
+          <label>Guest Details <span style="font-weight:normal;color:var(--text-light)">(auto-formatted; edit as needed)</span></label>
+          <div id="guestDetails"></div>
+        </div>
       </div>
       
-      <div class="card">
+      <div class="card" data-screen="Printed style">
         <h2 class="card-title">Menu Card Style</h2>
         <p class="card-subtitle">Choose the aesthetic for your printed materials.</p>
-        <div class="style-grid" id="styleGrid"></div>
+        <div class="style-layout">
+          <div class="style-panel">
+            <h4>Styles</h4>
+            <div class="style-grid" id="styleGrid"></div>
+          </div>
+          <div class="style-preview" aria-live="polite">
+            <div class="style-preview-header">
+              <div class="label">Live preview</div>
+              <div class="hint">This is what guests will see on the table.</div>
+            </div>
+            <div class="menu-card-preview" id="stylePreview"></div>
+          </div>
+        </div>
       </div>
       
       <div class="actions">
@@ -642,7 +1460,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     <!-- Step 3: Preferences -->
     <section id="step3" class="hidden">
-      <div class="card">
+      <div class="card" data-screen="Inspiration">
         <h2 class="card-title">Menu Inspiration</h2>
         <p class="card-subtitle">What kind of dining experience are you creating? This guides our menu suggestions.</p>
         <div class="inspiration-grid" id="inspirationGrid"></div>
@@ -655,7 +1473,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         </div>
       </div>
       
-      <div class="card">
+      <div class="card" data-screen="Budget & skill">
         <h2 class="card-title">Budget & Skill Level</h2>
         <div class="form-row">
           <div class="form-group">
@@ -689,7 +1507,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         </div>
       </div>
       
-      <div class="card">
+      <div class="card" data-screen="Preferences">
         <h2 class="card-title">Taste Preferences</h2>
         <div class="form-group">
           <label>Cuisine Direction</label>
@@ -718,7 +1536,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     <!-- Step 4: Expert Consultation -->
     <section id="step4" class="hidden">
-      <div class="card">
+      <div class="card" data-screen="Choose an expert">
         <h2 class="card-title">Expert Consultation</h2>
         <p class="card-subtitle">Before we design your menu, would you like to consult with our experts? They can help refine your vision and answer questions. This is optional but recommended.</p>
         <div class="expert-grid" id="expertGrid"></div>
@@ -727,15 +1545,43 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         </div>
       </div>
       
-      <div id="chatSection" class="hidden">
+      <div id="chatSection" class="hidden" data-screen="Consultation chat">
         <div class="chat-container">
           <div class="chat-header">
             <span class="icon" id="chatIcon">👨‍🍳</span>
             <span class="name" id="chatName">The Chef</span>
+            <span class="spacer"></span>
+            <div class="chat-controls">
+              <span class="mic-status"><span class="mic-dot" id="expertMicDot"></span><span id="expertMicText">Mic off</span></span>
+              <span class="status-pill"><span class="status-dot off" id="expertStatusDot"></span><span id="expertStatusText">Idle</span></span>
+              <label><input type="checkbox" id="expertVoiceToggle"> Voice</label>
+              <label><input type="checkbox" id="expertAutoSendToggle" checked> Auto-send</label>
+              <label><input type="checkbox" id="expertHandsFreeToggle"> Hands-free</label>
+              <label><input type="checkbox" id="expertWakeToggle" checked> Wake phrase</label>
+              <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
+            </div>
           </div>
+          <div class="call-panel" id="expertCallPanel">
+            <div class="call-row">
+              <div class="call-left">
+                <div class="phone">📱</div>
+                <div class="call-meta">
+                  <div class="call-title">Incoming call: <span id="expertCallName">The Chef</span></div>
+                  <div class="call-sub">Answer to begin a hands‑free conversation.</div>
+                </div>
+              </div>
+              <div class="call-actions">
+                <button class="btn-decline" onclick="declineCall('expert')">Decline</button>
+                <button class="btn-answer" onclick="answerCall('expert')">Answer</button>
+              </div>
+            </div>
+          </div>
+          <div class="mic-banner hidden" id="expertMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
+          <div class="interim hidden" id="expertInterim"></div>
           <div class="chat-messages" id="chatMessages"></div>
           <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Ask a question or share your vision..." onkeypress="if(event.key==='Enter')sendChat()">
+            <button class="btn btn-outline mic-btn" id="expertMicBtn" onclick="toggleExpertMic()">Start Mic</button>
             <button class="btn btn-primary" onclick="sendChat()">Send</button>
           </div>
         </div>
@@ -761,11 +1607,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div id="menuActions" class="actions hidden">
         <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
         <button class="btn btn-outline" onclick="rejectMenus()">None of These Work</button>
+        <button class="btn btn-outline" onclick="loadWineTiers()">Get beverage options</button>
         <button class="btn btn-primary" id="selectMenuBtn" onclick="selectMenu()" disabled>Select This Menu</button>
       </div>
       
       <div id="rejectionChat" class="hidden">
-        <div class="card">
+        <div class="card" data-screen="Adjust the menus">
           <h3 class="card-title">Let's Find Your Perfect Menu</h3>
           <p class="card-subtitle">I sense none of these hit the mark. Help me understand what you're looking for...</p>
           <div class="chat-container">
@@ -788,15 +1635,78 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     <!-- Step 6: Staffing -->
     <section id="step6" class="hidden">
-      <div class="card">
+      <div class="card" data-screen="Staffing">
         <h2 class="card-title">Kitchen Staffing</h2>
         <p class="card-subtitle">How will you be staffing your kitchen? This affects your prep timeline and what's realistic to execute.</p>
         <div id="staffingOptions"></div>
       </div>
       
-      <div class="card">
+      <div class="card" data-screen="Selected menu">
         <h3 class="card-title" style="font-size:1.2rem">Your Selected Menu</h3>
         <div id="selectedMenuSummary"></div>
+      </div>
+
+      <div class="card" data-screen="Sommelier">
+        <h2 class="card-title">Sommelier Service (After Menu Choice)</h2>
+        <p class="card-subtitle">Ask about serving order, decanting, glassware, cocktails/mocktails, and how the pairings work.</p>
+        <div class="chat-container">
+          <div class="chat-header">
+            <span class="icon">🍷</span>
+            <span class="name">The Sommelier</span>
+            <span class="spacer"></span>
+            <div class="chat-controls">
+              <span class="mic-status"><span class="mic-dot" id="sommMicDot"></span><span id="sommMicText">Mic off</span></span>
+              <span class="status-pill"><span class="status-dot off" id="sommStatusDot"></span><span id="sommStatusText">Idle</span></span>
+              <label><input type="checkbox" id="sommVoiceToggle"> Voice</label>
+              <label><input type="checkbox" id="sommAutoSendToggle" checked> Auto-send</label>
+              <label><input type="checkbox" id="sommHandsFreeToggle"> Hands-free</label>
+              <label><input type="checkbox" id="sommWakeToggle" checked> Wake phrase</label>
+              <button class="btn btn-outline" style="padding:0.45rem 0.8rem;font-size:0.85rem" onclick="enableAudio()">Enable audio</button>
+            </div>
+          </div>
+          <div class="call-panel" id="sommCallPanel">
+            <div class="call-row">
+              <div class="call-left">
+                <div class="phone">📱</div>
+                <div class="call-meta">
+                  <div class="call-title">Incoming call: The Sommelier</div>
+                  <div class="call-sub">Answer to begin a hands‑free conversation.</div>
+                </div>
+              </div>
+              <div class="call-actions">
+                <button class="btn-decline" onclick="declineCall('somm')">Decline</button>
+                <button class="btn-answer" onclick="answerCall('somm')">Answer</button>
+              </div>
+            </div>
+          </div>
+          <div class="mic-banner hidden" id="sommMicBanner"><strong>Microphone ON</strong> — your speech is transcribed in this browser. Click “Stop Mic” to turn it off.</div>
+          <div class="interim hidden" id="sommInterim"></div>
+          <div class="chat-messages" id="sommMessages"></div>
+          <div class="chat-input-area">
+            <input type="text" id="sommInput" placeholder="Ask the Sommelier..." onkeypress="if(event.key==='Enter')sendSommChat()">
+            <button class="btn btn-outline mic-btn" id="sommMicBtn" onclick="toggleSommMic()">Start Mic</button>
+            <button class="btn btn-primary" onclick="sendSommChat()">Send</button>
+          </div>
+        </div>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-outline" onclick="requestSommelierTiers()">Get 4-tier recommendations (per course)</button>
+        </div>
+        <div id="wineChooser" class="wine-chooser"></div>
+      </div>
+
+      <div class="card" data-screen="Cookbook format">
+        <h2 class="card-title">Cookbook Format</h2>
+        <p class="card-subtitle">Choose a layout for printing and sharing.</p>
+        <div class="form-group">
+          <label for="cookbookFormat">Format</label>
+          <select id="cookbookFormat" onchange="selectCookbookFormat(this.value)">
+            <option value="cards">Recipe Cards</option>
+            <option value="binder" selected>3-Ring Binder (Full Cookbook)</option>
+            <option value="gift">Gift Presentation</option>
+            <option value="lesson">Cooking School Lesson Plan</option>
+            <option value="graphic">Graphic Novel (Storyboard)</option>
+          </select>
+        </div>
       </div>
       
       <div class="actions">
@@ -813,7 +1723,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       </div>
       
       <div id="cookbookComplete" class="hidden">
-        <div class="card text-center">
+        <div class="card text-center" data-screen="Cookbook">
           <h2 class="card-title">🎉 Your Cookbook is Ready!</h2>
           <p class="card-subtitle">Your complete dinner party cookbook has been generated with all 15 sections.</p>
           
@@ -824,10 +1734,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           
           <div class="actions">
             <button class="btn btn-gold" onclick="downloadCookbook()">📥 Download DOCX Cookbook</button>
+            <button class="btn btn-outline" onclick="viewCookbookHtml()">View / Print HTML Cookbook</button>
           </div>
         </div>
         
-        <div class="card">
+        <div class="card" data-screen="Print products">
           <h2 class="card-title">Print Products</h2>
           <p class="card-subtitle">Download print-ready files formatted for Avery paper products.</p>
           
@@ -858,6 +1769,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <p style="font-size:0.75rem;margin-top:0.35rem;opacity:0.7">AI-assisted recipe development. Recipes are original adaptations inspired by classic techniques.</p>
     </footer>
   </div>
+
+  <div class="toast hidden" id="toast"></div>
   
   <script>
     // ============================================================
@@ -867,6 +1780,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let currentStep = 1;
     let maxStepReached = 1;
     let accessCode = '';
+    // Tester identity (installation)
+    let hostHonorific = 'Mr.';
+    let hostFullName = '';
+    let hostSurname = '';
     let selectedStyle = 'classic';
     let selectedInspiration = 'chefs-tasting';
     let selectedCuisine = null;
@@ -879,8 +1796,32 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let menus = [];
     let selectedMenu = null;
     let selectedStaffing = 'solo';
+    let selectedCookbookFormat = 'binder';
     let rejectionHistory = [];
     let cookbookId = null;
+    let wineTiers = null;
+    let wineTiersLoading = false;
+    let wineChoices = {}; // per course key -> chosen wine string
+    let guests = [];
+    let plannerHistory = [];
+    let sommHistory = [];
+    let speech = { planner: null, expert: null, somm: null };
+    let mic = { planner: false, expert: false, somm: false };
+    let audioUnlocked = false;
+    // Persistent WebAudio context for TTS playback (more reliable than HTMLAudioElement
+    // across async boundaries once user gesture has resumed the context).
+    let ttsAudio = { ctx: null };
+    let speaking = { planner: false, expert: false, somm: false };
+    // Prevent auto-send when we stop the mic for TTS.
+    let suppressAutoSend = { planner: false, expert: false, somm: false };
+    // Wake-phrase gating helps avoid accidental sends in hands-free.
+    let lastSent = { planner: "", expert: "", somm: "" };
+    // When a call is "answered", we don't require wake phrases for every turn.
+    let callActive = { planner: false, expert: false, somm: false };
+    // Ring loop when incoming call panel is visible.
+    let callRingTimer = { planner: null, expert: null, somm: null };
+    // One-panel-per-step navigation (reduces stacked scrolling cards).
+    let panelIndexByStep = {};
     
     // ============================================================
     // INITIALIZATION
@@ -906,27 +1847,880 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const defaultDate = new Date();
       defaultDate.setDate(defaultDate.getDate() + 14);
       document.getElementById('eventDate').value = defaultDate.toISOString().split('T')[0];
+
+      // Keep style preview in sync with event details
+      ['eventTitle', 'eventDate', 'serviceTime'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => renderStylePreview());
+        if (el) el.addEventListener('change', () => renderStylePreview());
+      });
       
       // Enter key for access code
       document.getElementById('accessCode').addEventListener('keypress', e => {
         if (e.key === 'Enter') validateCode();
       });
+
+      // Keep address preview in sync
+      const honorificEl = document.getElementById('hostHonorific');
+      const nameEl = document.getElementById('hostFullName');
+      if (honorificEl) honorificEl.addEventListener('change', () => updateHostPreview());
+      if (nameEl) nameEl.addEventListener('input', () => updateHostPreview());
+
+      // Any attempt to use voice should unlock audio automatically.
+      ['plannerVoiceToggle','expertVoiceToggle','sommVoiceToggle'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => { if (el.checked) enableAudio(); });
+      });
+
+      // Also unlock audio on the first tap/click anywhere (required by some browsers).
+      window.addEventListener('pointerdown', async () => {
+        await enableAudio();
+      }, { once: true, passive: true });
+
+      // Restore access code for this tab session (so refresh doesn’t force re-entry)
+      restoreSession();
+
+      // URL prefill (so you can send a training link with code + name).
+      applyUrlPrefill();
+
+      // Guest details live formatting
+      document.getElementById('guestList').addEventListener('input', () => rebuildGuests());
+      document.getElementById('guestCount').addEventListener('change', () => rebuildGuests());
+      rebuildGuests();
+
+      // Initialize planner + somm chat
+      initPlannerChat();
+      initSommChat();
+
+      // Hands-free toggles: start/stop listening automatically
+      const plannerHF = document.getElementById('plannerHandsFreeToggle');
+      if (plannerHF) plannerHF.addEventListener('change', () => {
+        setHandsFree('planner', plannerHF.checked);
+      });
+      const expertHF = document.getElementById('expertHandsFreeToggle');
+      if (expertHF) expertHF.addEventListener('change', () => {
+        setHandsFree('expert', expertHF.checked);
+      });
+      const sommHF = document.getElementById('sommHandsFreeToggle');
+      if (sommHF) sommHF.addEventListener('change', () => {
+        setHandsFree('somm', sommHF.checked);
+      });
+
+      // Build the in-step nav on first load (Step 1).
+      updateSectionNav();
+
+      // Incoming call UI (voice start) for each persona.
+      initCallPanels();
     }
     
     document.addEventListener('DOMContentLoaded', init);
+
+    function voiceEnabled(id) {
+      const el = document.getElementById(id);
+      return !!el && el.checked;
+    }
+
+    function autoSendEnabled(id) {
+      const el = document.getElementById(id);
+      return !!el && el.checked;
+    }
+
+    function showToast(message, ms=2600) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = message;
+      t.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
+    }
+
+    function applyUrlPrefill() {
+      try {
+        const p = new URLSearchParams(window.location.search || "");
+        const code = (p.get("code") || "").trim();
+        const honorific = (p.get("honorific") || "").trim();
+        const name = (p.get("name") || "").trim();
+        if (honorific && (honorific === "Mr." || honorific === "Mrs." || honorific === "Ms.")) {
+          hostHonorific = honorific;
+          localStorage.setItem('dpp_hostHonorific', hostHonorific);
+        }
+        if (name) {
+          hostFullName = name;
+          hostSurname = extractSurname(name);
+          localStorage.setItem('dpp_hostFullName', hostFullName);
+          localStorage.setItem('dpp_hostSurname', hostSurname);
+        }
+        const hEl = document.getElementById('hostHonorific');
+        const nEl = document.getElementById('hostFullName');
+        if (hEl && hostHonorific) hEl.value = hostHonorific;
+        if (nEl && hostFullName) nEl.value = hostFullName;
+        updateHostPreview();
+
+        if (code) {
+          const cEl = document.getElementById('accessCode');
+          if (cEl) cEl.value = code;
+          sessionStorage.setItem('dpp_accessCode', code);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    function timeOfDayGreeting() {
+      const h = new Date().getHours();
+      if (h >= 5 && h < 12) return 'Good morning';
+      if (h >= 12 && h < 17) return 'Good afternoon';
+      return 'Good evening';
+    }
+
+    function formalHostAddress() {
+      const h = (hostHonorific || 'Mr.').trim() || 'Mr.';
+      const s = (hostSurname || '').trim();
+      return s ? `${h} ${s}` : 'Host';
+    }
+
+    function personaIntroFor(role) {
+      const who = formalHostAddress();
+      const r = String(role || '').toLowerCase();
+      if (r === 'planner') return { label: 'Event Planner', voice: 'planner', text: `Hello ${who}, I’m your Event Planner. How can I be of service?` };
+      if (r === 'somm') return { label: 'Sommelier', voice: 'sommelier', text: `Hello ${who}, I’m your Sommelier. How can I be of service?` };
+      if (r === 'expert') {
+        const persona = String(selectedExpert || 'chef').toLowerCase();
+        const label = persona === 'sommelier' ? 'Sommelier' : (persona === 'instructor' ? 'Instructor' : 'Chef');
+        const voice = persona === 'sommelier' ? 'sommelier' : (persona === 'chef' ? 'chef' : 'planner');
+        return { label, voice, text: `Hello ${who}, I’m your ${label}. How can I be of service?` };
+      }
+      // Safe default
+      return { label: 'Event Planner', voice: 'planner', text: `Hello ${who}, I’m your Event Planner. How can I be of service?` };
+    }
+
+    function plannerCheckInGreeting() {
+      return `${timeOfDayGreeting()} ${formalHostAddress()}. Please fill out the next few pages and we'll be calling soon to make your evening special.`;
+    }
+
+    async function playShortRing() {
+      // A tiny "ring" tone played only after a user gesture.
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!ttsAudio.ctx) ttsAudio.ctx = new AudioCtx();
+        if (ttsAudio.ctx.state !== 'running') await ttsAudio.ctx.resume().catch(()=>{});
+        const ctx = ttsAudio.ctx;
+        const ringOnce = (startAt) => {
+          const o1 = ctx.createOscillator();
+          const o2 = ctx.createOscillator();
+          const g = ctx.createGain();
+          g.gain.value = 0.0001;
+          o1.type = 'sine'; o2.type = 'sine';
+          // Slightly higher/lower pair reads more like a phone ring.
+          o1.frequency.value = 480;
+          o2.frequency.value = 620;
+          o1.connect(g); o2.connect(g);
+          g.connect(ctx.destination);
+          const dur = 0.52;
+          g.gain.setValueAtTime(0.0001, startAt);
+          g.gain.linearRampToValueAtTime(0.34, startAt + 0.03);
+          g.gain.linearRampToValueAtTime(0.0001, startAt + dur);
+          o1.start(startAt); o2.start(startAt);
+          o1.stop(startAt + dur + 0.02);
+          o2.stop(startAt + dur + 0.02);
+        };
+        const t0 = ctx.currentTime + 0.03;
+        ringOnce(t0);
+        ringOnce(t0 + 0.78); // double-ring
+        if (navigator.vibrate) navigator.vibrate([60, 80, 60]);
+      } catch {
+        // ignore
+      }
+    }
+
+    function isAnyCallPanelVisible() {
+      const ids = ['plannerCallPanel','expertCallPanel','sommCallPanel'];
+      return ids.some((id) => {
+        const el = document.getElementById(id);
+        if (!el) return false;
+        if (el.classList.contains('hidden')) return false;
+        // basic visibility check
+        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+      });
+    }
+
+    function isCallPanelVisible(role) {
+      const id = role + 'CallPanel';
+      const el = document.getElementById(id);
+      if (!el) return false;
+      if (el.classList.contains('hidden')) return false;
+      return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
+    function stopIncomingCallRing(role) {
+      const t = callRingTimer?.[role];
+      if (t) {
+        clearInterval(t);
+        callRingTimer[role] = null;
+      }
+    }
+
+    function startIncomingCallRing(role) {
+      if (callRingTimer[role]) return;
+      // Only attempt audible ring if audio has already been unlocked in this session.
+      if (!audioUnlocked) return;
+      callRingTimer[role] = setInterval(() => {
+        if (callActive[role] || !isCallPanelVisible(role)) return stopIncomingCallRing(role);
+        playShortRing();
+      }, 3600);
+      playShortRing();
+    }
+
+    function updateIncomingCallRings() {
+      ['planner','expert','somm'].forEach((role) => {
+        if (callActive[role]) return stopIncomingCallRing(role);
+        if (isCallPanelVisible(role)) startIncomingCallRing(role);
+        else stopIncomingCallRing(role);
+      });
+    }
+
+    function initCallPanels() {
+      // Show panels by default until the user answers once per persona.
+      ['planner', 'expert', 'somm'].forEach((role) => {
+        const panel = document.getElementById(role + 'CallPanel');
+        if (!panel) return;
+        panel.classList.remove('hidden');
+      });
+      updateIncomingCallRings();
+    }
+
+    function hideCallPanel(role) {
+      const panel = document.getElementById(role + 'CallPanel');
+      if (panel) panel.classList.add('hidden');
+      stopIncomingCallRing(role);
+    }
+
+    async function answerCall(role) {
+      await enableAudio();
+      stopIncomingCallRing(role);
+      const r = String(role || '').toLowerCase();
+      if (!['planner','somm','expert'].includes(r)) return;
+
+      if (r === 'planner') {
+        hideCallPanel('planner');
+        callActive.planner = true;
+        const intro = personaIntroFor('planner');
+        plannerHistory = [{ role: 'assistant', content: intro.text }];
+        renderPlannerChat();
+        if (!document.getElementById('plannerVoiceToggle')?.checked) document.getElementById('plannerVoiceToggle').checked = true;
+        // Speak first, then start hands-free listening (prevents mic from "hearing" the intro).
+        setStatus('planner', 'speaking');
+        speaking.planner = true;
+        await speak(intro.text, intro.voice);
+        speaking.planner = false;
+        if (!document.getElementById('plannerHandsFreeToggle')?.checked) document.getElementById('plannerHandsFreeToggle').checked = true;
+        await setHandsFree('planner', true);
+        setStatus('planner', handsFreeOn('planner') ? 'listening' : 'idle');
+        return;
+      }
+
+      if (r === 'somm') {
+        hideCallPanel('somm');
+        callActive.somm = true;
+        const intro = personaIntroFor('somm');
+        sommHistory = [{ role: 'assistant', content: intro.text }];
+        renderSommChat();
+        if (!document.getElementById('sommVoiceToggle')?.checked) document.getElementById('sommVoiceToggle').checked = true;
+        setStatus('somm', 'speaking');
+        speaking.somm = true;
+        await speak(intro.text, intro.voice);
+        speaking.somm = false;
+        if (!document.getElementById('sommHandsFreeToggle')?.checked) document.getElementById('sommHandsFreeToggle').checked = true;
+        await setHandsFree('somm', true);
+        setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
+        return;
+      }
+
+      // Expert call depends on which expert is selected.
+      if (r === 'expert') {
+        hideCallPanel('expert');
+        callActive.expert = true;
+        const intro = personaIntroFor('expert');
+        // Replace greeting bubble so it feels like a phone pickup, not a long paragraph.
+        chatHistory = [{ role: 'assistant', content: intro.text }];
+        renderChat();
+        if (!document.getElementById('expertVoiceToggle')?.checked) document.getElementById('expertVoiceToggle').checked = true;
+        setStatus('expert', 'speaking');
+        speaking.expert = true;
+        await speak(intro.text, intro.voice);
+        speaking.expert = false;
+        if (!document.getElementById('expertHandsFreeToggle')?.checked) document.getElementById('expertHandsFreeToggle').checked = true;
+        await setHandsFree('expert', true);
+        setStatus('expert', handsFreeOn('expert') ? 'listening' : 'idle');
+      }
+    }
+
+    function declineCall(role) {
+      hideCallPanel(role);
+      showToast('Call declined.');
+    }
+
+    function setMicUi(role, isOn) {
+      mic[role] = !!isOn;
+      const dot = document.getElementById(role + 'MicDot');
+      const text = document.getElementById(role + 'MicText');
+      const banner = document.getElementById(role + 'MicBanner');
+      const btn = document.getElementById(role + 'MicBtn');
+      if (dot) dot.classList.toggle('on', !!isOn);
+      if (text) text.textContent = isOn ? 'Listening…' : 'Mic off';
+      if (banner) banner.classList.toggle('hidden', !isOn);
+      if (btn) btn.textContent = isOn ? 'Stop Mic' : 'Start Mic';
+    }
+
+    async function enableAudio() {
+      // Must be called from a user gesture.
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx && !ttsAudio.ctx) ttsAudio.ctx = new AudioCtx();
+        if (ttsAudio.ctx && ttsAudio.ctx.state !== 'running') {
+          await ttsAudio.ctx.resume().catch(()=>{});
+        }
+        audioUnlocked = true;
+        // Keep this silent; hands-free should feel automatic.
+      } catch {
+        audioUnlocked = true;
+        // Keep this silent; hands-free should feel automatic.
+      }
+    }
+
+    function stopTtsNow() {
+      try {
+        if (ttsAudio?.currentSource) {
+          try { ttsAudio.currentSource.stop(0); } catch {}
+        }
+      } catch {}
+      try { window.speechSynthesis?.cancel?.(); } catch {}
+      if (ttsAudio) ttsAudio.currentSource = null;
+    }
+
+    function setStatus(role, status) {
+      const dot = document.getElementById(role + 'StatusDot');
+      const text = document.getElementById(role + 'StatusText');
+      if (!dot || !text) return;
+      dot.classList.remove('listening', 'thinking', 'speaking', 'off');
+      if (status === 'listening') { dot.classList.add('listening'); text.textContent = 'Listening'; return; }
+      if (status === 'thinking') { dot.classList.add('thinking'); text.textContent = 'Thinking'; return; }
+      if (status === 'speaking') { dot.classList.add('speaking'); text.textContent = 'Speaking'; return; }
+      dot.classList.add('off'); text.textContent = 'Idle';
+    }
+
+    function sanitizeSpeechText(text) {
+      let t = String(text || '');
+      // Remove markdown/code
+      t = t.replace(/```[\s\S]*?```/g, ' ');
+      t = t.replace(/\*\*(.*?)\*\*/g, '$1');
+      t = t.replace(/\*(.*?)\*/g, '$1');
+      t = t.replace(/`([^`]+)`/g, '$1');
+      // Replace punctuation so it's not "read out"
+      t = t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+      t = t.replace(/[(){}\[\]:;]/g, ' ');
+      t = t.replace(/[—–]/g, ' ');
+      t = t.replace(/[!?]+/g, '. ');
+      // Collapse whitespace
+      t = t.replace(/\s+/g, ' ').trim();
+      return t;
+    }
+
+    async function speak(text, voiceRole) {
+      // Avoid speaking empty or placeholder responses.
+      const t = sanitizeSpeechText(text);
+      if (!t || t === '...') return;
+      try {
+        // Try to unlock audio automatically (Send/Hands-free is a user gesture).
+        if (!audioUnlocked) await enableAudio();
+
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ voice: voiceRole, text: t })
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(()=>null);
+          // Prefer ElevenLabs; avoid "stock voice" fallback when it isn't configured.
+          const msg = j?.error ? String(j.error) : 'ElevenLabs voice failed.';
+          const extra = j?.upstreamStatus ? ` (upstream ${j.upstreamStatus})` : '';
+          const body = j?.upstreamBody ? ` — ${String(j.upstreamBody).slice(0, 180)}` : '';
+          showToast(`ElevenLabs: ${msg}${extra}${body}`, 5200);
+          // Do NOT fall back to device voices (they sound bad and hide the real issue).
+          return;
+        }
+        const ab = await res.arrayBuffer();
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!ttsAudio.ctx) ttsAudio.ctx = new AudioCtx();
+        if (ttsAudio.ctx.state !== 'running') {
+          // If this fails, browser is still blocking audio activation.
+          await ttsAudio.ctx.resume().catch(() => {});
+        }
+
+        const decode = (ctx, buf) => new Promise((resolve, reject) => {
+          try {
+            const p = ctx.decodeAudioData(buf, resolve, reject);
+            // Some browsers return a promise; if so, hook it too.
+            if (p && typeof p.then === 'function') p.then(resolve).catch(reject);
+          } catch (e) { reject(e); }
+        });
+
+        const audioBuffer = await decode(ttsAudio.ctx, ab.slice(0));
+        const src = ttsAudio.ctx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(ttsAudio.ctx.destination);
+        // Track current source so we can "barge in" (user speaking interrupts TTS).
+        ttsAudio.currentSource = src;
+        await new Promise((resolve) => {
+          src.onended = () => resolve();
+          try { src.start(0); } catch { resolve(); }
+        });
+        ttsAudio.currentSource = null;
+      } catch (e) {
+        showToast(`ElevenLabs: playback failed (${String(e?.message || e || 'unknown')})`, 5200);
+        return;
+      }
+    }
+    function wakeEnabled(role) {
+      const id = role === 'planner' ? 'plannerWakeToggle' : role === 'expert' ? 'expertWakeToggle' : 'sommWakeToggle';
+      const el = document.getElementById(id);
+      return !!el && el.checked;
+    }
+
+    function wakeRequired(role) {
+      // During an active "call", don't require the wake phrase each turn.
+      if (callActive[role]) return false;
+      return wakeEnabled(role);
+    }
+
+    function wakePhrasesFor(role) {
+      if (role === 'planner') return ['planner', 'hey planner', 'okay planner'];
+      if (role === 'somm') return ['sommelier', 'hey sommelier', 'okay sommelier'];
+      // expert: accept chef/sommelier/instructor depending on selectedExpert
+      const ex = String(selectedExpert || 'chef').toLowerCase();
+      if (ex === 'sommelier') return ['sommelier', 'hey sommelier', 'okay sommelier'];
+      if (ex === 'instructor') return ['instructor', 'hey instructor', 'okay instructor'];
+      return ['chef', 'hey chef', 'okay chef'];
+    }
+
+    function stripWake(text, phrases) {
+      const s = String(text || '').trim();
+      if (!s) return { ok: false, stripped: '' };
+      const lower = s.toLowerCase();
+      const hit = (phrases || []).find((p) => lower.startsWith(p));
+      if (!hit) return { ok: false, stripped: '' };
+      let out = s.slice(hit.length).trim();
+      out = out.replace(/^[:,\-—–]+\s*/, '').trim();
+      return { ok: true, stripped: out || '' };
+    }
+
+    function speakWithDeviceVoice(text) {
+      return new Promise((resolve) => {
+        try {
+          if (!('speechSynthesis' in window)) return resolve();
+          const u = new SpeechSynthesisUtterance(sanitizeSpeechText(text));
+          u.rate = 1.0;
+          u.pitch = 1.0;
+          u.volume = 1.0;
+          u.onend = () => resolve();
+          u.onerror = () => resolve();
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(u);
+        } catch {
+          resolve();
+        }
+      });
+    }
+
+    const ROLE_CFG = {
+      planner: {
+        inputId: 'plannerInput',
+        interimId: 'plannerInterim',
+        voiceId: 'plannerVoiceToggle',
+        autoSendId: 'plannerAutoSendToggle',
+        handsFreeId: 'plannerHandsFreeToggle',
+        send: () => sendPlannerChat(),
+      },
+      expert: {
+        inputId: 'chatInput',
+        interimId: 'expertInterim',
+        voiceId: 'expertVoiceToggle',
+        autoSendId: 'expertAutoSendToggle',
+        handsFreeId: 'expertHandsFreeToggle',
+        send: () => sendChat(),
+      },
+      somm: {
+        inputId: 'sommInput',
+        interimId: 'sommInterim',
+        voiceId: 'sommVoiceToggle',
+        autoSendId: 'sommAutoSendToggle',
+        handsFreeId: 'sommHandsFreeToggle',
+        send: () => sendSommChat(),
+      }
+    };
+
+    function handsFreeOn(role) {
+      const cfg = ROLE_CFG[role];
+      const el = cfg ? document.getElementById(cfg.handsFreeId) : null;
+      return !!el && el.checked;
+    }
+
+    function setChecked(id, v) {
+      const el = document.getElementById(id);
+      if (el) el.checked = !!v;
+    }
+
+    function stopRoleMic(role) {
+      try {
+        if (speech[role]) speech[role].stop();
+      } catch {}
+    }
+
+    async function startRoleMic(role, opts = {}) {
+      const cfg = ROLE_CFG[role];
+      if (!cfg) return;
+      if (speech[role]) return;
+      if (speaking[role]) return;
+
+      const rec = createRecognizer((text) => {
+        // Barge-in: if the user speaks while TTS is playing, stop it.
+        if (speaking[role]) stopTtsNow();
+        const input = document.getElementById(cfg.inputId);
+        if (input) input.value = text;
+        const interim = document.getElementById(cfg.interimId);
+        if (interim) { interim.textContent = text; interim.classList.remove('hidden'); }
+      }, (finalText) => {
+        speech[role] = null;
+        // In hands-free mode, we'll restart after the assistant finishes speaking.
+        if (!handsFreeOn(role)) setMicUi(role, false);
+        const interim = document.getElementById(cfg.interimId);
+        if (interim) interim.classList.add('hidden');
+        const text = String(finalText || '').trim();
+        if (text) {
+          const input = document.getElementById(cfg.inputId);
+          if (input) input.value = text;
+        }
+        let toSend = text;
+        if (handsFreeOn(role) && wakeRequired(role)) {
+          const parsed = stripWake(text, wakePhrasesFor(role));
+          if (!parsed.ok) {
+            showToast(`Hands‑free: start with “${wakePhrasesFor(role)[0]} …”`, 2400);
+            return resumeHandsFree(role);
+          }
+          toSend = parsed.stripped || '';
+        }
+        // Only auto-send when we actually captured user speech and we didn't stop for TTS.
+        if (autoSendEnabled(cfg.autoSendId) && toSend && !suppressAutoSend[role]) {
+          // de-dupe fast repeats
+          const last = (lastSent[role] || '').trim().toLowerCase();
+          const cur = toSend.trim().toLowerCase();
+          if (cur && cur !== last) {
+            lastSent[role] = toSend;
+            const input = document.getElementById(cfg.inputId);
+            if (input) input.value = toSend;
+            cfg.send();
+          }
+        }
+        if (!handsFreeOn(role)) showToast('Microphone off.');
+      });
+
+      if (!rec) { showToast('Speech recognition not supported in this browser.'); return; }
+      speech[role] = rec;
+      setMicUi(role, true);
+      setStatus(role, 'listening');
+      showToast(handsFreeOn(role) ? 'Hands-free: listening. Speak, pause, and it will send.' : 'Microphone on. Speak now, then click Stop Mic.');
+      try {
+        rec.start();
+      } catch {
+        speech[role] = null;
+        setMicUi(role, false);
+        showToast('Unable to start speech recognition. Try clicking Start Mic once.');
+      }
+    }
+
+    async function setHandsFree(role, enabled) {
+      const cfg = ROLE_CFG[role];
+      if (!cfg) return;
+      if (enabled) {
+        // Make hands-free "one switch": enable voice replies + auto-send.
+        setChecked(cfg.voiceId, true);
+        setChecked(cfg.autoSendId, true);
+        enableAudio();
+        // IMPORTANT: Do not await an async getUserMedia permission call here.
+        // Many browsers treat SpeechRecognition.start() as requiring a direct user gesture;
+        // any await before start can break hands-free and force a button press.
+        await startRoleMic(role, { ensurePermission: false });
+      } else {
+        stopRoleMic(role);
+        setMicUi(role, false);
+        setStatus(role, 'idle');
+      }
+    }
+
+    async function resumeHandsFree(role) {
+      if (!handsFreeOn(role)) return;
+      if (speech[role]) return;
+      if (speaking[role]) return;
+      // No permission prompts here: the user enables hands-free once per session.
+      await startRoleMic(role, { ensurePermission: false });
+    }
+
+    function createRecognizer(onText, onEnd) {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return null;
+      const rec = new SR();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
+      let silenceTimer = null;
+      let noSpeechTimer = null;
+      let lastTranscript = '';
+      let lastFinal = '';
+      let gotFinal = false;
+      const resetSilence = () => {
+        clearTimeout(silenceTimer);
+        // Hands-free should feel natural: allow normal pauses without cutting off.
+        silenceTimer = setTimeout(() => {
+          // If we have a final transcript, it's safe to stop.
+          if (gotFinal) {
+            try { rec.stop(); } catch {}
+          }
+        }, 1600);
+      };
+      const clearNoSpeech = () => {
+        clearTimeout(noSpeechTimer);
+        noSpeechTimer = null;
+      };
+      rec.onresult = (e) => {
+        clearNoSpeech();
+        const idx = (e.results?.length || 1) - 1;
+        const result = e.results?.[idx];
+        const text = (result?.[0]?.transcript || '').trim();
+        if (text) lastTranscript = text;
+        if (result?.isFinal && text) { lastFinal = text; gotFinal = true; }
+        // Show interim/live text; auto-send will use final if available.
+        if (text) onText(text);
+        resetSilence();
+      };
+      rec.onstart = () => {
+        // If nothing is recognized within 6 seconds, surface a helpful hint.
+        clearNoSpeech();
+        noSpeechTimer = setTimeout(() => {
+          showToast('No speech detected. Check your mic permission and selected input device.');
+          try { rec.stop(); } catch {}
+        }, 6000);
+      };
+      rec.onspeechstart = () => resetSilence();
+      rec.onspeechend = () => {
+        // When browser thinks speech ended, wait a moment in case the user continues.
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          // Only stop quickly if we already got a final result.
+          if (gotFinal) {
+            try { rec.stop(); } catch {}
+          }
+        }, 900);
+      };
+      rec.onend = () => {
+        clearNoSpeech();
+        onEnd(lastFinal || lastTranscript);
+      };
+      rec.onerror = (e) => {
+        clearNoSpeech();
+        showToast(`Speech error: ${e?.error || 'unknown'}`);
+        onEnd(lastFinal || lastTranscript);
+      };
+      return rec;
+    }
+
+    // =========================
+    // Planner chat (Step 1)
+    // =========================
+    function initPlannerChat() {
+      plannerHistory = [{
+        role: 'assistant',
+        content: "Welcome — I’m your Planner. If you’d like, tell me what kind of night you want to host (intimate, festive, elegant, casual) and any dietary must‑dos."
+      }];
+      renderPlannerChat();
+    }
+
+    function renderPlannerChat() {
+      const container = document.getElementById('plannerMessages');
+      if (!container) return;
+      container.innerHTML = plannerHistory.map(msg => `
+        <div class="chat-message ${msg.role}">
+          <div class="bubble">${formatChatMessage(msg.content)}</div>
+        </div>
+      `).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendPlannerChat() {
+      const input = document.getElementById('plannerInput');
+      const message = (input?.value || '').trim();
+      if (!message) return;
+      plannerHistory.push({ role: 'user', content: message });
+      input.value = '';
+      renderPlannerChat();
+
+      plannerHistory.push({ role: 'assistant', content: '...' });
+      renderPlannerChat();
+      setStatus('planner', 'thinking');
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persona: 'planner',
+            messages: plannerHistory.slice(0, -1),
+            context: getContext()
+          })
+        });
+        const data = await res.json();
+        const reply = data.response || 'Please try again.';
+        plannerHistory[plannerHistory.length - 1] = { role: 'assistant', content: reply };
+        renderPlannerChat();
+        if (voiceEnabled('plannerVoiceToggle') || handsFreeOn('planner')) {
+          setStatus('planner', 'speaking');
+          // Don't let hands-free capture our own voice.
+          suppressAutoSend.planner = true;
+          stopRoleMic('planner');
+          speaking.planner = true;
+          await speak(reply, 'planner');
+          speaking.planner = false;
+          suppressAutoSend.planner = false;
+          setStatus('planner', handsFreeOn('planner') ? 'listening' : 'idle');
+        } else {
+          setStatus('planner', 'idle');
+        }
+        await resumeHandsFree('planner');
+      } catch {
+        plannerHistory[plannerHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
+        renderPlannerChat();
+        setStatus('planner', 'idle');
+      }
+    }
+
+    async function togglePlannerMic() {
+      if (!speech.planner) return startRoleMic('planner', { ensurePermission: false });
+      stopRoleMic('planner');
+      const cfg = ROLE_CFG.planner;
+      if (cfg) setChecked(cfg.handsFreeId, false);
+      setMicUi('planner', false);
+      setStatus('planner', 'idle');
+    }
+
+    // =========================
+    // Expert mic + voice (Step 4)
+    // =========================
+    async function toggleExpertMic() {
+      if (!speech.expert) return startRoleMic('expert', { ensurePermission: false });
+      stopRoleMic('expert');
+      const cfg = ROLE_CFG.expert;
+      if (cfg) setChecked(cfg.handsFreeId, false);
+      setMicUi('expert', false);
+      setStatus('expert', 'idle');
+    }
     
     // ============================================================
     // INIT HELPERS
     // ============================================================
+    const STYLE_FONTS = {
+      classic: "'Libre Baskerville', Georgia, serif",
+      modern: "'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+      romantic: "'Cormorant Garamond', Georgia, serif",
+      artdeco: "'Cinzel', Georgia, serif",
+      rustic: "'Libre Baskerville', Georgia, serif",
+      botanical: "'Cormorant Garamond', Georgia, serif",
+      coastal: "'Playfair Display', Georgia, serif",
+      urban: "'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+    };
+
+    const STYLE_PRESETS = {
+      classic: { bg: '#ffffff', border: 'rgba(17,24,39,0.10)', accent: '#1E3A5F' },
+      modern: { bg: '#ffffff', border: 'rgba(17,24,39,0.12)', accent: '#111827' },
+      romantic: { bg: '#fffaf7', border: 'rgba(201,162,39,0.35)', accent: '#C9A227' },
+      artdeco: { bg: '#0b1220', border: 'rgba(201,162,39,0.65)', accent: '#C9A227', ink: '#f8fafc' },
+      rustic: { bg: '#fbf7f1', border: 'rgba(30,58,95,0.18)', accent: '#1E3A5F' },
+      botanical: { bg: '#f7fbf7', border: 'rgba(22,163,74,0.25)', accent: '#166534' },
+      coastal: { bg: '#f6fbff', border: 'rgba(2,132,199,0.22)', accent: '#0284c7' },
+      urban: { bg: '#ffffff', border: 'rgba(17,24,39,0.16)', accent: '#111827' }
+    };
+
     function initStyleGrid() {
       const grid = document.getElementById('styleGrid');
       if (!DATA.MENU_STYLES) return;
       grid.innerHTML = DATA.MENU_STYLES.map(s => `
         <div class="style-card ${selectedStyle === s.id ? 'selected' : ''}" onclick="selectStyle('${s.id}')">
-          <div class="name">${s.name}</div>
-          <div class="desc">${s.desc}</div>
+          <div class="name" style="font-family:${STYLE_FONTS[s.id] || `'Playfair Display', Georgia, serif`};">${s.name}</div>
+          <div class="desc" style="font-family:${STYLE_FONTS[s.id] || `inherit`};">${s.desc}</div>
         </div>
       `).join('');
+      renderStylePreview();
+    }
+
+    function renderStylePreview() {
+      const el = document.getElementById('stylePreview');
+      if (!el) return;
+
+      const preset = STYLE_PRESETS[selectedStyle] || STYLE_PRESETS.classic;
+      const font = STYLE_FONTS[selectedStyle] || "'Playfair Display', Georgia, serif";
+      const ink = preset.ink || '#111827';
+
+      const eventTitle = document.getElementById('eventTitle').value || 'Dinner Party';
+      const eventDate = document.getElementById('eventDate').value || '';
+      const serviceTime = document.getElementById('serviceTime').value || '7:00 PM';
+
+      // Always show a complete, high-confidence preview (sample content).
+      const previewCourses = [
+        { type: 'Amuse-Bouche', name: 'Seasonal bite · bright acid · crisp texture' },
+        { type: 'First Course', name: 'Elegant starter · chilled or warm' },
+        { type: 'Second Course', name: 'Green course · palate reset' },
+        { type: 'Main Course', name: 'Signature centerpiece · refined comfort' },
+        { type: 'Dessert', name: 'Clean finish · light sweetness' }
+      ];
+
+      el.style.background = preset.bg;
+      el.style.borderColor = preset.border;
+      el.style.color = ink;
+      el.style.fontFamily = font;
+
+      const accentRule = selectedStyle === 'artdeco'
+        ? `border-top: 2px solid ${preset.accent}; border-bottom: 2px solid ${preset.accent};`
+        : `border-top: 2px solid ${preset.accent};`;
+
+      el.innerHTML = `
+        <div class="preview-title" style="font-family:${font}; color:${ink};">${escapeHtml(eventTitle)}</div>
+        <div class="preview-meta" style="color:${selectedStyle==='artdeco' ? 'rgba(248,250,252,0.75)' : 'var(--text-light)'};">
+          <span><strong>Date:</strong> ${escapeHtml(eventDate || 'TBD')}</span>
+          <span><strong>Service:</strong> ${escapeHtml(serviceTime)}</span>
+        </div>
+        <div class="preview-divider" style="${accentRule} background:transparent;"></div>
+        <div>
+          ${previewCourses.map(c => `
+            <div class="preview-course">
+              <div class="preview-course-type" style="color:${preset.accent};">${escapeHtml(c.type)}</div>
+              <div class="preview-course-name" style="color:${ink};">${escapeHtml(c.name)}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="preview-footer" style="color:${selectedStyle==='artdeco' ? 'rgba(248,250,252,0.70)' : 'var(--text-light)'};">
+          <span style="letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml((DATA.MENU_STYLES || []).find(s=>s.id===selectedStyle)?.name || 'Style')}</span>
+          <span>Printed menu card</span>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
     
     function initInspirationGrid() {
@@ -1054,9 +2848,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       // Show target step
       document.getElementById('step' + step).classList.remove('hidden');
       currentStep = step;
+      if (panelIndexByStep[currentStep] === undefined) panelIndexByStep[currentStep] = 0;
       
       // Update progress
       updateProgress();
+      updateSectionNav();
+      updateIncomingCallRings();
+      applyPanelVisibility();
       
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1084,6 +2882,91 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
       }
     }
+
+    function slugify(s) {
+      return String(s || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+        .slice(0, 40) || 'section';
+    }
+
+    function updateSectionNav() {
+      const nav = document.getElementById('sectionNav');
+      if (!nav) return;
+
+      const stepEl = document.getElementById('step' + currentStep);
+      if (!stepEl) {
+        nav.classList.add('hidden');
+        nav.innerHTML = '';
+        return;
+      }
+
+      const candidates = Array.from(stepEl.querySelectorAll('[data-screen]')).filter((el) => {
+        if (el.classList.contains('hidden')) return false;
+        // Only include elements actually visible (details counts as visible even if closed, which is fine for Step 1)
+        return true;
+      });
+
+      // Don’t show if there's nothing to navigate.
+      if (candidates.length <= 1) {
+        nav.classList.add('hidden');
+        nav.innerHTML = '';
+        return;
+      }
+
+      const items = candidates.map((el, idx) => {
+        const label = el.getAttribute('data-screen') || `Section ${idx + 1}`;
+        if (!el.id) el.id = `step${currentStep}-${slugify(label)}-${idx}`;
+        return { id: el.id, label };
+      });
+
+      nav.classList.remove('hidden');
+      nav.innerHTML =
+        `<span class="label">On this step</span>` +
+        `<button class="section-nav-jump" id="prevPanelBtn" type="button">← Prev</button>` +
+        `<button class="section-nav-jump" id="nextPanelBtn" type="button">Next →</button>` +
+        `<span class="nav-spacer"></span>` +
+        items.map((it, i) => `<button class="section-nav-btn ${i === 0 ? 'active' : ''}" data-target="${it.id}" data-idx="${i}" type="button">${escapeHtml(it.label)}</button>`).join('');
+
+      const buttons = Array.from(nav.querySelectorAll('.section-nav-btn'));
+      const setActive = (idx) => {
+        panelIndexByStep[currentStep] = idx;
+        applyPanelVisibility();
+        buttons.forEach((b, i) => b.classList.toggle('active', i === idx));
+      };
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
+          setActive(Math.max(0, Math.min(items.length - 1, idx)));
+        });
+      });
+
+      const move = (dir) => {
+        const cur = panelIndexByStep[currentStep] ?? 0;
+        const nextIdx = Math.max(0, Math.min(items.length - 1, cur + dir));
+        setActive(nextIdx);
+      };
+      const prevBtn = document.getElementById('prevPanelBtn');
+      const nextBtn = document.getElementById('nextPanelBtn');
+      if (prevBtn) prevBtn.addEventListener('click', () => move(-1));
+      if (nextBtn) nextBtn.addEventListener('click', () => move(1));
+
+      const cur = panelIndexByStep[currentStep] ?? 0;
+      buttons.forEach((b, i) => b.classList.toggle('active', i === cur));
+    }
+
+    function applyPanelVisibility() {
+      // Show only one major panel per step to reduce "stacked cards" scrolling.
+      if (currentStep <= 1) return; // Step 1 is a special hero layout.
+      const stepEl = document.getElementById('step' + currentStep);
+      if (!stepEl) return;
+      const panels = Array.from(stepEl.querySelectorAll('[data-screen]')).filter((el) => !el.classList.contains('hidden'));
+      if (panels.length <= 1) return;
+      const idx = Math.max(0, Math.min(panels.length - 1, panelIndexByStep[currentStep] ?? 0));
+      panels.forEach((p, i) => p.classList.toggle('panel-hidden', i !== idx));
+      try { panels[idx].scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
+    }
     
     // ============================================================
     // STEP 1: ACCESS CODE
@@ -1091,9 +2974,17 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     async function validateCode() {
       const code = document.getElementById('accessCode').value.trim();
       const msgEl = document.getElementById('codeMessage');
+      const honorific = (document.getElementById('hostHonorific')?.value || 'Mr.').trim();
+      const fullName = (document.getElementById('hostFullName')?.value || '').trim();
+      const surname = extractSurname(fullName);
       
       if (!code) {
         msgEl.innerHTML = '<div class="error-msg">Please enter an access code.</div>';
+        return;
+      }
+
+      if (!fullName || !surname) {
+        msgEl.innerHTML = '<div class="error-msg">Please enter your name (so we can address you properly).</div>';
         return;
       }
       
@@ -1107,7 +2998,34 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         
         if (data.valid) {
           accessCode = code;
+          sessionStorage.setItem('dpp_accessCode', accessCode);
+          hostHonorific = (honorific === 'Mr.' || honorific === 'Mrs.' || honorific === 'Ms.') ? honorific : 'Mr.';
+          hostFullName = fullName;
+          hostSurname = surname;
+          localStorage.setItem('dpp_hostHonorific', hostHonorific);
+          localStorage.setItem('dpp_hostFullName', hostFullName);
+          localStorage.setItem('dpp_hostSurname', hostSurname);
           msgEl.innerHTML = `<div class="success-msg">✓ Access granted! ${data.remaining ? `(${data.remaining} generations remaining)` : ''}</div>`;
+
+          // On check-in: unlock audio and have the Planner greet formally.
+          try {
+            await enableAudio();
+            const greet = plannerCheckInGreeting();
+            plannerHistory = [{ role: 'assistant', content: greet }];
+            renderPlannerChat();
+            const v = document.getElementById('plannerVoiceToggle');
+            if (v) v.checked = true;
+            // Speak the greeting (no ring; this is check-in).
+            setStatus('planner', 'speaking');
+            speaking.planner = true;
+            await speak(greet, 'planner');
+            speaking.planner = false;
+            // Do not start a call yet — user will fill out the next pages first.
+            setStatus('planner', 'idle');
+          } catch {
+            // ignore; check-in should still proceed
+          }
+
           setTimeout(() => goToStep(2), 800);
         } else {
           msgEl.innerHTML = `<div class="error-msg">${data.message || 'Invalid access code.'}</div>`;
@@ -1116,6 +3034,69 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         msgEl.innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
       }
     }
+
+    function extractSurname(fullName) {
+      const s = String(fullName || '').trim();
+      if (!s) return '';
+      if (s.includes(',')) {
+        const left = s.split(',')[0].trim();
+        const leftParts = left.split(/\s+/).filter(Boolean);
+        return leftParts[leftParts.length - 1] || '';
+      }
+      const parts = s.split(/\s+/).filter(Boolean);
+      return parts[parts.length - 1] || '';
+    }
+
+    async function restoreSession() {
+      // Restore identity (installation-level) even if code isn't restored.
+      const h = localStorage.getItem('dpp_hostHonorific');
+      const n = localStorage.getItem('dpp_hostFullName');
+      const s = localStorage.getItem('dpp_hostSurname');
+      if (h) hostHonorific = h;
+      if (n) hostFullName = n;
+      if (s) hostSurname = s;
+      const hEl = document.getElementById('hostHonorific');
+      const nEl = document.getElementById('hostFullName');
+      if (hEl && hostHonorific) hEl.value = hostHonorific;
+      if (nEl && hostFullName) nEl.value = hostFullName;
+      updateHostPreview();
+
+      // Restore sommelier tier selections for this tab (table menu + cookbook).
+      try {
+        const raw = sessionStorage.getItem('dpp_wineChoices');
+        if (raw) wineChoices = JSON.parse(raw) || {};
+      } catch {}
+
+      const saved = sessionStorage.getItem('dpp_accessCode');
+      if (!saved) return;
+      try {
+        const res = await fetch('/api/validate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: saved })
+        });
+        const data = await res.json();
+        if (data.valid) {
+          accessCode = saved;
+          document.getElementById('accessCode').value = saved;
+          maxStepReached = Math.max(maxStepReached, 2);
+          goToStep(2);
+        } else {
+          sessionStorage.removeItem('dpp_accessCode');
+        }
+      } catch {
+        // If offline, keep them on step 1; they can retry.
+      }
+    }
+
+    function updateHostPreview() {
+      const preview = document.getElementById('hostAddressPreview');
+      if (!preview) return;
+      const h = (document.getElementById('hostHonorific')?.value || hostHonorific || 'Mr.').trim();
+      const n = (document.getElementById('hostFullName')?.value || hostFullName || '').trim();
+      const sur = extractSurname(n) || hostSurname || '—';
+      preview.textContent = `${h} ${sur}`;
+    }
     
     // ============================================================
     // STEP 2: STYLES
@@ -1123,6 +3104,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     function selectStyle(id) {
       selectedStyle = id;
       initStyleGrid();
+      renderStylePreview();
     }
     
     // ============================================================
@@ -1224,7 +3206,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // STEP 4: EXPERT CONSULTATION
     // ============================================================
-    function selectExpert(key) {
+    async function selectExpert(key) {
       selectedExpert = key;
       const persona = DATA.personas[key];
       
@@ -1238,6 +3220,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       document.getElementById('chatSection').classList.remove('hidden');
       document.getElementById('chatIcon').textContent = persona.icon;
       document.getElementById('chatName').textContent = persona.name;
+      const callName = document.getElementById('expertCallName');
+      if (callName) callName.textContent = persona.name || 'The Chef';
+      // Reset incoming call panel when switching experts
+      const callPanel = document.getElementById('expertCallPanel');
+      if (callPanel) callPanel.classList.remove('hidden');
+
+      // Center the communications panel and ring on selection (user gesture).
+      try {
+        await enableAudio();
+        await playShortRing();
+      } catch {}
+      if (callPanel) callPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      updateIncomingCallRings();
       
       // Initialize chat with greeting
       chatHistory = [];
@@ -1252,7 +3247,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const inspiration = DATA.MENU_INSPIRATIONS?.find(i => i.id === selectedInspiration)?.title || 'special';
       
       const greetings = {
-        chef: `Welcome! I'm thrilled to help plan ${eventTitle}. I see you're cooking for ${guestCount} guests with a ${inspiration.toLowerCase()} inspiration — wonderful choice. Tell me, what story do you want your menu to tell? Is there an ingredient or dish you've been dreaming about?`,
+        chef: `Hi — I’m your Chef for ${eventTitle}. How can I help?`,
         sommelier: `What a pleasure to help with ${eventTitle}! Before we discuss wines, tell me about your guests. Are they adventurous with wine, or do they prefer familiar favorites? And is there a memorable bottle you've shared before that we might echo?`,
         instructor: `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. First, tell me about your kitchen setup and how much time you'll have for prep. What's your biggest concern about executing this dinner?`,
         all: `Welcome! The three of us are excited to help plan ${eventTitle}.\n\n**Chef:** Let's start with your vision — what flavors are you craving?\n\n**Sommelier:** I'll ensure every course has the perfect pour.\n\n**Instructor:** And I'll make sure you can execute it all calmly.\n\nWhat would you like to discuss first?`,
@@ -1292,8 +3287,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       // Typing indicator
       chatHistory.push({ role: 'assistant', content: '...' });
       renderChat();
+      setStatus('expert', 'thinking');
       
       try {
+        const menuForChat = (selectedMenu !== null && menus && menus[selectedMenu]) ? menus[selectedMenu] : null;
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1301,25 +3298,128 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             code: accessCode,
             persona: selectedExpert,
             messages: chatHistory.slice(0, -1),
-            context: getContext()
+            context: getContext(),
+            menu: menuForChat
           })
         });
         const data = await res.json();
         
         chatHistory[chatHistory.length - 1] = { role: 'assistant', content: data.response || 'Please try again.' };
         renderChat();
+        if (voiceEnabled('expertVoiceToggle')) {
+          const role = (selectedExpert === 'sommelier') ? 'sommelier' : (selectedExpert === 'chef' ? 'chef' : 'planner');
+          setStatus('expert', 'speaking');
+          suppressAutoSend.expert = true;
+          stopRoleMic('expert');
+          speaking.expert = true;
+          await speak(chatHistory[chatHistory.length - 1].content, role);
+          speaking.expert = false;
+          suppressAutoSend.expert = false;
+          setStatus('expert', handsFreeOn('expert') ? 'listening' : 'idle');
+        } else if (handsFreeOn('expert')) {
+          // Hands-free without voice still cycles listening.
+          setStatus('expert', 'listening');
+        } else {
+          setStatus('expert', 'idle');
+        }
+        await resumeHandsFree('expert');
       } catch (err) {
         chatHistory[chatHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
         renderChat();
+        setStatus('expert', 'idle');
       }
+    }
+
+    // =========================
+    // Sommelier chat (Step 6)
+    // =========================
+    function initSommChat() {
+      sommHistory = [{
+        role: 'assistant',
+        content: "I’m your Sommelier. Once you’ve chosen a menu, ask me how to serve it: order, temps, decanting, glassware, and cocktails/mocktails."
+      }];
+      renderSommChat();
+    }
+
+    function renderSommChat() {
+      const container = document.getElementById('sommMessages');
+      if (!container) return;
+      sommHistory = sommHistory.slice(-40);
+      container.innerHTML = sommHistory.map(msg => `
+        <div class="chat-message ${msg.role}">
+          <div class="bubble">${formatChatMessage(msg.content)}</div>
+        </div>
+      `).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendSommChat() {
+      const input = document.getElementById('sommInput');
+      const message = (input?.value || '').trim();
+      if (!message) return;
+      sommHistory.push({ role: 'user', content: message });
+      input.value = '';
+      renderSommChat();
+
+      sommHistory.push({ role: 'assistant', content: '...' });
+      renderSommChat();
+      setStatus('somm', 'thinking');
+
+      try {
+        const menuForChat = (selectedMenu !== null && menus && menus[selectedMenu]) ? menuWithChosenWines(menus[selectedMenu]) : null;
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persona: 'sommelier',
+            messages: sommHistory.slice(0, -1),
+            context: getContext(),
+            menu: menuForChat
+          })
+        });
+        const data = await res.json();
+        const reply = data.response || 'Please try again.';
+        sommHistory[sommHistory.length - 1] = { role: 'assistant', content: reply };
+        renderSommChat();
+        if (voiceEnabled('sommVoiceToggle') || handsFreeOn('somm')) {
+          setStatus('somm', 'speaking');
+          suppressAutoSend.somm = true;
+          stopRoleMic('somm');
+          speaking.somm = true;
+          await speak(reply, 'sommelier');
+          speaking.somm = false;
+          suppressAutoSend.somm = false;
+          setStatus('somm', handsFreeOn('somm') ? 'listening' : 'idle');
+        } else {
+          setStatus('somm', 'idle');
+        }
+        await resumeHandsFree('somm');
+      } catch {
+        sommHistory[sommHistory.length - 1] = { role: 'assistant', content: 'Connection error. Please try again.' };
+        renderSommChat();
+        setStatus('somm', 'idle');
+      }
+    }
+
+    async function toggleSommMic() {
+      if (!speech.somm) return startRoleMic('somm', { ensurePermission: false });
+      stopRoleMic('somm');
+      const cfg = ROLE_CFG.somm;
+      if (cfg) setChecked(cfg.handsFreeId, false);
+      setMicUi('somm', false);
+      setStatus('somm', 'idle');
     }
     
     function getContext() {
       return {
+        hostHonorific,
+        hostSurname,
+        hostAddress: (hostHonorific && hostSurname) ? `${hostHonorific} ${hostSurname}` : null,
         eventTitle: document.getElementById('eventTitle').value,
         eventDate: document.getElementById('eventDate').value,
         guestCount: document.getElementById('guestCount').value,
         guestList: document.getElementById('guestList').value,
+        guests: guests,
         serviceTime: document.getElementById('serviceTime').value,
         foodBudget: document.getElementById('foodBudget').value,
         wineBudget: document.getElementById('wineBudget').value,
@@ -1332,6 +3432,170 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         dislikes: dislikes,
         restrictions: restrictions
       };
+    }
+
+    function normalizeTitle(name) {
+      const s = (name || '').trim();
+      const lowered = s.toLowerCase();
+      const titles = ['dr.', 'dr', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms', 'prof.', 'prof', 'rev.', 'rev', 'hon.', 'hon'];
+      const hit = titles.find(t => lowered.startsWith(t + ' '));
+      if (!hit) return null;
+      if (hit.startsWith('dr')) return 'Dr.';
+      if (hit.startsWith('mr')) return 'Mr.';
+      if (hit.startsWith('mrs')) return 'Mrs.';
+      if (hit.startsWith('ms')) return 'Ms.';
+      if (hit.startsWith('prof')) return 'Prof.';
+      if (hit.startsWith('rev')) return 'Rev.';
+      if (hit.startsWith('hon')) return 'Hon.';
+      return null;
+    }
+
+    function stripTitle(name) {
+      const t = normalizeTitle(name);
+      if (!t) return (name || '').trim();
+      return (name || '').trim().replace(new RegExp('^' + t.replace('.', '\\\\.') + '\\\\s+', 'i'), '');
+    }
+
+    function parseGuestLine(line) {
+      const raw = (line || '').trim();
+      if (!raw) return null;
+
+      // Couples: "Fred/Alice Smith", "Fred & Alice Smith"
+      const coupleMatch = raw.match(/^(.+?)(?:\s*\/\s*|\s*&\s*)(.+)$/);
+      if (coupleMatch) {
+        const left = coupleMatch[1].trim();
+        const right = coupleMatch[2].trim();
+        const leftNoTitle = stripTitle(left);
+        const rightNoTitle = stripTitle(right);
+        // If right contains a last name and left doesn't, assume shared last name from right.
+        const rightParts = rightNoTitle.split(/\s+/).filter(Boolean);
+        const leftParts = leftNoTitle.split(/\s+/).filter(Boolean);
+        const rightLast = rightParts.length > 1 ? rightParts[rightParts.length - 1] : null;
+        const leftHasLast = leftParts.length > 1;
+        const leftFirst = leftParts[0] || leftNoTitle;
+        const rightFirst = rightParts[0] || rightNoTitle;
+        const lastName = rightLast && !leftHasLast ? rightLast : null;
+
+        const display = lastName ? `${leftFirst} & ${rightFirst} ${lastName}` : `${leftFirst} & ${rightFirst}`;
+        return {
+          raw,
+          name: display,
+          addressing: 'first',
+          title: null,
+          dietaryConcern: false
+        };
+      }
+
+      const title = normalizeTitle(raw);
+      const name = raw;
+      // Default addressing: if title present, use title; else first names for friendliness.
+      return {
+        raw,
+        name,
+        addressing: title ? 'title' : 'first',
+        title: title,
+        dietaryConcern: false
+      };
+    }
+
+    function displayNameForGuest(g) {
+      const name = (g?.name || '').trim();
+      const addressing = g?.addressing || 'first';
+      const title = g?.title || normalizeTitle(name);
+      const nameNoTitle = stripTitle(name);
+      const parts = nameNoTitle.split(/\s+/).filter(Boolean);
+      const first = parts[0] || nameNoTitle;
+      const last = parts.length > 1 ? parts[parts.length - 1] : '';
+
+      if (addressing === 'first') return first || name;
+      if (addressing === 'full') return nameNoTitle || name;
+      if (addressing === 'title') {
+        const t = title || 'Mr./Ms.';
+        return last ? `${t} ${last}` : `${t} ${nameNoTitle || name}`;
+      }
+      if (addressing === 'custom') return name || '';
+      return name || '';
+    }
+
+    function rebuildGuests() {
+      const count = parseInt(document.getElementById('guestCount').value || '6', 10) || 6;
+      const lines = String(document.getElementById('guestList').value || '')
+        .split('\\n')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const parsed = lines.map(parseGuestLine).filter(Boolean);
+
+      // Preserve existing edits where possible by index.
+      const next = [];
+      for (let i = 0; i < count; i++) {
+        const existing = guests[i];
+        const fromLine = parsed[i];
+        const base = fromLine || { raw: '', name: `Guest-${i + 1}`, addressing: 'first', title: null, dietaryConcern: false };
+        next[i] = {
+          ...base,
+          // preserve user edits
+          name: existing?.name && existing?.name !== `Guest-${i + 1}` ? existing.name : base.name,
+          addressing: existing?.addressing || base.addressing,
+          title: existing?.title ?? base.title,
+          dietaryConcern: typeof existing?.dietaryConcern === 'boolean' ? existing.dietaryConcern : base.dietaryConcern
+        };
+      }
+      guests = next.map(g => ({
+        ...g,
+        displayName: displayNameForGuest(g)
+      }));
+      renderGuestDetails();
+    }
+
+    function renderGuestDetails() {
+      const container = document.getElementById('guestDetails');
+      if (!container) return;
+      container.innerHTML = `
+        <div style="display:grid;gap:0.5rem">
+          ${guests.map((g, i) => `
+            <div style="display:grid;grid-template-columns: 1.2fr 0.8fr 0.7fr;gap:0.6rem;align-items:center;padding:0.6rem;border:1px solid var(--cream-dark);border-radius:10px;background:white;">
+              <div>
+                <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:0.2rem;">Guest ${i + 1}</div>
+                <input type="text" value="${(g.name || '').replace(/\"/g,'&quot;')}" oninput="updateGuestName(${i}, this.value)" />
+                <div style="font-size:0.8rem;color:var(--text-light);margin-top:0.25rem;">Place card: <strong>${(g.displayName || '').replace(/</g,'&lt;')}</strong></div>
+              </div>
+              <div>
+                <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:0.2rem;">Addressing</div>
+                <select onchange="updateGuestAddressing(${i}, this.value)">
+                  <option value="first" ${g.addressing==='first'?'selected':''}>First name</option>
+                  <option value="title" ${g.addressing==='title'?'selected':''}>Title + last</option>
+                  <option value="full" ${g.addressing==='full'?'selected':''}>Full name</option>
+                  <option value="custom" ${g.addressing==='custom'?'selected':''}>Custom</option>
+                </select>
+              </div>
+              <div>
+                <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:0.2rem;">Dietary concern</div>
+                <label style="display:flex;gap:0.5rem;align-items:center;">
+                  <input type="checkbox" ${g.dietaryConcern ? 'checked' : ''} onchange="updateGuestDietary(${i}, this.checked)" />
+                  <span>${g.dietaryConcern ? 'Yes' : 'No'}</span>
+                </label>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function updateGuestName(i, value) {
+      guests[i].name = value;
+      guests[i].title = normalizeTitle(value) || guests[i].title;
+      guests[i].displayName = displayNameForGuest(guests[i]);
+      renderGuestDetails();
+    }
+    function updateGuestAddressing(i, value) {
+      guests[i].addressing = value;
+      guests[i].displayName = displayNameForGuest(guests[i]);
+      renderGuestDetails();
+    }
+    function updateGuestDietary(i, checked) {
+      guests[i].dietaryConcern = !!checked;
+      renderGuestDetails();
     }
     
     function endChat() {
@@ -1405,35 +3669,234 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             `).join('')}
           </div>
           <div style="margin-top:0.75rem;font-size:0.9rem;color:var(--gold-dark)">Wine: ${menu.wineCost}</div>
+          ${selectedMenu === i && wineTiers ? `
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.92rem">
+              <div style="font-weight:600;color:var(--navy);margin-bottom:0.5rem">Beverage options</div>
+              ${wineTiers.alcoholAllowed === false ? `<div style="color:var(--text-light);font-style:italic;margin-bottom:0.6rem">Alcohol is disabled for this context (e.g., Ramadan/Halal). Showing mocktails; wine tiers omitted.</div>` : ''}
+              ${wineTiers.eventBeverages ? `
+                <div style="margin-bottom:0.75rem">
+                  <div style="font-weight:600;color:var(--gold-dark)">Welcome</div>
+                  ${wineTiers.eventBeverages.welcomeCocktail ? `<div><strong>Cocktail:</strong> ${wineTiers.eventBeverages.welcomeCocktail}</div>` : ''}
+                  ${wineTiers.eventBeverages.welcomeMocktail ? `<div><strong>Mocktail:</strong> ${wineTiers.eventBeverages.welcomeMocktail}</div>` : ''}
+                </div>
+              ` : ''}
+              ${(wineTiers.courses || []).filter(x => x.selectedWine || x.type).map(x => `
+                <div style="margin-bottom:0.75rem">
+                  <div style="font-weight:600;color:var(--gold-dark)">${x.type}: <span style="font-weight:400;color:var(--text)">${x.selectedWine || '—'}</span></div>
+                  ${x.cocktail ? `<div style="margin-top:0.25rem"><strong>Cocktail:</strong> ${x.cocktail.name}${x.cocktail.notes ? ` — <span style="color:var(--text-light)">${x.cocktail.notes}</span>` : ''}</div>` : ''}
+                  ${x.mocktail ? `<div style="margin-top:0.25rem"><strong>Mocktail:</strong> ${x.mocktail.name}${x.mocktail.notes ? ` — <span style="color:var(--text-light)">${x.mocktail.notes}</span>` : ''}</div>` : ''}
+                  <div style="margin-top:0.35rem;display:grid;gap:0.35rem">
+                    ${['topShelf','under80','under20','bond'].map(k => {
+                      const t = x.tiers?.[k];
+                      if (!t) return '';
+                      if (wineTiers.alcoholAllowed === false) return '';
+                      const q = encodeURIComponent(t.vivinoQuery || t.wine || '');
+                      const link = q ? `https://www.vivino.com/search/wines?q=${q}` : '';
+                      return `<div><strong>${t.title}:</strong> ${t.wine}${t.notes ? ` — <span style="color:var(--text-light)">${t.notes}</span>` : ''}${link ? ` — <a href="${link}" target="_blank" rel="noopener noreferrer">Vivino search</a>` : ''}</div>`;
+                    }).join('')}
+                  </div>
+                </div>
+              `).join('')}
+              ${wineTiers.disclaimer ? `<div style="color:var(--text-light);font-style:italic">${wineTiers.disclaimer}</div>` : ''}
+            </div>
+          ` : ''}
         </div>
       `).join('');
     }
     
     function highlightMenu(index) {
       selectedMenu = index;
+      wineTiers = null;
       renderMenus();
       document.getElementById('selectMenuBtn').disabled = false;
     }
-    
-    function selectMenu() {
+
+    async function loadWineTiers() {
       if (selectedMenu === null) return;
-      
-      const menu = menus[selectedMenu];
+      if (wineTiersLoading) return;
+      wineTiersLoading = true;
+      try {
+        const res = await fetch('/api/wine-tiers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: accessCode,
+            menu: menus[selectedMenu],
+            context: getContext(),
+            chatHistory: chatHistory
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'Wine tiers failed');
+        wineTiers = data;
+        renderMenus();
+        renderWineChooser();
+        return wineTiers;
+      } catch (e) {
+        showToast(`Beverage options failed: ${e?.message || 'Please try again.'}`, 4200);
+        return null;
+      } finally {
+        wineTiersLoading = false;
+      }
+    }
+
+    function courseKey(c, idx) {
+      const type = String(c?.type || '').trim();
+      const name = String(c?.name || '').trim();
+      return `${idx}::${type}::${name}`.slice(0, 180);
+    }
+
+    function renderWineChooser() {
+      const el = document.getElementById('wineChooser');
+      if (!el) return;
+      if (!wineTiers || !wineTiers.courses || wineTiers.alcoholAllowed === false) {
+        el.innerHTML = '';
+        return;
+      }
+
+      const list = wineTiers.courses || [];
+      el.innerHTML = `
+        <div class="card" style="margin-top:1rem">
+          <h3 class="card-title" style="font-size:1.25rem">Choose your bottles (remembered)</h3>
+          <p class="card-subtitle">
+            Select <strong>one</strong> tier per course. These choices will be used for your <strong>table menu</strong> and included in the <strong>cookbook</strong> as your “go buy this” list.
+          </p>
+          <div>
+            ${list.map((c, idx) => {
+              const key = courseKey(c, idx);
+              const tiers = c.tiers || {};
+              const options = [
+                { id:'baseline', title:'Menu pairing (baseline)', wine: c.selectedWine || null, notes:'Keep the pairing listed in the menu.' },
+                { id:'topShelf', title: tiers.topShelf?.title || 'Top shelf', wine: tiers.topShelf?.wine || null, notes: tiers.topShelf?.notes || '' },
+                { id:'under80', title: tiers.under80?.title || 'Under $80', wine: tiers.under80?.wine || null, notes: tiers.under80?.notes || '' },
+                { id:'under20', title: tiers.under20?.title || 'Under $20', wine: tiers.under20?.wine || null, notes: tiers.under20?.notes || '' },
+                { id:'bond', title: tiers.bond?.title || 'Bond', wine: tiers.bond?.wine || null, notes: tiers.bond?.notes || '' },
+              ].filter(o => o.wine);
+              const chosen = wineChoices[key] || '';
+              return `
+                <div class="wine-course">
+                  <h4>${escapeHtml(c.type || 'Course')}: <span style="font-weight:400;color:var(--text)">${escapeHtml(c.name || '')}</span></h4>
+                  <div class="wine-options">
+                    ${options.map((o) => `
+                      <label class="wine-opt">
+                        <input type="radio" name="wine_${escapeHtml(key)}" value="${escapeHtml(o.wine)}" ${chosen === o.wine ? 'checked' : ''} onchange="chooseWineForCourse('${escapeHtml(key)}', this.value)">
+                        <div>
+                          <div class="t">${escapeHtml(o.title)}</div>
+                          <div class="w">${escapeHtml(o.wine)}</div>
+                          ${o.notes ? `<div class="n">${escapeHtml(o.notes)}</div>` : ''}
+                        </div>
+                      </label>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function chooseWineForCourse(key, wine) {
+      wineChoices = wineChoices || {};
+      wineChoices[key] = String(wine || '').trim();
+      try { sessionStorage.setItem('dpp_wineChoices', JSON.stringify(wineChoices)); } catch {}
+      // Reflect on-screen menu summary (table menu).
+      updateSelectedMenuSummaryWithWines();
+    }
+
+    function menuWithChosenWines(menu) {
+      const m = JSON.parse(JSON.stringify(menu || null));
+      if (!m || !Array.isArray(m.courses)) return menu;
+      m.courses = m.courses.map((c, idx) => {
+        const key = courseKey(c, idx);
+        const chosen = wineChoices?.[key];
+        if (chosen) c.wine = chosen;
+        return c;
+      });
+      return m;
+    }
+
+    function updateSelectedMenuSummaryWithWines() {
+      if (selectedMenu === null) return;
+      const base = menus[selectedMenu];
+      if (!base) return;
+      const menu = menuWithChosenWines(base);
       document.getElementById('selectedMenuSummary').innerHTML = `
         <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--navy);margin-bottom:0.5rem">${menu.title}</div>
         <div style="font-style:italic;color:var(--text-light);margin-bottom:1rem">${menu.personality}</div>
         ${menu.courses.map(c => `
-          <div style="padding:0.4rem 0;font-size:0.95rem;display:flex;gap:0.75rem">
-            <strong style="color:var(--gold-dark);min-width:100px">${c.type}:</strong>
-            <span>${c.name}</span>
+          <div style="padding:0.45rem 0;font-size:0.95rem">
+            <div style="display:flex;gap:0.75rem">
+              <strong style="color:var(--gold-dark);min-width:100px">${c.type}:</strong>
+              <span>${escapeHtml(c.name)}</span>
+            </div>
+            ${c.wine ? `<div style="margin-left:100px;color:var(--text-light);font-size:0.9rem;margin-top:0.2rem"><strong>Wine:</strong> ${escapeHtml(c.wine)}</div>` : ''}
           </div>
         `).join('')}
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.9rem;color:var(--text-light)">
           Food: ${menu.foodCost} | Wine: ${menu.wineCost}
         </div>
       `;
+    }
+
+    async function requestSommelierTiers() {
+      if (selectedMenu === null) return;
+      // Sommelier should ask first, not assume.
+      const ask = `${timeOfDayGreeting()} ${formalHostAddress()}. Would you like my full four-tier recommendations for each course? If so, I’ll generate them now and you can tick one choice per course for your table menu and cookbook.`;
+      sommHistory = [{ role: 'assistant', content: ask }];
+      renderSommChat();
+      if (voiceEnabled('sommVoiceToggle')) {
+        setStatus('somm', 'speaking');
+        speaking.somm = true;
+        await speak(ask, 'sommelier');
+        speaking.somm = false;
+        setStatus('somm', 'idle');
+      }
+      await loadWineTiers();
+    }
+
+    function formatWineProgramForSomm(tiers) {
+      if (!tiers) return '';
+      const lines = [];
+      lines.push(
+        `Here’s how my tiered wine program works, ${formalHostAddress()}: for EACH course I’ll give you four options — ` +
+        `Top shelf (special occasion), Under $80 (best value-premium), Under $20 (strong value), and a Bond pick (fun classic). ` +
+        `You do NOT need to buy all four — pick ONE tier per course, or keep the menu’s suggested pairing and use tiers as alternates.`
+      );
+      if (tiers.eventBeverages?.welcomeCocktail || tiers.eventBeverages?.welcomeMocktail) {
+        const w = [];
+        if (tiers.eventBeverages.welcomeCocktail) w.push(`Welcome cocktail: ${tiers.eventBeverages.welcomeCocktail}`);
+        if (tiers.eventBeverages.welcomeMocktail) w.push(`Welcome mocktail: ${tiers.eventBeverages.welcomeMocktail}`);
+        if (w.length) lines.push(`\n${w.join(' · ')}`);
+      }
+      (tiers.courses || []).forEach((c) => {
+        const t = c?.tiers || {};
+        const top = t?.topShelf?.wine ? `Top shelf: ${t.topShelf.wine}` : null;
+        const u80 = t?.under80?.wine ? `Under $80: ${t.under80.wine}` : null;
+        const u20 = t?.under20?.wine ? `Under $20: ${t.under20.wine}` : null;
+        const bond = t?.bond?.wine ? `Bond: ${t.bond.wine}` : null;
+        const tierBits = [top, u80, u20, bond].filter(Boolean).join(' | ');
+        const header = `${c.type || 'Course'} — ${c.name || ''}`;
+        const selected = c.selectedWine ? `Menu pairing (baseline): ${c.selectedWine}` : '';
+        const bev = [];
+        if (c.cocktail?.name) bev.push(`Cocktail: ${c.cocktail.name}`);
+        if (c.mocktail?.name) bev.push(`Mocktail: ${c.mocktail.name}`);
+        lines.push(`\n${header}${selected ? `\n${selected}` : ''}${tierBits ? `\n${tierBits}` : ''}${bev.length ? `\n${bev.join(' · ')}` : ''}`);
+      });
+      const msg = lines.join('\n');
+      // Keep voice-friendly length.
+      return msg.length > 2400 ? (msg.slice(0, 2350) + '\n\nIf you want, I can tighten this to a 60‑second version.') : msg;
+    }
+
+    // (Sommelier tiers are now opt-in via requestSommelierTiers(), so we don't assume.)
+    
+    function selectMenu() {
+      if (selectedMenu === null) return;
+      
+      updateSelectedMenuSummaryWithWines();
       
       goToStep(6);
+      renderWineChooser();
     }
     
     function rejectMenus() {
@@ -1511,6 +3974,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       selectedStaffing = id;
       initStaffingOptions();
     }
+
+    function selectCookbookFormat(value) {
+      selectedCookbookFormat = value || 'binder';
+    }
     
     // ============================================================
     // STEP 7: COOKBOOK
@@ -1521,26 +3988,29 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       document.getElementById('cookbookComplete').classList.add('hidden');
       
       try {
+        const menuForCookbook = (selectedMenu !== null && menus && menus[selectedMenu]) ? menuWithChosenWines(menus[selectedMenu]) : null;
         const res = await fetch('/api/generate-cookbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: accessCode,
-            menu: menus[selectedMenu],
+            menu: menuForCookbook,
             context: getContext(),
             staffing: selectedStaffing,
-            chatHistory: chatHistory
+            chatHistory: chatHistory,
+            format: selectedCookbookFormat
           })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         
         document.getElementById('cookbookLoading').classList.add('hidden');
         
-        if (data.success) {
+        if (res.ok && data.success) {
           cookbookId = data.cookbookId;
           document.getElementById('cookbookComplete').classList.remove('hidden');
         } else {
-          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
+          const msg = data.message || `Error generating cookbook. (${res.status || 'network'})`;
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${msg}</div>`;
           document.getElementById('cookbookComplete').classList.remove('hidden');
         }
       } catch (err) {
@@ -1579,9 +4049,39 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         alert('Connection error. Please try again.');
       }
     }
+
+    function viewCookbookHtml() {
+      if (!cookbookId) {
+        alert('Cookbook not ready yet.');
+        return;
+      }
+      window.open(`/cookbook/${cookbookId}`, '_blank', 'noopener,noreferrer');
+    }
     
     function downloadPrintProduct(type, sku) {
-      alert(`Print-ready PDF for Avery ${sku} coming in next release.\n\nFor now, your place cards and menu cards are included in the DOCX cookbook.`);
+      if (!cookbookId) {
+        alert('Generate your cookbook first.');
+        return;
+      }
+      // Download as a file via POST -> blob
+      fetch('/api/print-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cookbookId, type, sku })
+      }).then(async (res) => {
+        if (!res.ok) throw new Error('PDF generation failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Avery_${sku}_${type}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }).catch(() => {
+        alert('Error generating PDF. Please try again.');
+      });
     }
     
     function startOver() {

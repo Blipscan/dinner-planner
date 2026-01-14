@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dinner Party Planner — Admin</title>
+  <style>
+    :root { --navy:#1E3A5F; --gold:#C9A227; --bg:#f6f2ed; --card:#fff; --muted:#6b7280; --border:rgba(17,24,39,0.12); }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color:#111827; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 22px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: 0 6px 25px rgba(0,0,0,0.06); }
+    h1 { margin: 0 0 6px; color: var(--navy); font-size: 22px; }
+    .sub { margin: 0 0 14px; color: var(--muted); }
+    .row { display:flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); min-width: 240px; }
+    button { padding: 10px 12px; border-radius: 10px; border: 0; background: var(--navy); color: white; font-weight: 700; cursor: pointer; }
+    button.secondary { background: white; color: var(--navy); border: 2px solid var(--navy); }
+    .msg { margin-top: 12px; color: var(--muted); font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    th { color: var(--navy); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+    .pill.known { background: rgba(201,162,39,0.16); color: #7c5f00; }
+    .pill.unknown { background: rgba(107,114,128,0.14); color: #374151; }
+    .num { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Admin — Access Code Usage</h1>
+      <p class="sub">Enter the admin code to view beta usage. This page does not store the code.</p>
+      <div class="row">
+        <input id="adminCode" type="password" placeholder="Admin code" autocomplete="off" />
+        <button onclick="loadUsage()">Load usage</button>
+        <button class="secondary" onclick="location.href='/'">Back to app</button>
+      </div>
+      <div class="msg" id="msg"></div>
+      <div id="tableWrap"></div>
+    </div>
+  </div>
+
+  <script>
+    function fmtDate(d) {
+      if (!d) return '';
+      try {
+        const dt = new Date(d);
+        if (isNaN(dt)) return String(d);
+        return dt.toLocaleString();
+      } catch { return String(d); }
+    }
+
+    async function loadUsage() {
+      const code = document.getElementById('adminCode').value.trim();
+      const msg = document.getElementById('msg');
+      const wrap = document.getElementById('tableWrap');
+      msg.textContent = 'Loading...';
+      wrap.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/admin/code-usage', {
+          headers: { 'x-admin-code': code }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'Request failed');
+
+        msg.textContent = `Storage: ${data.storage}. Codes: ${data.count}.`;
+        const rows = data.usage || [];
+        wrap.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Status</th>
+                <th>Generations</th>
+                <th>Remaining</th>
+                <th>Last used</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td><span class="num">${r.code}</span></td>
+                  <td>${r.known ? '<span class="pill known">known</span>' : '<span class="pill unknown">unknown</span>'}</td>
+                  <td class="num">${r.generations}</td>
+                  <td class="num">${r.remaining} / ${r.limit}</td>
+                  <td>${fmtDate(r.lastUsed)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (e) {
+        msg.textContent = `Error: ${e.message || e}`;
+      }
+    }
+  </script>
+</body>
+</html>
+

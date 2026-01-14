@@ -307,6 +307,59 @@ function buildRecipes(menu, recipes) {
           children: [new TextRun({ text: `Serves: ${recipe.serves || 6} | Active: ${recipe.activeTime || '30 min'} | Total: ${recipe.totalTime || '1 hour'}`, size: 20, italics: true, color: COLORS.textLight })]
         })
       );
+
+      // Wine pairing + rationale
+      if (recipe.winePairing || course.wine) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Wine Pairing', size: 26, bold: true, color: COLORS.gold })]
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: recipe.winePairing || course.wine, bold: true, color: COLORS.navy })
+            ]
+          })
+        );
+        if (recipe.pairingWhy) {
+          children.push(
+            new Paragraph({
+              spacing: { before: 80, after: 120 },
+              children: [new TextRun({ text: recipe.pairingWhy, italics: true, color: COLORS.textLight })]
+            })
+          );
+        }
+      }
+
+      // Why it works
+      if (Array.isArray(recipe.whyItWorks) && recipe.whyItWorks.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Why This Works', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.whyItWorks.forEach((w) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(w))] })
+          );
+        });
+      }
+
+      // Equipment
+      if (Array.isArray(recipe.equipment) && recipe.equipment.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Equipment', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.equipment.forEach((e) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(e))] })
+          );
+        });
+      }
       
       // Ingredients
       children.push(
@@ -373,6 +426,66 @@ function buildRecipes(menu, recipes) {
           })
         );
       }
+
+      // Chef + Sommelier notes (from consultation)
+      if (Array.isArray(recipe.chefSommelierNotes) && recipe.chefSommelierNotes.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Chef & Sommelier Notes', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.chefSommelierNotes.forEach((n) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(n))] })
+          );
+        });
+      }
+
+      // Plating
+      if (Array.isArray(recipe.plating) && recipe.plating.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Plating', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.plating.forEach((p) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(p))] })
+          );
+        });
+      }
+
+      // Allergens
+      if (Array.isArray(recipe.allergens) && recipe.allergens.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Allergens', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.allergens.forEach((a) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(a))] })
+          );
+        });
+      }
+
+      // Variations
+      if (Array.isArray(recipe.variations) && recipe.variations.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Variations', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.variations.forEach((v) => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(v))] })
+          );
+        });
+      }
     } else {
       // Placeholder
       children.push(
@@ -403,17 +516,65 @@ function buildShoppingList(menu, context, recipes) {
   ];
   
   const categories = ['Proteins', 'Seafood', 'Produce', 'Dairy & Eggs', 'Pantry', 'Wine & Beverages', 'Special Ingredients'];
-  
-  categories.forEach(cat => {
+
+  const categorizeIngredient = (raw) => {
+    const rawTrim = String(raw || '').trim();
+    const s = rawTrim.toLowerCase();
+    if (!s.trim()) return { cat: 'Pantry', item: '' };
+
+    // Keep quantities (US + metric) in shopping list items.
+    const itemText = rawTrim;
+
+    const seafood = ['fish', 'salmon', 'tuna', 'cod', 'halibut', 'bass', 'shrimp', 'prawn', 'lobster', 'crab', 'scallop', 'oyster', 'mussel', 'clam'];
+    const proteins = ['beef', 'steak', 'lamb', 'pork', 'chicken', 'duck', 'turkey', 'veal', 'sausage', 'bacon', 'prosciutto'];
+    const produce = ['onion', 'shallot', 'garlic', 'leek', 'tomato', 'pepper', 'spinach', 'lettuce', 'arugula', 'herb', 'parsley', 'cilantro', 'basil', 'thyme', 'rosemary', 'mint', 'lemon', 'lime', 'orange', 'apple', 'pear', 'mushroom', 'carrot', 'celery', 'potato', 'radish', 'pea', 'asparagus'];
+    const dairy = ['butter', 'milk', 'cream', 'crème', 'creme', 'cheese', 'yogurt', 'egg', 'parmesan', 'gruyere', 'ricotta', 'mascarpone'];
+    const beverages = ['wine', 'champagne', 'sancerre', 'riesling', 'port', 'vermouth', 'beer', 'cider', 'sparkling water', 'soda', 'coffee', 'tea'];
+    const pantry = ['salt', 'pepper', 'olive oil', 'oil', 'vinegar', 'mustard', 'flour', 'sugar', 'honey', 'stock', 'broth', 'rice', 'pasta', 'breadcrumbs', 'spice', 'paprika', 'cumin', 'coriander', 'vanilla', 'cocoa', 'chocolate'];
+
+    const includesAny = (arr) => arr.some((k) => s.includes(k));
+
+    if (includesAny(seafood)) return { cat: 'Seafood', item: itemText };
+    if (includesAny(proteins)) return { cat: 'Proteins', item: itemText };
+    if (includesAny(dairy)) return { cat: 'Dairy & Eggs', item: itemText };
+    if (includesAny(beverages)) return { cat: 'Wine & Beverages', item: itemText };
+    if (includesAny(produce)) return { cat: 'Produce', item: itemText };
+    if (includesAny(pantry)) return { cat: 'Pantry', item: itemText };
+    return { cat: 'Special Ingredients', item: itemText };
+  };
+
+  const byCategory = Object.fromEntries(categories.map((c) => [c, new Set()]));
+
+  if (Array.isArray(recipes) && recipes.length) {
+    recipes.forEach((r) => {
+      (r?.ingredients || []).forEach((ing) => {
+        const { cat, item } = categorizeIngredient(ing);
+        if (item) byCategory[cat]?.add(item);
+      });
+    });
+  }
+
+  categories.forEach((cat) => {
+    const items = Array.from(byCategory[cat] || []);
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
         children: [new TextRun({ text: cat, size: 26, bold: true, color: COLORS.gold })]
-      }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Items based on your menu')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] })
+      })
     );
+
+    if (items.length) {
+      items.forEach((item) => {
+        children.push(
+          new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(`□  ${item}`)] })
+        );
+      });
+    } else {
+      // Fallback if recipes weren't generated
+      children.push(
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  (Generated list unavailable — see recipes section)')] })
+      );
+    }
   });
   
   children.push(
@@ -711,8 +872,51 @@ function buildImagePrompts(menu, context) {
     })
   ];
   
+  const style = context?.menuStyle || 'classic';
+  const eventTitle = context?.eventTitle || 'Dinner Party';
+  const serviceTime = context?.serviceTime || '7:00 PM';
+  const vibeMap = {
+    classic: 'timeless, elegant, restrained luxury',
+    modern: 'clean, minimal, contemporary, negative space',
+    romantic: 'warm candlelight, soft glow, intimate, romantic',
+    artdeco: 'Art Deco glamour, geometric accents, gold and black details',
+    rustic: 'rustic-elegant, natural textures, linen, wood, stoneware',
+    botanical: 'vintage botanical, garden-inspired, floral details',
+    coastal: 'coastal elegance, airy light, subtle nautical cues',
+    urban: 'urban chic, modern city apartment, moody highlights'
+  };
+  const vibe = vibeMap[style] || vibeMap.classic;
+
+  // Tablescape prompt (magazine-quality)
+  const tablePrompt =
+    `Editorial interior + tablescape photograph for "${eventTitle}" at ${serviceTime}, ${vibe}. ` +
+    `Camera: Canon EOS R5 or Hasselblad X2D, 35mm, f/4, ISO 800, 1/125. ` +
+    `Lighting: warm candlelight + soft bounced practicals, gentle falloff, realistic shadows, no harsh speculars. ` +
+    `Composition: slightly elevated 45-degree angle, layered linens, place cards, menu cards, glassware arrangement, seasonal centerpiece with correct scale (no blocking faces), uncluttered negative space. ` +
+    `Color: rich navy and gold accents, creamy neutrals, true-to-life skin tones if hands appear. ` +
+    `Style: Architectural Digest dinner party editorial, ultra high detail, natural grain, no text, no watermark.`;
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Table / Tablescape', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    new Paragraph({
+      shading: { fill: 'f5f5f5', type: ShadingType.CLEAR },
+      spacing: { after: 200 },
+      children: [new TextRun({ text: tablePrompt, size: 20, font: 'Courier New' })]
+    })
+  );
+
   menu.courses.forEach(course => {
-    const prompt = `Professional food photography of ${course.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
+    const prompt =
+      `Magazine-cover food photograph of ${course.name}, ${vibe}. ` +
+      `Camera: Sony α7R V or Hasselblad X2D, 85mm, f/2.0, ISO 400, 1/160. ` +
+      `Lighting: soft directional window light from left, subtle fill card on right, gentle back rim light, controlled highlights, no blown whites. ` +
+      `Plating: refined fine-dining composition, intentional negative space, microtexture visible, sauce placement guides the eye, garnish is edible and purposeful. ` +
+      `Props: white porcelain, linen napkin, simple flatware, minimal background, shallow depth of field, bokeh. ` +
+      `Angle: 45-degree hero shot, plus hint of environment that matches "${eventTitle}". ` +
+      `Style reference: Food & Wine editorial, hyper-realistic, ultra high detail, no text, no watermark.`;
     
     children.push(
       new Paragraph({
