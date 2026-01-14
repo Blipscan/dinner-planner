@@ -4001,15 +4001,16 @@ input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus
             format: selectedCookbookFormat
           })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         
         document.getElementById('cookbookLoading').classList.add('hidden');
         
-        if (data.success) {
+        if (res.ok && data.success) {
           cookbookId = data.cookbookId;
           document.getElementById('cookbookComplete').classList.remove('hidden');
         } else {
-          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
+          const msg = data.message || `Error generating cookbook. (${res.status || 'network'})`;
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${msg}</div>`;
           document.getElementById('cookbookComplete').classList.remove('hidden');
         }
       } catch (err) {

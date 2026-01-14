@@ -774,6 +774,41 @@ function stripJsonFences(text) {
     .trim();
 }
 
+function extractFirstJsonObject(text) {
+  const s = String(text || "");
+  const first = s.indexOf("{");
+  const last = s.lastIndexOf("}");
+  if (first === -1 || last === -1 || last <= first) return null;
+  return s.slice(first, last + 1);
+}
+
+function safeParseJson(text) {
+  const cleaned = stripJsonFences(text);
+  try {
+    return JSON.parse(cleaned);
+  } catch (_) {
+    const extracted = extractFirstJsonObject(cleaned);
+    if (!extracted) throw new Error("Failed to parse JSON: no JSON object found.");
+    return JSON.parse(extracted);
+  }
+}
+
+function validateRecipesShape(recipes, menu) {
+  const courses = Array.isArray(menu?.courses) ? menu.courses : [];
+  if (!Array.isArray(recipes) || recipes.length !== 5) return "Expected exactly 5 recipes.";
+  if (courses.length && courses.length !== 5) return "Expected exactly 5 menu courses.";
+  for (let i = 0; i < recipes.length; i++) {
+    const r = recipes[i] || {};
+    const titleOk = typeof r.title === "string" && r.title.trim().length >= 3;
+    const ingredientsOk = Array.isArray(r.ingredients) && r.ingredients.filter(Boolean).length >= 6;
+    const stepsOk = Array.isArray(r.steps) && r.steps.filter(Boolean).length >= 6;
+    if (!titleOk) return `Recipe ${i + 1} missing title.`;
+    if (!ingredientsOk) return `Recipe ${i + 1} missing ingredients.`;
+    if (!stepsOk) return `Recipe ${i + 1} missing steps.`;
+  }
+  return null;
+}
+
 function buildMenuContextSummary(menu) {
   if (!menu || !Array.isArray(menu.courses)) return "";
   const lines = menu.courses.map((c, i) => {
@@ -877,7 +912,7 @@ async function generateRecipes({ menu, context, code, format, chatHistory }) {
   const previous = code ? await listRecentCookbooksByCode(code, 30) : [];
   const avoidance = buildAvoidanceSummary(previous);
 
-  const systemPrompt = `You are a Michelin-caliber test-kitchen team writing complete, usable recipes for a home cook hosting a dinner party.
+  const systemPromptBase = `You are a Michelin-caliber test-kitchen team writing complete, usable recipes for a home cook hosting a dinner party.
 
 You MUST generate recipes that match the exact menu courses provided. Be consistent: if a wine pairing is listed, do not ask the user what wine it is—treat it as already recommended.
 
@@ -920,7 +955,7 @@ Return ONLY valid JSON (no markdown) with this exact shape:
       "plating": ["string", "..."],
       "allergens": ["string", "..."],
       "variations": ["string", "..."],
-      "lessonPlan": {
+      "lessonPlan": null | {
         "objectives": ["string", "..."],
         "miseEnPlace": ["string", "..."],
         "timeline": ["string", "..."],
@@ -928,7 +963,7 @@ Return ONLY valid JSON (no markdown) with this exact shape:
         "commonMistakes": ["string", "..."],
         "instructorNotes": ["string", "..."]
       },
-      "graphicNovel": {
+      "graphicNovel": null | {
         "panels": [
           {
             "panel": number,
@@ -962,25 +997,37 @@ Rules:
 - pairingWhy must explicitly reference the named wine pairing when present.
 - Include at least 3 practical equipment items per recipe.
 - Provide at least 2 variations and at least 2 allergens per recipe (use "none known" if truly none).
-- If format is Cooking School Lesson Plan, fill the lessonPlan object with 3–8 items per list.
+- Only populate lessonPlan when the chosen format is Cooking School Lesson Plan; otherwise set lessonPlan to null.
+- Only populate graphicNovel when the chosen format is Graphic Novel; otherwise set graphicNovel to null.
+- If format is Cooking School Lesson Plan, fill lessonPlan with 3–8 items per list.
 - If format is Graphic Novel, include 8–14 panels per recipe. Panels must map to the cooking steps in order and be vivid but practical.
 - Respect restrictions (e.g., if gluten-free, avoid wheat flour / breadcrumbs unless you explicitly provide a GF alternative).`;
+  const attempts = 2;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const extra =
+        attempt === 1
+          ? ""
+          : "\n\nCRITICAL: Output JSON only. Do not include backticks, commentary, or trailing text. Ensure all strings are properly escaped.";
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 7500,
+        system: systemPromptBase + extra,
+        messages: [{ role: "user", content: "Write the 5 recipes now." }],
+      });
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 6500,
-    system: systemPrompt,
-    messages: [{ role: "user", content: "Write the 5 recipes now." }],
-  });
-
-  const raw = response?.content?.[0]?.text;
-  const jsonText = stripJsonFences(raw);
-  const parsed = JSON.parse(jsonText);
-  const recipes = parsed?.recipes;
-  if (!Array.isArray(recipes) || recipes.length !== 5) {
-    throw new Error("Recipe generation returned unexpected JSON shape.");
+      const raw = response?.content?.[0]?.text;
+      const parsed = safeParseJson(raw);
+      const recipes = parsed?.recipes;
+      const shapeErr = validateRecipesShape(recipes, menu);
+      if (shapeErr) throw new Error(`Recipe JSON incomplete: ${shapeErr}`);
+      return recipes;
+    } catch (e) {
+      lastErr = e;
+    }
   }
-  return recipes;
+  throw lastErr || new Error("Recipe generation failed.");
 }
 
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
@@ -1015,18 +1062,10 @@ app.post("/api/generate-cookbook", async (req, res) => {
     res.json({ success: true, cookbookId });
   } catch (err) {
     console.error("Cookbook generation error:", err);
-    const upperCode = code?.trim?.().toUpperCase?.();
-    const safeFormat = String(format || "binder").toLowerCase();
-    const contextWithFormat = { ...(context || {}), cookbookFormat: safeFormat };
-    await saveCookbook(
-      cookbookId,
-      { code: upperCode, format: safeFormat, menu, context: contextWithFormat, staffing, chatHistory, recipes: null },
-      { code: upperCode, format: safeFormat }
-    );
-    res.json({
-      success: true,
-      cookbookId,
-      message: "Cookbook created, but recipes could not be generated. Download will include placeholders.",
+    res.status(502).json({
+      success: false,
+      message:
+        "Recipe generation failed, so the cookbook was not created. Please try again (or switch cookbook format away from Graphic Novel/Lesson if you selected it).",
     });
   }
 });
@@ -1261,7 +1300,6 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
 
   const style = context?.menuStyle || "classic";
   const eventTitle = context?.eventTitle || "Dinner Party";
-  const serviceTime = context?.serviceTime || "7:00 PM";
   const vibeMap = {
     classic: "timeless, elegant, restrained luxury",
     modern: "clean, minimal, contemporary, negative space",
@@ -1385,6 +1423,7 @@ app.get("/cookbook/:cookbookId", async (req, res) => {
     .render-links { display:flex; flex-wrap:wrap; gap:10px; margin-top: 10px; }
     .render-link { display:inline-flex; padding: 6px 10px; border: 1px solid rgba(17,24,39,0.14); border-radius: 999px; text-decoration:none; color: var(--navy); font-size: 13px; }
     .render-link:hover { border-color: var(--gold); }
+    .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: rgba(17,24,39,0.92); color: white; padding: 10px 12px; border-radius: 999px; font-size: 13px; display:none; z-index: 9999; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
     .panels { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
     .panel { border: 1px solid rgba(17,24,39,0.12); border-radius: 12px; padding: 12px; background: rgba(17,24,39,0.02); }
     .panel-num { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); font-weight: 800; }
@@ -1670,6 +1709,37 @@ ${Array.from({ length: 18 })
       )}
     </div>
   </div>
+  <div class="toast" id="toast"></div>
+  <script>
+    function copyPrompt(id) {
+      try {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var text = (el.textContent || '').trim();
+        if (!text) return;
+        var done = function() {
+          var t = document.getElementById('toast');
+          if (!t) return;
+          t.textContent = 'Prompt copied.';
+          t.style.display = 'block';
+          clearTimeout(window.__toastTimer);
+          window.__toastTimer = setTimeout(function(){ t.style.display = 'none'; }, 1800);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function(){});
+          return;
+        }
+        var range = document.createRange();
+        range.selectNodeContents(el);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('copy');
+        sel.removeAllRanges();
+        done();
+      } catch (e) {}
+    }
+  </script>
 </body>
 </html>`;
 
