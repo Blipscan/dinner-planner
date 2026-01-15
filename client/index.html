@@ -200,6 +200,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       background: white;
     }
     .chat-input-area input { flex: 1; }
+    .chat-hint {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      color: var(--text-light);
+      text-align: center;
+    }
     
     /* ===== MENU CARDS ===== */
     #menuList {
@@ -782,9 +788,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <button class="btn btn-primary" onclick="sendChat()">Send</button>
           </div>
         </div>
+        <p class="chat-hint">Stay in the conversation as long as you want. When finished, click Done or Generate Menus.</p>
         <div class="actions">
           <button class="btn btn-secondary" onclick="goToStep(3)">Back to Preferences</button>
-          <button class="btn btn-outline" onclick="endChat()">End Consultation</button>
+          <button class="btn btn-outline" onclick="endChat()">Done With Consultation</button>
           <button class="btn btn-gold" onclick="proceedToMenus()">Generate Menus →</button>
         </div>
       </div>
