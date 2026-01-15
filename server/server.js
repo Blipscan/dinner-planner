@@ -109,8 +109,36 @@ Requirements for custom menu:
 - Each of the 5 menus must preserve the requested course ideas.
 - Provide options by varying preparation, ingredients, or style, but do not replace the course themes.
 - Keep the same number of courses in the same order.
+- Start each course name with the host's course text, then add a variation descriptor.
 - Use these style lenses for the five options: Classic, Deconstructed, Modernist, Global slant, Elevated.
 `;
+}
+
+function normalizeText(value) {
+  if (!value) return "";
+  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function ideaMatchesCourse(idea, courseName) {
+  const ideaText = normalizeText(idea);
+  const courseText = normalizeText(courseName);
+  if (!ideaText || !courseText) return false;
+  if (courseText.includes(ideaText)) return true;
+  const ideaWords = ideaText.split(" ").filter((word) => word.length >= 3);
+  if (!ideaWords.length) return false;
+  const matched = ideaWords.filter((word) => courseText.includes(word));
+  return matched.length >= Math.min(2, ideaWords.length);
+}
+
+function menuRespectsCustomIdeas(menu, ideas) {
+  if (!ideas.length) return true;
+  if (!menu?.courses || menu.courses.length < ideas.length) return false;
+  return ideas.every((idea, idx) => ideaMatchesCourse(idea, menu.courses[idx]?.name));
+}
+
+function menusRespectCustomIdeas(menus, ideas) {
+  if (!ideas.length) return true;
+  return Array.isArray(menus) && menus.length > 0 && menus.every((menu) => menuRespectsCustomIdeas(menu, ideas));
 }
  
 // ============================================================
@@ -320,9 +348,16 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
       const text = response.content[0].text.trim();
       const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
       menus = JSON.parse(jsonText);
+      if (hasCustomMenu && !menusRespectCustomIdeas(menus, customMenuIdeas)) {
+        console.warn("Custom menu mismatch; falling back to deterministic options.");
+        menus = buildCustomMenusFromIdeas(customMenuIdeas, context);
+      }
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content[0].text);
+      if (hasCustomMenu) {
+        return res.json({ menus: buildCustomMenusFromIdeas(customMenuIdeas, context) });
+      }
       return res.json({ menus: DEMO_MENUS });
     }
  
