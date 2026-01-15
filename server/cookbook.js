@@ -5,7 +5,7 @@
 
 const { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, 
         PageBreak, LevelFormat, Table, TableRow, TableCell, BorderStyle, 
-        WidthType, ShadingType } = require('docx');
+        WidthType, ShadingType, ExternalHyperlink } = require('docx');
 const { STAFFING, COPYRIGHT_TEXT } = require('./data');
 
 // Color palette
@@ -16,6 +16,83 @@ const COLORS = {
   text: '2d3a35',
   textLight: '6b7c85'
 };
+
+const DEFAULT_SERVICE_TIME = '7:00 PM';
+const MINUTES_PER_DAY = 24 * 60;
+
+function parseTimeString(value) {
+  if (!value || typeof value !== 'string') return null;
+  const match = value.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!match) return null;
+  const hour = parseInt(match[1], 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const meridiem = match[3].toUpperCase();
+  if (!hour || hour > 12 || minutes > 59) return null;
+  let total = (hour % 12) * 60 + minutes;
+  if (meridiem === 'PM') total += 12 * 60;
+  return total;
+}
+
+function formatTime(minutes) {
+  const normalized = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const hour24 = Math.floor(normalized / 60);
+  const minute = normalized % 60;
+  const meridiem = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${minute.toString().padStart(2, '0')} ${meridiem}`;
+}
+
+function addMinutes(base, delta) {
+  if (base === null) return null;
+  return base + delta;
+}
+
+function getServiceTimeMinutes(context) {
+  return parseTimeString(context.serviceTime) ?? parseTimeString(DEFAULT_SERVICE_TIME) ?? 19 * 60;
+}
+
+function buildTimelineRows(timeline) {
+  return timeline.map(item => (
+    new Paragraph({
+      spacing: { before: 120 },
+      children: [
+        new TextRun({ text: item.timeLabel.padEnd(12), bold: true, color: COLORS.gold, size: 22 }),
+        new TextRun({ text: item.task, size: 22 }),
+        item.note
+          ? new TextRun({ text: ` (${item.note})`, size: 20, italics: true, color: COLORS.textLight })
+          : null
+      ].filter(Boolean)
+    })
+  ));
+}
+
+function resolveWineStyle(course) {
+  if (course?.wine) {
+    const parts = course.wine.split(',');
+    return parts[0].trim();
+  }
+  const type = course?.type || '';
+  if (type === 'Dessert') return 'Late harvest or fortified dessert wine';
+  if (type === 'Main Course') return 'Medium to full-bodied red';
+  if (type === 'Second Course') return 'Bright, higher-acid white or light red';
+  if (type === 'First Course') return 'Crisp white or sparkling';
+  if (type === 'Amuse-Bouche') return 'Sparkling wine or dry aperitif';
+  return 'Crisp white';
+}
+
+function buildPromptRenderLink(prompt) {
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+  return new Paragraph({
+    spacing: { after: 200 },
+    children: [
+      new TextRun({ text: 'Render link: ', size: 20, color: COLORS.textLight }),
+      new ExternalHyperlink({
+        link: url,
+        children: [new TextRun({ text: url, style: 'Hyperlink', size: 20 })]
+      })
+    ]
+  });
+}
 
 // Build complete cookbook document
 async function buildCookbook(menu, context, staffing, recipes) {
@@ -232,7 +309,6 @@ function buildMenuOverview(menu) {
 }
 
 function buildWineProgram(menu, context) {
-  const wines = menu.courses.filter(c => c.wine);
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -244,22 +320,42 @@ function buildWineProgram(menu, context) {
     })
   ];
   
-  wines.forEach(course => {
+  menu.courses.forEach(course => {
+    const wineStyle = resolveWineStyle(course);
+    const classicPick = course.wine ? course.wine : `${wineStyle} in the $25-40 range`;
+    const tiers = [
+      { label: 'Value', text: `${wineStyle} in the $15-25 range` },
+      { label: 'Classic', text: classicPick },
+      { label: 'Premium', text: `Single-vineyard or reserve ${wineStyle} ($40-70)` },
+      { label: 'Splurge', text: `Icon producer or aged ${wineStyle} ($80+)` }
+    ];
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
         children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
       }),
       new Paragraph({
-        children: [new TextRun({ text: course.wine, size: 26, bold: true, color: COLORS.navy })]
-      }),
+        spacing: { before: 50 },
+        children: [new TextRun({ text: course.name, size: 24, color: COLORS.navy })]
+      })
+    );
+    
+    tiers.forEach(tier => {
+      children.push(
+        new Paragraph({
+          numbering: { reference: 'bullets', level: 0 },
+          children: [
+            new TextRun({ text: `${tier.label}: `, bold: true, color: COLORS.text }),
+            new TextRun({ text: tier.text, color: COLORS.textLight })
+          ]
+        })
+      );
+    });
+    
+    children.push(
       new Paragraph({
-        spacing: { before: 100 },
-        children: [new TextRun({ text: `Pairs with: ${course.name}`, size: 22, italics: true, color: COLORS.textLight })]
-      }),
-      new Paragraph({
-        spacing: { before: 100, after: 200 },
-        children: [new TextRun({ text: 'Serve at 55-60°F. Decant 30 minutes before service if red.', size: 20, color: COLORS.textLight })]
+        spacing: { before: 80, after: 200 },
+        children: [new TextRun({ text: 'Serve whites at 45-50F, reds at 55-60F. Decant reds 30 minutes before service.', size: 20, color: COLORS.textLight })]
       })
     );
   });
@@ -440,34 +536,35 @@ function buildDayBeforePrep(menu, staffingInfo) {
     new Paragraph({
       spacing: { after: 200 },
       children: [new TextRun({ text: `Staffing: ${staffingInfo.name}`, size: 24, italics: true, color: COLORS.textLight })]
+    }),
+    new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: 'Use these time anchors to keep prep paced and calm. Adjust for your schedule.', size: 22, italics: true, color: COLORS.textLight })]
     })
   ];
   
-  const tasks = [
-    'Review all recipes and confirm you have all ingredients',
-    'Prep stocks and sauces that improve overnight',
-    'Marinate proteins as needed',
-    'Wash and prep vegetables (store properly)',
-    'Make dessert components that hold well',
-    'Set the table completely',
-    'Chill wine and set out serving pieces',
-    'Write out your day-of timeline',
-    'Prep any garnishes that hold',
-    'Do a final equipment check'
+  const timeline = [
+    { timeLabel: '9:00 AM', task: 'Inventory pantry, fridge, and equipment', note: 'Confirm you have every tool and serving piece' },
+    { timeLabel: '11:00 AM', task: 'Final shopping run', note: 'Buy proteins and seafood last for freshness' },
+    { timeLabel: '1:00 PM', task: 'Make stocks, sauces, or reductions', note: 'Cool quickly, label, and refrigerate overnight' },
+    { timeLabel: '3:00 PM', task: 'Wash, prep, and store vegetables', note: 'Use damp towels or airtight containers' },
+    { timeLabel: '4:30 PM', task: 'Prep garnishes and herbs', note: 'Keep herbs wrapped in a damp paper towel' },
+    { timeLabel: '6:00 PM', task: 'Marinate proteins and portion items', note: 'Label with cook time and target temp' },
+    { timeLabel: '7:30 PM', task: 'Prepare dessert components', note: 'Chill and plan assembly for day-of' },
+    { timeLabel: '8:30 PM', task: 'Set the table and stage serving ware', note: 'Lay out platters, tongs, and warmers' },
+    { timeLabel: '9:00 PM', task: 'Chill whites and sparkling, check reds', note: 'Reds stay at cool room temp' },
+    { timeLabel: '9:30 PM', task: 'Write your day-of timeline and labels', note: 'Post it in the kitchen for easy scanning' }
   ];
   
-  tasks.forEach(task => {
-    children.push(
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(`□  ${task}`)] })
-    );
-  });
+  children.push(...buildTimelineRows(timeline));
   
   children.push(new Paragraph({ children: [new PageBreak()] }));
   return children;
 }
 
 function buildDayOfTimeline(menu, context, staffingInfo) {
-  const serviceTime = context.serviceTime || '7:00 PM';
+  const serviceTime = context.serviceTime || DEFAULT_SERVICE_TIME;
+  const serviceMinutes = getServiceTimeMinutes(context);
   
   const children = [
     new Paragraph({ 
@@ -477,41 +574,40 @@ function buildDayOfTimeline(menu, context, staffingInfo) {
     new Paragraph({
       spacing: { after: 200 },
       children: [new TextRun({ text: `Service Time: ${serviceTime} | Your active time: ~${staffingInfo.activeMin} minutes`, size: 24, italics: true, color: COLORS.textLight })]
+    }),
+    new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: 'Times below are anchored to service. Use them as a guide and adjust based on your kitchen flow.', size: 22, italics: true, color: COLORS.textLight })]
     })
   ];
   
-  // Work backwards from service time
   const timeline = [
-    { time: '-6 hours', task: 'Final shopping for any last-minute items' },
-    { time: '-5 hours', task: 'Begin slow-cooking items (braises, stocks)' },
-    { time: '-4 hours', task: 'Prep remaining vegetables and garnishes' },
-    { time: '-3 hours', task: 'Start sauces and reductions' },
-    { time: '-2 hours', task: 'Set out cheese and butter to temper' },
-    { time: '-90 min', task: 'Open and decant red wines' },
-    { time: '-1 hour', task: 'Final protein prep, bring to room temp' },
-    { time: '-45 min', task: 'Preheat oven, warm plates' },
-    { time: '-30 min', task: 'Light candles, start music, final touches' },
-    { time: '-15 min', task: 'Plate amuse-bouche, pour welcome drinks' },
-    { time: '0', task: '🍽️ GUESTS ARRIVE — Service begins' },
-    { time: '+15 min', task: 'Serve amuse-bouche' },
-    { time: '+30 min', task: 'Fire first course' },
-    { time: '+50 min', task: 'Clear, serve second course' },
-    { time: '+80 min', task: 'Fire main course' },
-    { time: '+110 min', task: 'Clear, prepare dessert' },
-    { time: '+130 min', task: 'Serve dessert and dessert wine' }
+    { offset: -360, task: 'Final shopping for last-minute items', note: 'Focus on herbs, seafood, and bread' },
+    { offset: -300, task: 'Start long-cook items (braises, stocks)', note: 'Low and slow, check liquids hourly' },
+    { offset: -240, task: 'Prep remaining vegetables and garnishes', note: 'Store in labeled containers' },
+    { offset: -180, task: 'Start sauces and reductions', note: 'Hold warm or reheat gently later' },
+    { offset: -120, task: 'Set out butter, cheese, and proteins', note: 'Temper for even cooking' },
+    { offset: -90, task: 'Open and decant red wines', note: 'Keep whites chilled' },
+    { offset: -60, task: 'Final protein prep and seasoning', note: 'Pat dry and season right before searing' },
+    { offset: -45, task: 'Preheat oven and warm plates', note: 'Stage a sheet pan for hot plates' },
+    { offset: -30, task: 'Lighting, music, and room reset', note: 'Clear counters and wipe surfaces' },
+    { offset: -15, task: 'Plate amuse-bouche and welcome drinks', note: 'Keep on a tray ready to serve' },
+    { offset: 0, task: 'Guests arrive and service begins', note: 'Serve amuse-bouche within 5 minutes' },
+    { offset: 15, task: 'Serve amuse-bouche', note: 'Check pacing and adjust as needed' },
+    { offset: 30, task: 'Fire first course', note: 'Start final reheats and plating' },
+    { offset: 50, task: 'Clear and serve second course', note: 'Refresh wine glasses if needed' },
+    { offset: 80, task: 'Fire main course', note: 'Rest proteins before slicing' },
+    { offset: 110, task: 'Clear and prepare dessert', note: 'Warm plates or chill bowls' },
+    { offset: 130, task: 'Serve dessert and dessert wine', note: 'Offer coffee or tea' }
   ];
   
-  timeline.forEach(item => {
-    children.push(
-      new Paragraph({
-        spacing: { before: 100 },
-        children: [
-          new TextRun({ text: item.time.padEnd(12), bold: true, color: COLORS.gold, size: 22 }),
-          new TextRun({ text: item.task, size: 22 })
-        ]
-      })
-    );
-  });
+  const timelineWithTimes = timeline.map(item => ({
+    timeLabel: formatTime(addMinutes(serviceMinutes, item.offset)),
+    task: item.task,
+    note: item.note
+  }));
+  
+  children.push(...buildTimelineRows(timelineWithTimes));
   
   children.push(new Paragraph({ children: [new PageBreak()] }));
   return children;
@@ -721,9 +817,10 @@ function buildImagePrompts(menu, context) {
       }),
       new Paragraph({
         shading: { fill: 'f5f5f5', type: ShadingType.CLEAR },
-        spacing: { after: 200 },
+        spacing: { after: 100 },
         children: [new TextRun({ text: prompt, size: 20, font: 'Courier New' })]
-      })
+      }),
+      buildPromptRenderLink(prompt)
     );
   });
   
