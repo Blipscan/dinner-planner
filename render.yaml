@@ -1,10 +1,7 @@
 services:
-  - type: web
-    name: dinner-planner-cadillac
-    env: node
-    buildCommand: npm ci
-    startCommand: npm start
+  - type: static_site
+    name: thames-bowling
+    env: static
+    buildCommand: ""
+    staticPublishPath: .
     autoDeploy: true
-    envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false
