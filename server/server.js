@@ -18,6 +18,10 @@ const {
 } = require("./data");
  
 const { buildCookbook } = require("./cookbook");
+const {
+  extractCustomMenuItems,
+  buildSingleMenuFromIdeas,
+} = require("./custom-menu");
  
 const app = express();
  
@@ -187,12 +191,19 @@ Be conversational, warm, and helpful. Ask clarifying questions when needed. Shar
 // Generate menus
 app.post("/api/generate-menus", async (req, res) => {
   const { code, context, chatHistory, rejectionHistory } = req.body || {};
+  const customMenu = context?.customMenu?.trim?.();
+  const customMenuIdeas = extractCustomMenuItems(customMenu);
+  const hasCustomMenu = !!customMenu;
  
   const upperCode = code?.trim?.().toUpperCase?.();
   if (upperCode && usageStats[upperCode]) {
     usageStats[upperCode].generations++;
   }
  
+  if (hasCustomMenu) {
+    return res.json({ menus: [buildSingleMenuFromIdeas(customMenuIdeas, context)] });
+  }
+
   if (!ANTHROPIC_API_KEY) {
     return res.json({ menus: DEMO_MENUS });
   }
@@ -225,7 +236,6 @@ Event Context:
 - Guest Preferences: Likes ${context?.likes?.join(", ") || "various"}, Avoids ${context?.dislikes?.join(", ") || "nothing specific"}
 - Dietary Restrictions: ${context?.restrictions?.join(", ") || "none"}
 ${chatContext}
- 
 Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - id: number (1-5)
 - title: Creative, evocative menu name
