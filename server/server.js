@@ -202,10 +202,11 @@ app.post("/api/generate-menus", async (req, res) => {
     usageStats[upperCode].generations++;
   }
  
+  if (hasCustomMenu) {
+    return res.json({ menus: buildCustomMenusFromIdeas(customMenuIdeas, context) });
+  }
+
   if (!ANTHROPIC_API_KEY) {
-    if (hasCustomMenu) {
-      return res.json({ menus: buildCustomMenusFromIdeas(customMenuIdeas, context) });
-    }
     return res.json({ menus: DEMO_MENUS });
   }
  
