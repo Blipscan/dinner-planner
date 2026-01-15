@@ -28,11 +28,16 @@ test("extractCustomMenuItems trims bullets and limits courses", () => {
 
 test("buildCustomMenusFromIdeas preserves ideas and count", () => {
   const ideas = ["Amuse: Oyster", "Salad", "Soup", "Steak", "Chocolate tart"];
+  const mapped = mapIdeasToCourses(ideas);
   const menus = buildCustomMenusFromIdeas(ideas, { foodBudget: "$50-60", wineBudget: "$120" });
   assert.equal(menus.length, CUSTOM_MENU_OPTIONS.length);
   menus.forEach((menu) => {
     assert.equal(menu.courses.length, COURSE_TYPES.length);
-    assert.ok(menu.courses[0].name.includes(ideas[0]));
+    mapped.forEach((idea, idx) => {
+      if (idea) {
+        assert.ok(menu.courses[idx].name.includes(idea));
+      }
+    });
   });
 });
 
