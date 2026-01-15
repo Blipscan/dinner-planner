@@ -195,7 +195,7 @@ app.post("/api/generate-menus", async (req, res) => {
   const { code, context, chatHistory, rejectionHistory } = req.body || {};
   const customMenu = context?.customMenu?.trim?.();
   const customMenuIdeas = extractCustomMenuItems(customMenu);
-  const hasCustomMenu = context?.inspiration === "custom" && !!customMenu;
+  const hasCustomMenu = !!customMenu;
  
   const upperCode = code?.trim?.().toUpperCase?.();
   if (upperCode && usageStats[upperCode]) {

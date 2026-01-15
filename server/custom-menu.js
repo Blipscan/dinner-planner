@@ -25,11 +25,22 @@ const COURSE_TYPE_ALIASES = {
 
 function extractCustomMenuItems(customMenu) {
   if (!customMenu || typeof customMenu !== "string") return [];
-  return customMenu
+  let lines = customMenu
     .split("\n")
     .map((line) => line.replace(/^[\s*\-•\d.)]+/, "").trim())
-    .filter(Boolean)
-    .slice(0, COURSE_TYPES.length);
+    .filter(Boolean);
+
+  if (lines.length === 1) {
+    const parts = lines[0]
+      .split(/[;,|/]+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.length > 1) {
+      lines = parts;
+    }
+  }
+
+  return lines.slice(0, COURSE_TYPES.length);
 }
 
 function getExplicitCourseType(text) {

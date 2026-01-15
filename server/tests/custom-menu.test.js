@@ -26,6 +26,11 @@ test("extractCustomMenuItems trims bullets and limits courses", () => {
   assert.equal(items[4], "Dessert: Lemon tart");
 });
 
+test("extractCustomMenuItems splits comma-separated lists", () => {
+  const items = extractCustomMenuItems("salad, shrimp, beef, pie");
+  assert.deepEqual(items, ["salad", "shrimp", "beef", "pie"]);
+});
+
 test("buildCustomMenusFromIdeas preserves ideas and count", () => {
   const ideas = ["Amuse: Oyster", "Salad", "Soup", "Steak", "Chocolate tart"];
   const mapped = mapIdeasToCourses(ideas);
