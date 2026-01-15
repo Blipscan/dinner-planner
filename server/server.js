@@ -51,6 +51,66 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
  
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
+
+const COURSE_TYPES = ["Amuse-Bouche", "First Course", "Second Course", "Main Course", "Dessert"];
+const CUSTOM_MENU_OPTIONS = [
+  { label: "Classic", personality: "A classic, timeless execution of your requested courses." },
+  { label: "Seasonal", personality: "Seasonal ingredients and lighter touches across your requested courses." },
+  { label: "Modern", personality: "A modern, refined take on your requested courses with clean plating." },
+  { label: "Rustic", personality: "A rustic, comforting interpretation of your requested courses." },
+  { label: "Elevated", personality: "An elevated, special-occasion version of your requested courses." }
+];
+
+function extractCustomMenuItems(customMenu) {
+  if (!customMenu || typeof customMenu !== "string") return [];
+  return customMenu
+    .split("\n")
+    .map((line) => line.replace(/^[\s*\-•\d.)]+/, "").trim())
+    .filter(Boolean)
+    .slice(0, COURSE_TYPES.length);
+}
+
+function buildCustomMenusFromIdeas(ideas, context) {
+  const foodBudget = context?.foodBudget || "$45-60";
+  const wineBudget = context?.wineBudget || "$80-120";
+  const fallbacks = {
+    "Amuse-Bouche": "Chef's amuse-bouche selection",
+    "First Course": "Seasonal first course",
+    "Second Course": "Light second course",
+    "Main Course": "Signature main course",
+    "Dessert": "House dessert"
+  };
+  return CUSTOM_MENU_OPTIONS.map((option, idx) => ({
+    id: idx + 1,
+    title: `${option.label} Interpretation`,
+    personality: option.personality,
+    foodCost: `${foodBudget}/person`,
+    wineCost: `${wineBudget} total`,
+    courses: COURSE_TYPES.map((type, courseIndex) => {
+      const idea = ideas[courseIndex];
+      const name = idea ? `${idea} (${option.label.toLowerCase()} variation)` : fallbacks[type];
+      const wine = type === "Amuse-Bouche" || type === "Second Course" ? null : "Sommelier selection";
+      return { type, name, wine };
+    })
+  }));
+}
+
+function buildCustomMenuPrompt(customMenu, ideas) {
+  if (!customMenu) return "";
+  const lines = ideas.length
+    ? ideas.map((item, idx) => `- Course ${idx + 1}: ${item}`).join("\n")
+    : customMenu.trim();
+  return `
+
+Host provided desired courses. Use these as the foundation and keep the same course order.
+${lines}
+
+Requirements for custom menu:
+- Each of the 5 menus must preserve the requested course ideas.
+- Provide options by varying preparation, ingredients, or style, but do not replace the course themes.
+- Keep the same number of courses in the same order.
+`;
+}
  
 // ============================================================
 // API ROUTES
@@ -187,6 +247,9 @@ Be conversational, warm, and helpful. Ask clarifying questions when needed. Shar
 // Generate menus
 app.post("/api/generate-menus", async (req, res) => {
   const { code, context, chatHistory, rejectionHistory } = req.body || {};
+  const customMenu = context?.customMenu?.trim?.();
+  const customMenuIdeas = extractCustomMenuItems(customMenu);
+  const hasCustomMenu = context?.inspiration === "custom" && !!customMenu;
  
   const upperCode = code?.trim?.().toUpperCase?.();
   if (upperCode && usageStats[upperCode]) {
@@ -194,6 +257,9 @@ app.post("/api/generate-menus", async (req, res) => {
   }
  
   if (!ANTHROPIC_API_KEY) {
+    if (hasCustomMenu) {
+      return res.json({ menus: buildCustomMenusFromIdeas(customMenuIdeas, context) });
+    }
     return res.json({ menus: DEMO_MENUS });
   }
  
@@ -212,6 +278,7 @@ app.post("/api/generate-menus", async (req, res) => {
         rejectionHistory.map((m) => `${m.role}: ${m.content}`).join("\n");
     }
  
+    const customMenuPrompt = hasCustomMenu ? buildCustomMenuPrompt(customMenu, customMenuIdeas) : "";
     const systemPrompt = `You are an expert culinary team creating dinner party menus.
  
 Event Context:
@@ -225,6 +292,7 @@ Event Context:
 - Guest Preferences: Likes ${context?.likes?.join(", ") || "various"}, Avoids ${context?.dislikes?.join(", ") || "nothing specific"}
 - Dietary Restrictions: ${context?.restrictions?.join(", ") || "none"}
 ${chatContext}
+${customMenuPrompt}
  
 Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - id: number (1-5)
