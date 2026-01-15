@@ -7,6 +7,7 @@ const {
   extractCustomMenuItems,
   buildCustomMenusFromIdeas,
   buildCustomMenuPrompt,
+  mapIdeasToCourses,
   menusRespectCustomIdeas,
 } = require("../custom-menu");
 
@@ -33,6 +34,16 @@ test("buildCustomMenusFromIdeas preserves ideas and count", () => {
     assert.equal(menu.courses.length, COURSE_TYPES.length);
     assert.ok(menu.courses[0].name.includes(ideas[0]));
   });
+});
+
+test("mapIdeasToCourses aligns four items without amuse", () => {
+  const ideas = ["Salad", "Shrimp", "Beef", "Pie"];
+  const mapped = mapIdeasToCourses(ideas);
+  assert.equal(mapped[0], null);
+  assert.equal(mapped[1], "Salad");
+  assert.equal(mapped[2], "Shrimp");
+  assert.equal(mapped[3], "Beef");
+  assert.equal(mapped[4], "Pie");
 });
 
 test("menusRespectCustomIdeas validates course alignment", () => {
