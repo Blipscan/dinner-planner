@@ -55,9 +55,9 @@ global.cookbooks = global.cookbooks || {};
 const COURSE_TYPES = ["Amuse-Bouche", "First Course", "Second Course", "Main Course", "Dessert"];
 const CUSTOM_MENU_OPTIONS = [
   { label: "Classic", personality: "A classic, timeless execution of your requested courses." },
-  { label: "Seasonal", personality: "Seasonal ingredients and lighter touches across your requested courses." },
-  { label: "Modern", personality: "A modern, refined take on your requested courses with clean plating." },
-  { label: "Rustic", personality: "A rustic, comforting interpretation of your requested courses." },
+  { label: "Deconstructed", personality: "Deconstructed plating that keeps flavors intact while changing form." },
+  { label: "Modernist", personality: "Modernist techniques and refined textures across your requested courses." },
+  { label: "Global Slant", personality: "International flavor accents that reinterpret your requested courses." },
   { label: "Elevated", personality: "An elevated, special-occasion version of your requested courses." }
 ];
 
@@ -109,6 +109,7 @@ Requirements for custom menu:
 - Each of the 5 menus must preserve the requested course ideas.
 - Provide options by varying preparation, ingredients, or style, but do not replace the course themes.
 - Keep the same number of courses in the same order.
+- Use these style lenses for the five options: Classic, Deconstructed, Modernist, Global slant, Elevated.
 `;
 }
  
