@@ -202,16 +202,39 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     .chat-input-area input { flex: 1; }
     
     /* ===== MENU CARDS ===== */
+    #menuList {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-top: 1.25rem;
+    }
     .menu-card {
       background: white;
       border: 2px solid var(--cream-dark);
       border-radius: 14px;
       padding: 1.75rem;
-      margin-bottom: 1.25rem;
       cursor: pointer;
       transition: all 0.25s;
       position: relative;
+      box-shadow: 0 10px 24px rgba(30,58,95,0.06);
+      animation: menuCascade 0.6s ease both;
     }
+    .menu-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      border-radius: 12px 0 0 12px;
+      background: linear-gradient(180deg, rgba(201,162,39,0.7) 0%, rgba(30,58,95,0.5) 100%);
+      opacity: 0.5;
+    }
+    .menu-card:nth-child(1) { animation-delay: 0ms; }
+    .menu-card:nth-child(2) { animation-delay: 80ms; }
+    .menu-card:nth-child(3) { animation-delay: 160ms; }
+    .menu-card:nth-child(4) { animation-delay: 240ms; }
+    .menu-card:nth-child(5) { animation-delay: 320ms; }
     .menu-card:hover {
       border-color: var(--gold);
       transform: translateY(-3px);
@@ -283,6 +306,16 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       font-size: 0.85rem;
       color: var(--gold);
       font-style: italic;
+    }
+    @keyframes menuCascade {
+      from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
     
     /* ===== STAFFING ===== */
