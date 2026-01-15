@@ -51,6 +51,36 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
  
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
+
+const INSPIRATION_BY_ID = new Map(MENU_INSPIRATIONS.map((item) => [item.id, item]));
+
+const formatList = (values, fallback) => {
+  if (!Array.isArray(values)) return fallback;
+  const cleaned = values.map((value) => String(value).trim()).filter(Boolean);
+  return cleaned.length ? cleaned.join(", ") : fallback;
+};
+
+const getInspirationSummary = (context = {}) => {
+  if (context?.inspirationLabel) return context.inspirationLabel;
+  const inspirationId = context?.inspiration;
+  if (!inspirationId) return "Chef's Tasting";
+  const inspiration = INSPIRATION_BY_ID.get(inspirationId);
+  if (!inspiration) return inspirationId;
+  return `${inspiration.title}${inspiration.desc ? ` — ${inspiration.desc}` : ""}`;
+};
+
+const getCuisineSummary = (context = {}) => {
+  if (context?.cuisineLabel) return context.cuisineLabel;
+  const cuisineKey = context?.cuisine;
+  if (!cuisineKey) return "Any";
+  const label = CUISINES?.[cuisineKey]?.label || cuisineKey;
+  return `${label}${context?.subCuisine ? ` (${context.subCuisine})` : ""}`;
+};
+
+const getCustomMenuNotes = (context = {}) => {
+  if (!context || typeof context.customMenu !== "string") return "";
+  return context.customMenu.trim();
+};
  
 // ============================================================
 // API ROUTES
@@ -130,6 +160,12 @@ app.post("/api/validate-code", (req, res) => {
 // Chat with expert persona
 app.post("/api/chat", async (req, res) => {
   const { persona, messages, context } = req.body || {};
+  const inspirationSummary = getInspirationSummary(context);
+  const cuisineSummary = getCuisineSummary(context);
+  const likesSummary = formatList(context?.likes, "none specified");
+  const dislikesSummary = formatList(context?.dislikes, "none specified");
+  const restrictionsSummary = formatList(context?.restrictions, "none");
+  const customMenuNotes = getCustomMenuNotes(context);
  
   if (!ANTHROPIC_API_KEY) {
     const demoResponses = {
@@ -157,11 +193,12 @@ Current event context:
 - Food Budget: ${context?.foodBudget || "$45-60"}/person
 - Wine Budget: ${context?.wineBudget || "$80-120"} total
 - Skill Level: ${context?.skillLevel || "intermediate"}
-- Inspiration: ${context?.inspiration || "chefs-tasting"}
-- Cuisine: ${context?.cuisine || "any"} ${context?.subCuisine ? `(${context.subCuisine})` : ""}
-- Likes: ${context?.likes?.join(", ") || "none specified"}
-- Dislikes: ${context?.dislikes?.join(", ") || "none specified"}
-- Restrictions: ${context?.restrictions?.join(", ") || "none"}
+- Inspiration: ${inspirationSummary}
+- Cuisine: ${cuisineSummary}
+- Likes: ${likesSummary}
+- Dislikes: ${dislikesSummary}
+- Restrictions: ${restrictionsSummary}
+${customMenuNotes ? `- Custom Menu Notes:\n${customMenuNotes}` : ""}
  
 Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.`;
  
@@ -187,6 +224,18 @@ Be conversational, warm, and helpful. Ask clarifying questions when needed. Shar
 // Generate menus
 app.post("/api/generate-menus", async (req, res) => {
   const { code, context, chatHistory, rejectionHistory } = req.body || {};
+  const inspirationSummary = getInspirationSummary(context);
+  const cuisineSummary = getCuisineSummary(context);
+  const likesSummary = formatList(context?.likes, "various");
+  const dislikesSummary = formatList(context?.dislikes, "nothing specific");
+  const restrictionsSummary = formatList(context?.restrictions, "none");
+  const customMenuNotes = getCustomMenuNotes(context);
+  const customMenuBlock = customMenuNotes
+    ? `\nUser Provided Menu Notes (must be reflected):\n${customMenuNotes}\n`
+    : "";
+  const alignmentRules = `Menus must strictly follow the inspiration and cuisine direction. Do not include any dishes or ingredients that conflict with dislikes or dietary restrictions.${
+    customMenuNotes ? " Treat the user-provided menu notes as non-negotiable requirements." : ""
+  }`;
  
   const upperCode = code?.trim?.().toUpperCase?.();
   if (upperCode && usageStats[upperCode]) {
@@ -194,7 +243,7 @@ app.post("/api/generate-menus", async (req, res) => {
   }
  
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ menus: DEMO_MENUS });
+    return res.json({ menus: DEMO_MENUS, demo: true });
   }
  
   try {
@@ -220,11 +269,13 @@ Event Context:
 - Food Budget: ${context?.foodBudget || "$45-60"}/person
 - Wine Budget: ${context?.wineBudget || "$80-120"} total
 - Skill Level: ${context?.skillLevel || "intermediate"}
-- Inspiration: ${context?.inspiration || "chefs-tasting"}
-- Cuisine Direction: ${context?.cuisine || "any"} ${context?.subCuisine ? `(${context.subCuisine})` : ""}
-- Guest Preferences: Likes ${context?.likes?.join(", ") || "various"}, Avoids ${context?.dislikes?.join(", ") || "nothing specific"}
-- Dietary Restrictions: ${context?.restrictions?.join(", ") || "none"}
-${chatContext}
+- Inspiration: ${inspirationSummary}
+- Cuisine Direction: ${cuisineSummary}
+- Guest Preferences: Likes ${likesSummary}, Avoids ${dislikesSummary}
+- Dietary Restrictions: ${restrictionsSummary}
+${customMenuBlock}${chatContext}
+ 
+${alignmentRules}
  
 Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - id: number (1-5)
@@ -254,13 +305,13 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content[0].text);
-      return res.json({ menus: DEMO_MENUS });
+      return res.json({ menus: DEMO_MENUS, demo: true });
     }
  
     res.json({ menus });
   } catch (err) {
     console.error("Menu generation error:", err);
-    res.json({ menus: DEMO_MENUS });
+    res.json({ menus: DEMO_MENUS, demo: true });
   }
 });
  

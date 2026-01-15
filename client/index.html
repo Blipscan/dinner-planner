@@ -423,6 +423,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       margin: 1rem 0;
       font-size: 0.95rem;
     }
+    .info-msg {
+      background: rgba(30,58,95,0.08);
+      border: 1px solid rgba(30,58,95,0.2);
+      color: var(--navy);
+      padding: 1rem 1.25rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
     
     /* ===== SECTION TITLE ===== */
     .section-title {
@@ -755,6 +764,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         <div class="spinner"></div>
         <p>Our culinary team is crafting your personalized menus...</p>
       </div>
+      
+      <div id="menuNotice" class="hidden"></div>
       
       <div id="menuList"></div>
       
@@ -1315,6 +1326,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
     
     function getContext() {
+      const customMenuInput = document.getElementById('customMenu');
+      const customMenu = customMenuInput ? customMenuInput.value.trim() : '';
       return {
         eventTitle: document.getElementById('eventTitle').value,
         eventDate: document.getElementById('eventDate').value,
@@ -1330,7 +1343,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         subCuisine: selectedSubCuisine,
         likes: likes,
         dislikes: dislikes,
-        restrictions: restrictions
+        restrictions: restrictions,
+        customMenu: customMenu
       };
     }
     
@@ -1353,10 +1367,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // STEP 5: MENU SELECTION
     // ============================================================
     async function generateMenus() {
+      const menuNotice = document.getElementById('menuNotice');
       document.getElementById('menuLoading').classList.remove('hidden');
       document.getElementById('menuList').innerHTML = '';
       document.getElementById('menuActions').classList.add('hidden');
       document.getElementById('rejectionChat').classList.add('hidden');
+      menuNotice.classList.add('hidden');
+      menuNotice.innerHTML = '';
       
       try {
         const res = await fetch('/api/generate-menus', {
@@ -1372,6 +1389,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         const data = await res.json();
         
         document.getElementById('menuLoading').classList.add('hidden');
+
+        if (data.demo) {
+          menuNotice.innerHTML = '<div class="info-msg">Sample menus are shown because live menu generation is unavailable. Some choices may not be reflected.</div>';
+          menuNotice.classList.remove('hidden');
+        }
         
         if (data.menus && data.menus.length > 0) {
           menus = data.menus;
@@ -1382,6 +1404,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
       } catch (err) {
         document.getElementById('menuLoading').classList.add('hidden');
+        menuNotice.classList.add('hidden');
+        menuNotice.innerHTML = '';
         document.getElementById('menuList').innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
       }
     }
