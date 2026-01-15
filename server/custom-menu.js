@@ -157,6 +157,32 @@ function buildCustomMenusFromIdeas(ideas, context) {
   }));
 }
 
+function buildSingleMenuFromIdeas(ideas, context) {
+  const foodBudget = context?.foodBudget || "$45-60";
+  const wineBudget = context?.wineBudget || "$80-120";
+  const courseIdeas = mapIdeasToCourses(ideas);
+  const fallbacks = {
+    "Amuse-Bouche": "Chef's amuse-bouche selection",
+    "First Course": "Seasonal first course",
+    "Second Course": "Light second course",
+    "Main Course": "Signature main course",
+    "Dessert": "House dessert",
+  };
+  return {
+    id: 1,
+    title: "Your Requested Menu",
+    personality: "Exactly the courses you requested, organized for service.",
+    foodCost: `${foodBudget}/person`,
+    wineCost: `${wineBudget} total`,
+    courses: COURSE_TYPES.map((type, courseIndex) => {
+      const idea = courseIdeas[courseIndex];
+      const name = idea || fallbacks[type];
+      const wine = type === "Amuse-Bouche" || type === "Second Course" ? null : "Sommelier selection";
+      return { type, name, wine };
+    }),
+  };
+}
+
 function buildCustomMenuPrompt(customMenu, ideas) {
   if (!customMenu) return "";
   const lines = ideas.length
@@ -210,6 +236,7 @@ module.exports = {
   extractCustomMenuItems,
   buildCustomMenusFromIdeas,
   buildCustomMenuPrompt,
+  buildSingleMenuFromIdeas,
   mapIdeasToCourses,
   menusRespectCustomIdeas,
 };

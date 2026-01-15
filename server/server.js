@@ -20,9 +20,7 @@ const {
 const { buildCookbook } = require("./cookbook");
 const {
   extractCustomMenuItems,
-  buildCustomMenusFromIdeas,
-  buildCustomMenuPrompt,
-  menusRespectCustomIdeas,
+  buildSingleMenuFromIdeas,
 } = require("./custom-menu");
  
 const app = express();
@@ -203,7 +201,7 @@ app.post("/api/generate-menus", async (req, res) => {
   }
  
   if (hasCustomMenu) {
-    return res.json({ menus: buildCustomMenusFromIdeas(customMenuIdeas, context) });
+    return res.json({ menus: [buildSingleMenuFromIdeas(customMenuIdeas, context)] });
   }
 
   if (!ANTHROPIC_API_KEY) {
@@ -225,7 +223,6 @@ app.post("/api/generate-menus", async (req, res) => {
         rejectionHistory.map((m) => `${m.role}: ${m.content}`).join("\n");
     }
  
-    const customMenuPrompt = hasCustomMenu ? buildCustomMenuPrompt(customMenu, customMenuIdeas) : "";
     const systemPrompt = `You are an expert culinary team creating dinner party menus.
  
 Event Context:
@@ -239,8 +236,6 @@ Event Context:
 - Guest Preferences: Likes ${context?.likes?.join(", ") || "various"}, Avoids ${context?.dislikes?.join(", ") || "nothing specific"}
 - Dietary Restrictions: ${context?.restrictions?.join(", ") || "none"}
 ${chatContext}
-${customMenuPrompt}
- 
 Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - id: number (1-5)
 - title: Creative, evocative menu name
@@ -266,16 +261,9 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
       const text = response.content[0].text.trim();
       const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
       menus = JSON.parse(jsonText);
-      if (hasCustomMenu && !menusRespectCustomIdeas(menus, customMenuIdeas)) {
-        console.warn("Custom menu mismatch; falling back to deterministic options.");
-        menus = buildCustomMenusFromIdeas(customMenuIdeas, context);
-      }
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content[0].text);
-      if (hasCustomMenu) {
-        return res.json({ menus: buildCustomMenusFromIdeas(customMenuIdeas, context) });
-      }
       return res.json({ menus: DEMO_MENUS });
     }
  

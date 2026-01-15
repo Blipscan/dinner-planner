@@ -3,10 +3,9 @@ const assert = require("node:assert/strict");
 
 const {
   COURSE_TYPES,
-  CUSTOM_MENU_OPTIONS,
   extractCustomMenuItems,
-  buildCustomMenusFromIdeas,
   buildCustomMenuPrompt,
+  buildSingleMenuFromIdeas,
   mapIdeasToCourses,
   menusRespectCustomIdeas,
 } = require("../custom-menu");
@@ -31,18 +30,15 @@ test("extractCustomMenuItems splits comma-separated lists", () => {
   assert.deepEqual(items, ["salad", "shrimp", "beef", "pie"]);
 });
 
-test("buildCustomMenusFromIdeas preserves ideas and count", () => {
+test("buildSingleMenuFromIdeas preserves ideas", () => {
   const ideas = ["Amuse: Oyster", "Salad", "Soup", "Steak", "Chocolate tart"];
   const mapped = mapIdeasToCourses(ideas);
-  const menus = buildCustomMenusFromIdeas(ideas, { foodBudget: "$50-60", wineBudget: "$120" });
-  assert.equal(menus.length, CUSTOM_MENU_OPTIONS.length);
-  menus.forEach((menu) => {
-    assert.equal(menu.courses.length, COURSE_TYPES.length);
-    mapped.forEach((idea, idx) => {
-      if (idea) {
-        assert.ok(menu.courses[idx].name.includes(idea));
-      }
-    });
+  const menu = buildSingleMenuFromIdeas(ideas, { foodBudget: "$50-60", wineBudget: "$120" });
+  assert.equal(menu.courses.length, COURSE_TYPES.length);
+  mapped.forEach((idea, idx) => {
+    if (idea) {
+      assert.ok(menu.courses[idx].name.includes(idea));
+    }
   });
 });
 
