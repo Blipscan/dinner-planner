@@ -581,6 +581,16 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <button class="btn btn-primary" onclick="validateCode()">Begin Planning</button>
         </div>
       </div>
+      
+      <div class="card">
+        <h2 class="card-title">Resume From JSON</h2>
+        <p class="card-subtitle">Upload the JSON file from your last session to restore your progress.</p>
+        <div class="actions">
+          <input type="file" id="planFileInput" accept="application/json" class="hidden" onchange="loadPlanFile(event)">
+          <button class="btn btn-outline" onclick="triggerPlanUpload()">Load JSON File</button>
+        </div>
+        <div id="planLoadMessage"></div>
+      </div>
     </section>
     
     <!-- Step 2: Event Details -->
@@ -881,6 +891,409 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let selectedStaffing = 'solo';
     let rejectionHistory = [];
     let cookbookId = null;
+    const PLAN_STORAGE_KEY = 'dinnerPlannerLastPlan';
+    const MAX_STEP = 7;
+    
+    function toArray(value) {
+      return Array.isArray(value) ? value : [];
+    }
+    
+    function toStringArray(value) {
+      if (Array.isArray(value)) return value.filter((item) => typeof item === 'string');
+      if (typeof value === 'string') {
+        return value
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+      return [];
+    }
+    
+    function normalizeMessageList(value) {
+      return toArray(value)
+        .map((item) => {
+          if (!item) return null;
+          if (typeof item === 'string') return { role: 'assistant', content: item };
+          if (typeof item !== 'object') return null;
+          
+          const content = item.content || item.message || item.text;
+          if (!content) return null;
+          
+          const rawRole = item.role || item.sender || item.type || 'assistant';
+          const role = rawRole === 'user' ? 'user' : 'assistant';
+          return { role, content };
+        })
+        .filter(Boolean);
+    }
+    
+    function toNumber(value) {
+      if (value === null || value === undefined || value === '') return null;
+      const num = Number(value);
+      return Number.isFinite(num) ? num : null;
+    }
+    
+    function clampStep(value) {
+      const num = toNumber(value);
+      if (!num) return null;
+      return Math.min(MAX_STEP, Math.max(1, Math.round(num)));
+    }
+    
+    function inferStepFromState(state) {
+      if (state.cookbookId) return 7;
+      if (state.selectedMenu !== null) return 6;
+      if (state.menus.length) return 5;
+      if (state.selectedExpert || state.chatHistory.length) return 4;
+      if (
+        state.selectedInspiration ||
+        state.selectedCuisine ||
+        state.likes.length ||
+        state.dislikes.length ||
+        state.restrictions.length
+      ) return 3;
+      if (state.form.eventTitle || state.form.eventDate || state.form.guestList || state.form.guestCount) return 2;
+      return 1;
+    }
+    
+    function normalizePlanData(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+      const base = raw.state || raw.plan || raw;
+      const context = base.context || base.event || base.eventDetails || {};
+      const preferences = base.preferences || {};
+      let menus = Array.isArray(base.menus)
+        ? base.menus
+        : Array.isArray(base.menuOptions)
+          ? base.menuOptions
+          : Array.isArray(base.menu)
+            ? base.menu
+            : [];
+      let selectedMenuIndex = base.selectedMenu ?? base.selectedMenuIndex ?? null;
+      const selectedMenuId = base.selectedMenuId ?? null;
+      let selectedMenuIdValue = selectedMenuId;
+      if (typeof selectedMenuIdValue === 'string') {
+        const parsedId = Number(selectedMenuIdValue);
+        if (Number.isFinite(parsedId)) selectedMenuIdValue = parsedId;
+      }
+      
+      if (typeof selectedMenuIndex === 'string') {
+        const parsedIndex = Number(selectedMenuIndex);
+        if (Number.isFinite(parsedIndex)) selectedMenuIndex = parsedIndex;
+      }
+      
+      if (selectedMenuIndex && typeof selectedMenuIndex === 'object') {
+        const menuObject = selectedMenuIndex;
+        if (menus.length) {
+          const idx = menus.findIndex((menu) => menu?.id === menuObject?.id);
+          selectedMenuIndex = idx !== -1 ? idx : 0;
+        } else {
+          menus = [menuObject];
+          selectedMenuIndex = 0;
+        }
+      }
+      
+      if (!menus.length && base.menu && typeof base.menu === 'object') {
+        menus = [base.menu];
+        selectedMenuIndex = 0;
+      }
+      
+      menus = menus.map((menu) => {
+        const safeMenu = menu && typeof menu === 'object' ? menu : {};
+        return {
+          ...safeMenu,
+          courses: Array.isArray(safeMenu.courses) ? safeMenu.courses : []
+        };
+      });
+      
+      if (!menus.length) selectedMenuIndex = null;
+      
+      if (selectedMenuIndex != null && menus.length && (selectedMenuIndex < 0 || selectedMenuIndex >= menus.length)) {
+        const idxById = menus.findIndex((menu) => menu?.id === selectedMenuIndex);
+        if (idxById !== -1) selectedMenuIndex = idxById;
+      }
+      
+      if (selectedMenuIndex == null && selectedMenuIdValue != null && menus.length) {
+        const idx = menus.findIndex((menu) => menu?.id === selectedMenuIdValue);
+        if (idx !== -1) selectedMenuIndex = idx;
+      }
+      
+      if (selectedMenuIndex != null && menus.length && (selectedMenuIndex < 0 || selectedMenuIndex >= menus.length)) {
+        selectedMenuIndex = null;
+      }
+      
+      const normalized = {
+        accessCode: base.accessCode,
+        selectedStyle: base.selectedStyle || context.menuStyle || preferences.menuStyle,
+        selectedInspiration: base.selectedInspiration || context.inspiration || preferences.inspiration,
+        selectedCuisine: base.selectedCuisine || context.cuisine || preferences.cuisine,
+        selectedSubCuisine: base.selectedSubCuisine || context.subCuisine || preferences.subCuisine,
+        likes: toStringArray(base.likes || context.likes || preferences.likes),
+        dislikes: toStringArray(base.dislikes || context.dislikes || preferences.dislikes),
+        restrictions: toStringArray(base.restrictions || context.restrictions || preferences.restrictions),
+        selectedExpert: base.selectedExpert || base.expert || null,
+        chatHistory: normalizeMessageList(base.chatHistory || base.chat || base.messages),
+        menus,
+        selectedMenu: selectedMenuIndex ?? null,
+        selectedStaffing: base.selectedStaffing || base.staffing || base.staffingOption,
+        rejectionHistory: normalizeMessageList(base.rejectionHistory || base.rejections),
+        cookbookId: base.cookbookId || base.cookbook?.id || null,
+        form: {
+          eventTitle: context.eventTitle || base.eventTitle,
+          eventDate: context.eventDate || base.eventDate,
+          guestCount: context.guestCount || base.guestCount,
+          guestList: context.guestList || base.guestList,
+          serviceTime: context.serviceTime || base.serviceTime,
+          foodBudget: context.foodBudget || base.foodBudget,
+          wineBudget: context.wineBudget || base.wineBudget,
+          skillLevel: context.skillLevel || base.skillLevel,
+          customMenu: context.customMenu || base.customMenu
+        }
+      };
+      
+      let currentStepValue = clampStep(base.currentStep ?? base.step ?? raw.currentStep ?? raw.step);
+      let maxStepValue = clampStep(base.maxStepReached ?? base.maxStep ?? raw.maxStepReached ?? raw.maxStep);
+      
+      if (!currentStepValue) currentStepValue = inferStepFromState(normalized);
+      if (!maxStepValue || maxStepValue < currentStepValue) maxStepValue = currentStepValue;
+      
+      normalized.currentStep = currentStepValue;
+      normalized.maxStepReached = maxStepValue;
+      
+      return normalized;
+    }
+    
+    function initializeUi() {
+      initStyleGrid();
+      initInspirationGrid();
+      initCuisineChips();
+      initPreferenceChips();
+      initExpertGrid();
+      initStaffingOptions();
+      initAveryProducts();
+      initCookbookSections();
+    }
+    
+    function setInputValue(id, value) {
+      if (value === undefined || value === null) return;
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    }
+    
+    function applyFormValues(values) {
+      if (!values) return;
+      setInputValue('eventTitle', values.eventTitle);
+      setInputValue('eventDate', values.eventDate);
+      setInputValue('guestCount', values.guestCount);
+      setInputValue('guestList', values.guestList);
+      setInputValue('serviceTime', values.serviceTime);
+      setInputValue('foodBudget', values.foodBudget);
+      setInputValue('wineBudget', values.wineBudget);
+      setInputValue('skillLevel', values.skillLevel);
+      setInputValue('customMenu', values.customMenu);
+    }
+    
+    function updateCustomMenuVisibility() {
+      const customInput = document.getElementById('customMenuInput');
+      if (!customInput) return;
+      if (selectedInspiration === 'custom') {
+        customInput.classList.remove('hidden');
+      } else {
+        customInput.classList.add('hidden');
+      }
+    }
+    
+    function renderSelectedMenuSummary(menu) {
+      const summary = document.getElementById('selectedMenuSummary');
+      if (!summary || !menu) {
+        if (summary) summary.innerHTML = '';
+        return;
+      }
+      summary.innerHTML = `
+        <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--navy);margin-bottom:0.5rem">${menu.title}</div>
+        <div style="font-style:italic;color:var(--text-light);margin-bottom:1rem">${menu.personality}</div>
+        ${menu.courses.map(c => `
+          <div style="padding:0.4rem 0;font-size:0.95rem;display:flex;gap:0.75rem">
+            <strong style="color:var(--gold-dark);min-width:100px">${c.type}:</strong>
+            <span>${c.name}</span>
+          </div>
+        `).join('')}
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.9rem;color:var(--text-light)">
+          Food: ${menu.foodCost} | Wine: ${menu.wineCost}
+        </div>
+      `;
+    }
+    
+    function refreshExpertChatFromState() {
+      const chatSection = document.getElementById('chatSection');
+      if (!chatSection) return;
+      if (!selectedExpert || !DATA.personas) {
+        chatSection.classList.add('hidden');
+        return;
+      }
+      
+      const persona = DATA.personas[selectedExpert];
+      chatSection.classList.remove('hidden');
+      if (persona) {
+        document.getElementById('chatIcon').textContent = persona.icon;
+        document.getElementById('chatName').textContent = persona.name;
+      }
+      if (!chatHistory.length) {
+        chatHistory = [{ role: 'assistant', content: getExpertGreeting(selectedExpert) }];
+      }
+      renderChat();
+    }
+    
+    function refreshMenusFromState() {
+      const menuLoading = document.getElementById('menuLoading');
+      const menuActions = document.getElementById('menuActions');
+      const rejectionChat = document.getElementById('rejectionChat');
+      if (menuLoading) menuLoading.classList.add('hidden');
+      
+      if (menus.length) {
+        renderMenus();
+        if (menuActions) menuActions.classList.remove('hidden');
+      } else if (menuActions) {
+        menuActions.classList.add('hidden');
+      }
+      
+      if (selectedMenu !== null && menus[selectedMenu]) {
+        const selectBtn = document.getElementById('selectMenuBtn');
+        if (selectBtn) selectBtn.disabled = false;
+      }
+      
+      if (rejectionHistory.length) {
+        if (rejectionChat) rejectionChat.classList.remove('hidden');
+        if (menuActions) menuActions.classList.add('hidden');
+        renderRejectionChat();
+      } else if (rejectionChat) {
+        rejectionChat.classList.add('hidden');
+      }
+    }
+    
+    function refreshCookbookState() {
+      const loading = document.getElementById('cookbookLoading');
+      const complete = document.getElementById('cookbookComplete');
+      if (loading) loading.classList.add('hidden');
+      if (!complete) return;
+      if (cookbookId) {
+        complete.classList.remove('hidden');
+      } else {
+        complete.classList.add('hidden');
+      }
+    }
+    
+    function buildPlanSnapshot() {
+      return {
+        version: 1,
+        currentStep,
+        maxStepReached,
+        accessCode,
+        selectedStyle,
+        selectedInspiration,
+        selectedCuisine,
+        selectedSubCuisine,
+        likes,
+        dislikes,
+        restrictions,
+        selectedExpert,
+        chatHistory,
+        menus,
+        selectedMenu,
+        selectedStaffing,
+        rejectionHistory,
+        cookbookId,
+        context: getContext()
+      };
+    }
+    
+    function savePlanToStorage(plan) {
+      try {
+        localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(plan));
+      } catch (err) {
+        console.warn('Unable to save plan:', err);
+      }
+    }
+    
+    function applyPlanState(rawPlan, options = {}) {
+      const normalized = normalizePlanData(rawPlan);
+      if (!normalized) return false;
+      
+      accessCode = normalized.accessCode ?? accessCode;
+      setInputValue('accessCode', normalized.accessCode);
+      currentStep = normalized.currentStep ?? currentStep;
+      maxStepReached = normalized.maxStepReached ?? maxStepReached;
+      selectedStyle = normalized.selectedStyle || selectedStyle;
+      selectedInspiration = normalized.selectedInspiration || selectedInspiration;
+      selectedCuisine = normalized.selectedCuisine ?? selectedCuisine;
+      selectedSubCuisine = normalized.selectedSubCuisine ?? selectedSubCuisine;
+      likes = normalized.likes;
+      dislikes = normalized.dislikes;
+      restrictions = normalized.restrictions;
+      selectedExpert = normalized.selectedExpert;
+      chatHistory = normalized.chatHistory;
+      menus = normalized.menus;
+      selectedMenu = normalized.selectedMenu;
+      selectedStaffing = normalized.selectedStaffing || selectedStaffing;
+      rejectionHistory = normalized.rejectionHistory;
+      cookbookId = normalized.cookbookId ?? cookbookId;
+      
+      applyFormValues(normalized.form);
+      initializeUi();
+      updateCuisineSubOptions();
+      updateCustomMenuVisibility();
+      refreshExpertChatFromState();
+      refreshMenusFromState();
+      renderSelectedMenuSummary(menus[selectedMenu]);
+      refreshCookbookState();
+      goToStep(currentStep);
+      
+      if (options.save) savePlanToStorage(buildPlanSnapshot());
+      return true;
+    }
+    
+    function loadPlanFromStorage() {
+      try {
+        const raw = localStorage.getItem(PLAN_STORAGE_KEY);
+        if (!raw) return false;
+        const plan = JSON.parse(raw);
+        return applyPlanState(plan);
+      } catch (err) {
+        console.warn('Unable to load saved plan:', err);
+        return false;
+      }
+    }
+    
+    function clearSavedPlan() {
+      try {
+        localStorage.removeItem(PLAN_STORAGE_KEY);
+      } catch (err) {
+        console.warn('Unable to clear saved plan:', err);
+      }
+    }
+    
+    function triggerPlanUpload() {
+      const input = document.getElementById('planFileInput');
+      if (input) input.click();
+    }
+    
+    function loadPlanFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        const messageEl = document.getElementById('planLoadMessage');
+        try {
+          const parsed = JSON.parse(reader.result);
+          const applied = applyPlanState(parsed, { save: true });
+          if (messageEl) {
+            messageEl.textContent = applied ? 'Plan loaded successfully.' : 'Unable to load plan data.';
+          }
+        } catch (err) {
+          if (messageEl) messageEl.textContent = 'Invalid JSON file. Please check the file and try again.';
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
     
     // ============================================================
     // INITIALIZATION
@@ -893,24 +1306,23 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         console.error('Failed to load data:', e);
       }
       
-      initStyleGrid();
-      initInspirationGrid();
-      initCuisineChips();
-      initPreferenceChips();
-      initExpertGrid();
-      initStaffingOptions();
-      initAveryProducts();
-      initCookbookSections();
+      const restored = loadPlanFromStorage();
+      if (!restored) initializeUi();
       
       // Set default date 2 weeks out
-      const defaultDate = new Date();
-      defaultDate.setDate(defaultDate.getDate() + 14);
-      document.getElementById('eventDate').value = defaultDate.toISOString().split('T')[0];
+      const dateInput = document.getElementById('eventDate');
+      if (dateInput && !dateInput.value) {
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() + 14);
+        dateInput.value = defaultDate.toISOString().split('T')[0];
+      }
       
       // Enter key for access code
       document.getElementById('accessCode').addEventListener('keypress', e => {
         if (e.key === 'Enter') validateCode();
       });
+      
+      window.addEventListener('beforeunload', () => savePlanToStorage(buildPlanSnapshot()));
     }
     
     document.addEventListener('DOMContentLoaded', init);
@@ -939,6 +1351,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <div class="desc">${i.desc}</div>
         </div>
       `).join('');
+      updateCustomMenuVisibility();
     }
     
     function initCuisineChips() {
@@ -955,15 +1368,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const restrictionOptions = ['Gluten-Free', 'Dairy-Free', 'Nut Allergy', 'Vegetarian', 'Vegan', 'Pescatarian', 'Low Sodium', 'Low Sugar', 'Kosher', 'Halal'];
       
       document.getElementById('likesChips').innerHTML = likeOptions.map(o => `
-        <span class="chip" onclick="toggleChip(this, 'likes', '${o}')">${o}</span>
+        <span class="chip ${likes.includes(o) ? 'selected' : ''}" onclick="toggleChip(this, 'likes', '${o}')">${o}</span>
       `).join('');
       
       document.getElementById('dislikesChips').innerHTML = dislikeOptions.map(o => `
-        <span class="chip" onclick="toggleChip(this, 'dislikes', '${o}')">${o}</span>
+        <span class="chip ${dislikes.includes(o) ? 'selected' : ''}" onclick="toggleChip(this, 'dislikes', '${o}')">${o}</span>
       `).join('');
       
       document.getElementById('restrictionsChips').innerHTML = restrictionOptions.map(o => `
-        <span class="chip" onclick="toggleChip(this, 'restrictions', '${o}')">${o}</span>
+        <span class="chip ${restrictions.includes(o) ? 'selected' : ''}" onclick="toggleChip(this, 'restrictions', '${o}')">${o}</span>
       `).join('');
     }
     
@@ -971,7 +1384,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const grid = document.getElementById('expertGrid');
       if (!DATA.personas) return;
       grid.innerHTML = Object.entries(DATA.personas).map(([key, p]) => `
-        <div class="expert-card" onclick="selectExpert('${key}')">
+        <div class="expert-card ${selectedExpert === key ? 'selected' : ''}" onclick="selectExpert('${key}')">
           <div class="icon">${p.icon}</div>
           <div class="name">${p.name}</div>
           <div class="credentials">${p.credentials}</div>
@@ -1047,7 +1460,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       if (step > maxStepReached) maxStepReached = step;
       
       // Hide all steps
-      for (let i = 1; i <= 7; i++) {
+      for (let i = 1; i <= MAX_STEP; i++) {
         document.getElementById('step' + i).classList.add('hidden');
       }
       
@@ -1069,7 +1482,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
     
     function updateProgress() {
-      for (let i = 1; i <= 7; i++) {
+      for (let i = 1; i <= MAX_STEP; i++) {
         const dot = document.getElementById('dot' + i);
         const line = document.getElementById('line' + i);
         
@@ -1131,14 +1544,6 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     function selectInspiration(id) {
       selectedInspiration = id;
       initInspirationGrid();
-      
-      // Show custom menu input if "I Already Know" selected
-      const customInput = document.getElementById('customMenuInput');
-      if (id === 'custom') {
-        customInput.classList.remove('hidden');
-      } else {
-        customInput.classList.add('hidden');
-      }
     }
     
     function selectCuisine(key) {
@@ -1330,7 +1735,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         subCuisine: selectedSubCuisine,
         likes: likes,
         dislikes: dislikes,
-        restrictions: restrictions
+        restrictions: restrictions,
+        customMenu: document.getElementById('customMenu')?.value || ''
       };
     }
     
@@ -1419,19 +1825,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       if (selectedMenu === null) return;
       
       const menu = menus[selectedMenu];
-      document.getElementById('selectedMenuSummary').innerHTML = `
-        <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--navy);margin-bottom:0.5rem">${menu.title}</div>
-        <div style="font-style:italic;color:var(--text-light);margin-bottom:1rem">${menu.personality}</div>
-        ${menu.courses.map(c => `
-          <div style="padding:0.4rem 0;font-size:0.95rem;display:flex;gap:0.75rem">
-            <strong style="color:var(--gold-dark);min-width:100px">${c.type}:</strong>
-            <span>${c.name}</span>
-          </div>
-        `).join('')}
-        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.9rem;color:var(--text-light)">
-          Food: ${menu.foodCost} | Wine: ${menu.wineCost}
-        </div>
-      `;
+      renderSelectedMenuSummary(menu);
       
       goToStep(6);
     }
@@ -1592,6 +1986,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       cookbookId = null;
       maxStepReached = 2;
       goToStep(2);
+      clearSavedPlan();
     }
   </script>
 </body>
