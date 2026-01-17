@@ -881,6 +881,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let selectedStaffing = 'solo';
     let rejectionHistory = [];
     let cookbookId = null;
+    let audioContext = null;
+    let audioUnlocked = false;
     
     // ============================================================
     // INITIALIZATION
@@ -893,6 +895,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         console.error('Failed to load data:', e);
       }
       
+      prepareTonePlayback();
       initStyleGrid();
       initInspirationGrid();
       initCuisineChips();
@@ -1043,6 +1046,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // NAVIGATION
     // ============================================================
     function goToStep(step) {
+      if (step === 4 && maxStepReached < 3) {
+        step = 3;
+      }
+      const isStepChange = step !== currentStep;
+
       // Update max reached
       if (step > maxStepReached) maxStepReached = step;
       
@@ -1060,6 +1068,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      if (isStepChange) {
+        playStepTone();
+      }
     }
     
     function jumpToStep(step) {
@@ -1083,6 +1095,48 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           dot.classList.add('active');
         }
       }
+    }
+
+    function prepareTonePlayback() {
+      const unlock = () => {
+        if (audioUnlocked) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) {
+          audioUnlocked = true;
+          return;
+        }
+        audioContext = new AudioContext();
+        audioContext.resume().catch(() => {});
+        audioUnlocked = true;
+      };
+
+      document.addEventListener('pointerdown', unlock, { once: true });
+      document.addEventListener('keydown', unlock, { once: true });
+    }
+
+    function playStepTone() {
+      if (!audioContext) return;
+
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {});
+      }
+
+      const now = audioContext.currentTime;
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 880;
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.08, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.18);
     }
     
     // ============================================================
