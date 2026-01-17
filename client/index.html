@@ -716,37 +716,6 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       </div>
     </section>
     
-    <!-- Step 5: Expert Consultation -->
-    <section id="step5" class="hidden">
-      <div class="card">
-        <h2 class="card-title">Expert Consultation</h2>
-        <p class="card-subtitle">Want a second opinion or guidance on the menus? Consult our experts anytime.</p>
-        <div class="expert-grid" id="expertGrid"></div>
-        <div class="actions" style="margin-top:1.5rem">
-          <button class="btn btn-outline" onclick="skipConsultation()">Back to Menus</button>
-        </div>
-      </div>
-      
-      <div id="chatSection" class="hidden">
-        <div class="chat-container">
-          <div class="chat-header">
-            <span class="icon" id="chatIcon">👨‍🍳</span>
-            <span class="name" id="chatName">The Chef</span>
-          </div>
-          <div class="chat-messages" id="chatMessages"></div>
-          <div class="chat-input-area">
-            <input type="text" id="chatInput" placeholder="Ask a question or share your vision..." onkeypress="if(event.key==='Enter')sendChat()">
-            <button class="btn btn-primary" onclick="sendChat()">Send</button>
-          </div>
-        </div>
-        <div class="actions">
-          <button class="btn btn-secondary" onclick="goToStep(4)">Back to Menus</button>
-          <button class="btn btn-outline" onclick="endChat()">End Consultation</button>
-          <button class="btn btn-gold" onclick="goToStep(4)">Return to Menus</button>
-        </div>
-      </div>
-    </section>
-    
     <!-- Step 4: Menu Selection -->
     <section id="step4" class="hidden">
       <h2 class="section-title">Choose Your Menu</h2>
@@ -783,6 +752,37 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <div class="actions">
             <button class="btn btn-gold" onclick="regenerateMenus()">Generate New Menus</button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 5: Expert Consultation -->
+    <section id="step5" class="hidden">
+      <div class="card">
+        <h2 class="card-title">Expert Consultation</h2>
+        <p class="card-subtitle">Want a second opinion or guidance on the menus? Consult our experts anytime.</p>
+        <div class="expert-grid" id="expertGrid"></div>
+        <div class="actions" style="margin-top:1.5rem">
+          <button class="btn btn-outline" onclick="skipConsultation()">Back to Menus</button>
+        </div>
+      </div>
+      
+      <div id="chatSection" class="hidden">
+        <div class="chat-container">
+          <div class="chat-header">
+            <span class="icon" id="chatIcon">👨‍🍳</span>
+            <span class="name" id="chatName">The Chef</span>
+          </div>
+          <div class="chat-messages" id="chatMessages"></div>
+          <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Ask a question or share your vision..." onkeypress="if(event.key==='Enter')sendChat()">
+            <button class="btn btn-primary" onclick="sendChat()">Send</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary" onclick="goToStep(4)">Back to Menus</button>
+          <button class="btn btn-outline" onclick="endChat()">End Consultation</button>
+          <button class="btn btn-gold" onclick="goToStep(4)">Return to Menus</button>
         </div>
       </div>
     </section>
