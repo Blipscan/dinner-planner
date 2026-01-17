@@ -1836,18 +1836,21 @@ function attachMatchFormLiveUpdates(match, container) {
     setNet(getData('net', 'b-g2'), g2bNet, g2Winner === 'B');
     setNet(getData('net', 'b-series'), seriesBNet, seriesWinner === 'B');
 
-    const [g1aPts, g1bPts] = computePointsForNet(g1aNet, g1bNet);
-    const [g2aPts, g2bPts] = computePointsForNet(g2aNet, g2bNet);
-    const [sApts, sBpts] = computePointsForNet(seriesANet, seriesBNet);
+    const g1HasScores = (totalsA.g1 + totalsB.g1) > 0;
+    const g2HasScores = (totalsA.g2 + totalsB.g2) > 0;
+    const seriesHasScores = (totalsA.series + totalsB.series) > 0;
+    const [g1aPts, g1bPts] = g1HasScores ? computePointsForNet(g1aNet, g1bNet) : [0, 0];
+    const [g2aPts, g2bPts] = g2HasScores ? computePointsForNet(g2aNet, g2bNet) : [0, 0];
+    const [sApts, sBpts] = seriesHasScores ? computePointsForNet(seriesANet, seriesBNet) : [0, 0];
     const totalPtsA = g1aPts + g2aPts + sApts;
     const totalPtsB = g1bPts + g2bPts + sBpts;
 
     const ptsG1Input = get('ptsG1');
     const ptsG2Input = get('ptsG2');
     const ptsSeriesInput = get('ptsSeries');
-    if (ptsG1Input) ptsG1Input.value = formatPointsPair(g1aPts, g1bPts);
-    if (ptsG2Input) ptsG2Input.value = formatPointsPair(g2aPts, g2bPts);
-    if (ptsSeriesInput) ptsSeriesInput.value = formatPointsPair(sApts, sBpts);
+    if (ptsG1Input) ptsG1Input.value = g1HasScores ? formatPointsPair(g1aPts, g1bPts) : '';
+    if (ptsG2Input) ptsG2Input.value = g2HasScores ? formatPointsPair(g2aPts, g2bPts) : '';
+    if (ptsSeriesInput) ptsSeriesInput.value = seriesHasScores ? formatPointsPair(sApts, sBpts) : '';
 
     setText(getData('points', 'a-total'), totalPtsA);
     setText(getData('points', 'b-total'), totalPtsB);
@@ -1989,6 +1992,16 @@ function openMatchForm(matchId) {
   const g2Winner = g2aNet > g2bNet ? 'A' : (g2bNet > g2aNet ? 'B' : '');
   const seriesWinner = seriesANet > seriesBNet ? 'A' : (seriesBNet > seriesANet ? 'B' : '');
 
+  const g1HasScores = (totalA1 + totalB1) > 0;
+  const g2HasScores = (totalA2 + totalB2) > 0;
+  const seriesHasScores = (seriesAScratch + seriesBScratch) > 0;
+  const [g1aPtsAuto, g1bPtsAuto] = g1HasScores ? computePointsForNet(g1aNet, g1bNet) : [0, 0];
+  const [g2aPtsAuto, g2bPtsAuto] = g2HasScores ? computePointsForNet(g2aNet, g2bNet) : [0, 0];
+  const [sAptsAuto, sBptsAuto] = seriesHasScores ? computePointsForNet(seriesANet, seriesBNet) : [0, 0];
+  if (g1HasScores) ptsG1 = formatPointsPair(g1aPtsAuto, g1bPtsAuto);
+  if (g2HasScores) ptsG2 = formatPointsPair(g2aPtsAuto, g2bPtsAuto);
+  if (seriesHasScores) ptsSeries = formatPointsPair(sAptsAuto, sBptsAuto);
+
   let html = '';
   html += '<div class="card-header">';
   html += '<div><div class="card-title">' + formatDateLabel(match.date) + ' · ' + leagueLabel(match.league) + '</div>';
@@ -2074,11 +2087,8 @@ function openMatchForm(matchId) {
   html += '</div>'; // End side-by-side grid
 
   // Points section (condensed to one line - no wrapping)
-  const [g1aPtsCalc, g1bPtsCalc] = ptsG1 ? ptsG1.split('/').map(x => parseInt(x) || 0) : [0, 0];
-  const [g2aPtsCalc, g2bPtsCalc] = ptsG2 ? ptsG2.split('/').map(x => parseInt(x) || 0) : [0, 0];
-  const [sAptsCalc, sBptsCalc] = ptsSeries ? ptsSeries.split('/').map(x => parseInt(x) || 0) : [0, 0];
-  const totalPtsA = g1aPtsCalc + g2aPtsCalc + sAptsCalc;
-  const totalPtsB = g1bPtsCalc + g2bPtsCalc + sBptsCalc;
+  const totalPtsA = g1aPtsAuto + g2aPtsAuto + sAptsAuto;
+  const totalPtsB = g1bPtsAuto + g2bPtsAuto + sBptsAuto;
   
   html += '<div style="background:#111827;border:1px solid #1f2937;border-radius:0.5rem;padding:0.75rem;margin-top:1rem;">';
   html += '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap;white-space:nowrap;">';
