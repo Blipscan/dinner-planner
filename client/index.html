@@ -643,6 +643,27 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     <!-- Step 3: Preferences -->
     <section id="step3" class="hidden">
       <div class="card">
+        <h2 class="card-title">Cascading Culinary Preferences</h2>
+        <div class="form-group">
+          <label>Cuisine Direction</label>
+          <div class="chip-group" id="cuisineChips"></div>
+          <div id="cuisineSubOptions" class="cuisine-section hidden"></div>
+        </div>
+        <div class="form-group">
+          <label>Favorites <span style="font-weight:normal;color:var(--text-light)">(select all that apply)</span></label>
+          <div class="chip-group" id="likesChips"></div>
+        </div>
+        <div class="form-group">
+          <label>Avoid</label>
+          <div class="chip-group" id="dislikesChips"></div>
+        </div>
+        <div class="form-group">
+          <label>Dietary Restrictions</label>
+          <div class="chip-group" id="restrictionsChips"></div>
+        </div>
+      </div>
+
+      <div class="card">
         <h2 class="card-title">Menu Inspiration</h2>
         <p class="card-subtitle">What kind of dining experience are you creating? This guides our menu suggestions.</p>
         <div class="inspiration-grid" id="inspirationGrid"></div>
@@ -686,27 +707,6 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <option value="intermediate" selected>Intermediate — Comfortable improvising</option>
             <option value="advanced">Advanced — Professionally trained or serious home cook</option>
           </select>
-        </div>
-      </div>
-      
-      <div class="card">
-        <h2 class="card-title">Taste Preferences</h2>
-        <div class="form-group">
-          <label>Cuisine Direction</label>
-          <div class="chip-group" id="cuisineChips"></div>
-          <div id="cuisineSubOptions" class="cuisine-section hidden"></div>
-        </div>
-        <div class="form-group">
-          <label>Favorites <span style="font-weight:normal;color:var(--text-light)">(select all that apply)</span></label>
-          <div class="chip-group" id="likesChips"></div>
-        </div>
-        <div class="form-group">
-          <label>Avoid</label>
-          <div class="chip-group" id="dislikesChips"></div>
-        </div>
-        <div class="form-group">
-          <label>Dietary Restrictions</label>
-          <div class="chip-group" id="restrictionsChips"></div>
         </div>
       </div>
       
