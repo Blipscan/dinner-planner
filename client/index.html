@@ -716,14 +716,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       </div>
     </section>
     
-    <!-- Step 4: Expert Consultation -->
-    <section id="step4" class="hidden">
+    <!-- Step 5: Expert Consultation -->
+    <section id="step5" class="hidden">
       <div class="card">
         <h2 class="card-title">Expert Consultation</h2>
-        <p class="card-subtitle">Before we design your menu, would you like to consult with our experts? They can help refine your vision and answer questions. This is optional but recommended.</p>
+        <p class="card-subtitle">Want a second opinion or guidance on the menus? Consult our experts anytime.</p>
         <div class="expert-grid" id="expertGrid"></div>
         <div class="actions" style="margin-top:1.5rem">
-          <button class="btn btn-outline" onclick="skipConsultation()">Skip — Generate Menus</button>
+          <button class="btn btn-outline" onclick="skipConsultation()">Back to Menus</button>
         </div>
       </div>
       
@@ -740,15 +740,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           </div>
         </div>
         <div class="actions">
-          <button class="btn btn-secondary" onclick="goToStep(3)">Back to Preferences</button>
+          <button class="btn btn-secondary" onclick="goToStep(4)">Back to Menus</button>
           <button class="btn btn-outline" onclick="endChat()">End Consultation</button>
-          <button class="btn btn-gold" onclick="proceedToMenus()">Generate Menus →</button>
+          <button class="btn btn-gold" onclick="goToStep(4)">Return to Menus</button>
         </div>
       </div>
     </section>
     
-    <!-- Step 5: Menu Selection -->
-    <section id="step5" class="hidden">
+    <!-- Step 4: Menu Selection -->
+    <section id="step4" class="hidden">
       <h2 class="section-title">Choose Your Menu</h2>
       
       <div id="menuLoading" class="loading hidden">
@@ -761,6 +761,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div id="menuActions" class="actions hidden">
         <button class="btn btn-secondary" onclick="goToStep(3)">Back</button>
         <button class="btn btn-outline" onclick="rejectMenus()">None of These Work</button>
+        <button class="btn btn-outline" onclick="goToStep(5)">Consult Experts</button>
         <button class="btn btn-primary" id="selectMenuBtn" onclick="selectMenu()" disabled>Select This Menu</button>
       </div>
       
@@ -800,7 +801,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       </div>
       
       <div class="actions">
-        <button class="btn btn-secondary" onclick="goToStep(5)">Back</button>
+        <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
         <button class="btn btn-gold" onclick="generateCookbook()">Generate Complete Cookbook</button>
       </div>
     </section>
@@ -1395,11 +1396,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
     
     function skipConsultation() {
-      proceedToMenus();
+      goToStep(4);
     }
     
     async function proceedToMenus() {
-      goToStep(5);
+      goToStep(4);
       await generateMenus();
     }
     
