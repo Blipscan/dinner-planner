@@ -1,0 +1,4257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Thames Club Duckpin Manager – Monday Handicap + Standings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  background: #0b1120;
+  color: #e5e7eb;
+}
+
+.app-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.app-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f97316;
+}
+
+.app-subtitle {
+  font-size: 0.9rem;
+  color: #9ca3af;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #1f2937;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 999px 999px 0 0;
+}
+
+.tab-btn.active {
+  background: #111827;
+  color: #f9fafb;
+  border-bottom: 2px solid #f97316;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.card {
+  background: #020617;
+  border-radius: 0.75rem;
+  border: 1px solid #1e293b;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+}
+
+.card + .card {
+  margin-top: 1rem;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+.muted {
+  color: #9ca3af;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.badge-mens {
+  background: rgba(59,130,246,0.16);
+  color: #93c5fd;
+}
+
+.badge-doubles {
+  background: rgba(16,185,129,0.16);
+  color: #6ee7b7;
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background: #f97316;
+  color: #111827;
+  font-weight: 600;
+}
+
+.btn-secondary {
+  background: #374151;
+  color: #e5e7eb;
+}
+
+.btn-sm {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.7rem;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table th,
+.table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+}
+
+.table thead th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  border-bottom: 1px solid #1f2937;
+}
+
+.table tbody tr:nth-child(odd) {
+  background: rgba(15,23,42,0.6);
+}
+
+.table tbody tr:nth-child(even) {
+  background: rgba(15,23,42,0.3);
+}
+
+.table tbody tr:hover {
+  background: rgba(55,65,81,0.7);
+}
+
+.table-status-upcoming {
+  color: #fde68a;
+}
+
+.table-status-done {
+  color: #6ee7b7;
+}
+
+.table-status-rescheduled {
+  color: #fca5a5;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.form-row label {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  min-width: 70px;
+}
+
+input[type="number"],
+input[type="text"],
+input[type="date"],
+select {
+  background: #020617;
+  border: 1px solid #1f2937;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.85rem;
+  color: #e5e7eb;
+}
+
+input[type="number"] {
+  width: 64px;
+}
+
+input[type="text"] {
+  min-width: 90px;
+}
+
+select {
+  min-width: 140px;
+}
+
+input[type="checkbox"] {
+  transform: scale(1.1);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid #374151;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.flex {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 0.75rem; }
+
+.scroll-y {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: #111827;
+  border: 1px solid #4b5563;
+  color: #e5e7eb;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Print layout */
+@media print {
+  body {
+    background: #ffffff;
+    color: #111827;
+  }
+  .app-header,
+  .tab-bar,
+  .toast {
+    display: none !important;
+  }
+  .app-shell {
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  .card {
+    box-shadow: none;
+    border-radius: 0;
+    border: 1px solid #d1d5db;
+    page-break-inside: avoid;
+    background: #ffffff;
+    color: #111827;
+  }
+  .table tbody tr:nth-child(odd),
+  .table tbody tr:nth-child(even) {
+    background: #ffffff !important;
+  }
+}
+  
+
+/* Handicap highlight + winner tag for Dashboard */
+.hp-bump {
+  color: #0ea5e9;
+  font-weight: 600;
+}
+
+.winner-tag {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.75em;
+  background: rgba(16, 185, 129, 0.18);
+  color: #bbf7d0;
+}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <div class="app-title">Thames Club Duckpin Manager</div>
+        <div class="app-subtitle">2025–26 · Men’s & Doubles · Data lives in this file · Use Export / Import to save</div>
+      </div>
+    </header>
+
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="tab-dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="tab-schedule">Schedule &amp; Results</button>
+      <button class="tab-btn" data-tab="tab-teams">Teams &amp; Averages</button>
+      <button class="tab-btn" data-tab="tab-monday">Monday Packet</button>
+      <button class="tab-btn" data-tab="tab-standings">Standings</button>
+      <button class="tab-btn" data-tab="tab-awards">Awards &amp; Leaderboard</button>
+      <button class="tab-btn" data-tab="tab-fullsched">Full Season Schedule</button>
+      <button class="tab-btn" data-tab="tab-export">Export / Import</button>
+    </nav>
+
+    <main>
+      <!-- DASHBOARD -->
+      <section id="tab-dashboard" class="tab-panel active">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Recent Results</div>
+            <span class="chip">Last 5 matches</span>
+          </div>
+          <div id="dashboardRecent">
+            <p class="muted small">No data loaded yet. Go to “Export / Import” and import your JSON.</p>
+          </div>
+        </div>
+
+        <div class="card mt-2">
+          <div class="card-header">
+            <div class="card-title">Team Rosters</div>
+          </div>
+          <div id="dashboardRosters">
+            <p class="muted small">No teams defined yet.</p>
+          </div>
+        </div>
+
+        <div class="card mt-2">
+          <div class="card-header">
+            <div class="card-title">Player Detail</div>
+          </div>
+          <div id="dashboardPlayerDetail">
+            <p class="muted small">Click a player in the roster list to see their matches and average.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCHEDULE & RESULTS -->
+      <section id="tab-schedule" class="tab-panel">
+        <div class="layout">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Schedule &amp; Status</div>
+              <span class="small muted">Click a row to enter or edit a result.</span>
+            </div>
+            <div class="scroll-y">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>League</th>
+                    <th>Match</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="schedTableBody">
+                  <tr><td colspan="4" class="small muted">No matches scheduled yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Selected Match Result</div>
+            </div>
+            <div id="matchForm">
+              <p class="muted small">Choose a match to enter or edit the result.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-2">
+          <div class="card-header">
+            <div class="card-title">Saved Results</div>
+          </div>
+          <div class="scroll-y">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>League</th>
+                  <th>Match</th>
+                  <th>G1</th>
+                  <th>G2</th>
+                  <th>Pts</th>
+                </tr>
+              </thead>
+              <tbody id="savedResultsBody">
+                <tr><td colspan="6" class="small muted">No results saved yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TEAMS & AVERAGES -->
+      <section id="tab-teams" class="tab-panel">
+        <div class="layout">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Men’s League Averages</div>
+              <span class="small muted" id="mensAveragesSeasonLabel">Starting vs current (per league).</span>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Games</th>
+                  <th>Start Avg</th>
+                  <th>Current</th>
+                </tr>
+              </thead>
+              <tbody id="mensAveragesBody">
+                <tr><td colspan="4" class="small muted">No games yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Doubles League Averages</div>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Games</th>
+                  <th>Start Avg</th>
+                  <th>Current</th>
+                </tr>
+              </thead>
+              <tbody id="doublesAveragesBody">
+                <tr><td colspan="4" class="small muted">No games yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- MONDAY PACKET -->
+      <section id="tab-monday" class="tab-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Monday Packet Preview</div>
+            <span class="small muted">Matches in the upcoming Monday–Sunday league week with team totals and handicap.</span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>League</th>
+                <th>Match</th>
+                <th>Team A Avg</th>
+                <th>Team B Avg</th>
+                <th>Handicap (low team)</th>
+              </tr>
+            </thead>
+            <tbody id="mondayPacketBody">
+              <tr><td colspan="6" class="small muted">No matches in the upcoming Monday league week.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- STANDINGS -->
+      <section id="tab-standings" class="tab-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Team Standings</div>
+            <span class="small muted">By points, per league and season.</span>
+          </div>
+          <div class="layout">
+            <div>
+              <div class="flex-between">
+                <h3 class="small" style="font-weight:600;margin:0;">Men’s League</h3>
+                <span id="mensStandingsSeasonLabel" class="small muted"></span>
+              </div>
+              <table class="table mt-1">
+                <thead>
+                  <tr>
+                    <th>Team</th>
+                    <th>W</th>
+                    <th>L</th>
+                    <th>Pts</th>
+                    <th>GP</th>
+                  </tr>
+                </thead>
+                <tbody id="mensStandingsBody">
+                  <tr><td colspan="5" class="small muted">No completed matches yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <h3 class="small" style="font-weight:600;margin:0;">Doubles League</h3>
+              <table class="table mt-1">
+                <thead>
+                  <tr>
+                    <th>Team</th>
+                    <th>W</th>
+                    <th>L</th>
+                    <th>Pts</th>
+                    <th>GP</th>
+                  </tr>
+                </thead>
+                <tbody id="doublesStandingsBody">
+                  <tr><td colspan="5" class="small muted">No completed matches yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="small muted mt-2">
+            Standings use the points already recorded in each result
+            (game points plus series points) and a simple match W/L based on total points.
+          </p>
+        </div>
+      </section>
+
+      <!-- AWARDS -->
+      <section id="tab-awards" class="tab-panel">
+        <div class="layout">
+          <div id="mensAwards">
+            <div class="card">
+              <div class="card-header"><div class="card-title">Men’s Awards</div></div>
+              <p class="small muted">No data yet. Import JSON to see award leaders.</p>
+            </div>
+          </div>
+
+          <div>
+            <div id="doublesAwards">
+              <div class="card">
+                <div class="card-header"><div class="card-title">Doubles Awards</div></div>
+                <p class="small muted">No data yet. Import JSON to see award leaders.</p>
+              </div>
+            </div>
+
+            <div id="ladiesAwards" class="mt-2">
+              <div class="card">
+                <div class="card-header"><div class="card-title">Ladies Highlights</div></div>
+                <p class="small muted">No data yet. Import JSON to see award leaders.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FULL SEASON SCHEDULE -->
+      <section id="tab-fullsched" class="tab-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Full Season Schedule</div>
+            <div class="flex">
+              <label class="small flex" style="gap:0.3rem;">
+                <input type="checkbox" id="fullSchedUpcomingOnly" checked>
+                Show upcoming only
+              </label>
+            </div>
+          </div>
+          <div class="scroll-y">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>League</th>
+                  <th>Match</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="fullSchedTableBody">
+                <tr><td colspan="4" class="small muted">No matches scheduled.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted mt-2">Click any row to open that match on the Schedule &amp; Results tab. Rescheduled games are shown in red.</p>
+        </div>
+      </section>
+
+      <!-- EXPORT / IMPORT -->
+      <section id="tab-export" class="tab-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Export / Import Data</div>
+          </div>
+          <p class="small muted">
+            All players, teams, schedule, and results live inside this file.
+            <br>Use <strong>Export JSON</strong> at the end of the night before closing the browser.
+          </p>
+          <div class="form-row mt-2">
+            <button type="button" class="btn btn-sm" onclick="exportData()">Export JSON</button>
+          </div>
+          <div class="form-row mt-1">
+            <label>Import JSON</label>
+            <button type="button" class="btn btn-sm" id="importBtn">Import JSON…</button>
+            <input type="file" id="importFile" accept="application/json" style="display:none">
+          </div>
+          <p class="small muted mt-1">
+            Recommended: keep a backup of <code>thames_duckpin_data.json</code> on a USB drive or in Dropbox.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+window.INITIAL_DATA = {
+  "players": [
+    {
+      "id": "janM",
+      "name": "Jan Magnussen",
+      "mensStart": 85,
+      "doublesStart": 85
+    },
+    {
+      "id": "donR",
+      "name": "Don Ringuette",
+      "mensStart": 85,
+      "doublesStart": 85
+    },
+    {
+      "id": "dougT",
+      "name": "Doug Teeson",
+      "mensStart": 103,
+      "doublesStart": 94
+    },
+    {
+      "id": "robS",
+      "name": "Robert Salmonson",
+      "mensStart": 72,
+      "doublesStart": 85
+    },
+    {
+      "id": "billK",
+      "name": "Bill Kramer",
+      "mensStart": 86,
+      "doublesStart": 95
+    },
+    {
+      "id": "ramonM",
+      "name": "Ramon Masso-Flores",
+      "mensStart": 84,
+      "doublesStart": 0
+    },
+    {
+      "id": "billW",
+      "name": "Bill Willetts",
+      "mensStart": 74,
+      "doublesStart": 0
+    },
+    {
+      "id": "willC",
+      "name": "Will Clarkson",
+      "mensStart": 107,
+      "doublesStart": 89
+    },
+    {
+      "id": "russC",
+      "name": "Russ Carr",
+      "mensStart": 104,
+      "doublesStart": 0
+    },
+    {
+      "id": "ivanO",
+      "name": "Ivan Otterness",
+      "mensStart": 85,
+      "doublesStart": 0
+    },
+    {
+      "id": "brendaK",
+      "name": "Brenda Kramer",
+      "mensStart": 0,
+      "doublesStart": 82
+    },
+    {
+      "id": "bonnieK",
+      "name": "Bonnie Kuvalanka",
+      "mensStart": 0,
+      "doublesStart": 74
+    },
+    {
+      "id": "billL",
+      "name": "Bill Leuze",
+      "mensStart": 0,
+      "doublesStart": 85
+    },
+    {
+      "id": "nancyM",
+      "name": "Nancy Murray",
+      "mensStart": 0,
+      "doublesStart": 83
+    },
+    {
+      "id": "phyllisT",
+      "name": "Phyllis Teeson",
+      "mensStart": 0,
+      "doublesStart": 77
+    },
+    {
+      "id": "conradS",
+      "name": "Conrad Seifert",
+      "mensStart": 0,
+      "doublesStart": 80
+    },
+    {
+      "id": "maryLouC",
+      "name": "Mary Lou Chichester",
+      "mensStart": 0,
+      "doublesStart": 70
+    },
+    {
+      "id": "jimW",
+      "name": "Jim Williams",
+      "mensStart": 0,
+      "doublesStart": 85
+    },
+    {
+      "id": "judyW",
+      "name": "Judy Williams",
+      "mensStart": 0,
+      "doublesStart": 74
+    },
+    {
+      "id": "billR",
+      "name": "Bill Richmond",
+      "mensStart": 0,
+      "doublesStart": 80
+    },
+    {
+      "id": "donnaR",
+      "name": "Donna Richmond",
+      "mensStart": 0,
+      "doublesStart": 83
+    },
+    {
+      "id": "camiO",
+      "name": "Cami O'Donnell",
+      "mensStart": 0,
+      "doublesStart": 71
+    },
+    {
+      "id": "jennL",
+      "name": "Jennifer Leonard",
+      "mensStart": 0,
+      "doublesStart": 74
+    },
+    {
+      "id": "armeldeP",
+      "name": "Armelde Pitre",
+      "mensStart": 0,
+      "doublesStart": 74
+    },
+    {
+      "id": "roseH",
+      "name": "Rosemond Haseltine",
+      "mensStart": 0,
+      "doublesStart": 74
+    },
+    {
+      "id": "krisM",
+      "name": "Kris Magnussen",
+      "mensStart": 0,
+      "doublesStart": 66
+    },
+    {
+      "id": "fredG",
+      "name": "Fred Graf",
+      "mensStart": 85,
+      "doublesStart": 0
+    },
+    {
+      "id": "tedN",
+      "name": "Ted Nelson",
+      "mensStart": 85,
+      "doublesStart": 0
+    },
+    {
+      "id": "jimG",
+      "name": "Jim Giordano",
+      "mensStart": 89,
+      "doublesStart": 0
+    }
+  ],
+  "teams": {
+    "mens": [
+      {
+        "id": 1,
+        "name": "Team 1",
+        "players": [
+          "dougT",
+          "robS"
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Team 2",
+        "players": [
+          "billK",
+          "ramonM"
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Team 3",
+        "players": [
+          "billW",
+          "willC"
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Team 5",
+        "players": [
+          "russC",
+          "ivanO"
+        ]
+      }
+    ],
+    "doubles": [
+      {
+        "id": 1,
+        "name": "Team 1",
+        "players": [
+          "billK",
+          "brendaK",
+          "willC",
+          "bonnieK"
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Team 2",
+        "players": [
+          "billL",
+          "nancyM",
+          "dougT",
+          "phyllisT"
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Team 3",
+        "players": [
+          "conradS",
+          "maryLouC",
+          "jimW",
+          "judyW"
+        ]
+      },
+      {
+        "id": 4,
+        "name": "Team 4",
+        "players": [
+          "billR",
+          "donnaR",
+          "robS",
+          "camiO"
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Team 5",
+        "players": [
+          "jennL",
+          "armeldeP",
+          "roseH",
+          "krisM"
+        ]
+      }
+    ]
+  },
+  "schedule": [
+    {
+      "id": "2025-10-07-m-2v3",
+      "date": "2025-10-07",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 3
+    },
+    {
+      "id": "2025-10-14-m-2v5",
+      "date": "2025-10-14",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-10-21-m-3v5",
+      "date": "2025-10-21",
+      "league": "mens",
+      "homeTeam": 3,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-10-23-d-1v4",
+      "date": "2025-10-23",
+      "league": "doubles",
+      "homeTeam": 1,
+      "awayTeam": 4
+    },
+    {
+      "id": "2025-10-28-m-2v5",
+      "date": "2025-10-28",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-10-30-d-3v5",
+      "date": "2025-10-30",
+      "league": "doubles",
+      "homeTeam": 3,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-11-04-m-1v5",
+      "date": "2025-11-04",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-11-05-m-2v3",
+      "date": "2025-11-05",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 3
+    },
+    {
+      "id": "2025-11-06-d-1v2",
+      "date": "2025-11-06",
+      "league": "doubles",
+      "homeTeam": 1,
+      "awayTeam": 2
+    },
+    {
+      "id": "2025-11-12-m-1v2",
+      "date": "2025-11-12",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 2
+    },
+    {
+      "id": "2025-11-18-m-1v3",
+      "date": "2025-11-18",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 3
+    },
+    {
+      "id": "2025-11-19-m-2v5",
+      "date": "2025-11-19",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-11-20-d-1v3",
+      "date": "2025-11-20",
+      "league": "doubles",
+      "homeTeam": 1,
+      "awayTeam": 3
+    },
+    {
+      "id": "2025-11-25-m-1v5",
+      "date": "2025-11-25",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-11-26-m-2v3",
+      "date": "2025-11-26",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 3
+    },
+    {
+      "id": "2025-12-02-m-1v2",
+      "date": "2025-12-02",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 2
+    },
+    {
+      "id": "2025-12-03-m-3v5",
+      "date": "2025-12-03",
+      "league": "mens",
+      "homeTeam": 3,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-12-04-d-2v5",
+      "date": "2025-12-04",
+      "league": "doubles",
+      "homeTeam": 2,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-12-10-m-3v5",
+      "date": "2025-12-10",
+      "league": "mens",
+      "homeTeam": 3,
+      "awayTeam": 5
+    },
+    {
+      "id": "2025-12-11-d-1v4",
+      "date": "2025-12-11",
+      "league": "doubles",
+      "homeTeam": 1,
+      "awayTeam": 4
+    },
+    {
+      "id": "2025-12-16-m-1v2",
+      "date": "2025-12-16",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 2
+    },
+    {
+      "id": "2025-12-18-d-2v3",
+      "date": "2025-12-18",
+      "league": "doubles",
+      "homeTeam": 2,
+      "awayTeam": 3
+    },
+    {
+      "id": "2025-12-23-m-1v3",
+      "date": "2025-12-23",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-01-06-m-1v3",
+      "date": "2026-01-06",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-01-08-d-1v5",
+      "date": "2026-01-08",
+      "league": "doubles",
+      "homeTeam": 1,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-01-15-d-3v4",
+      "date": "2026-01-15",
+      "league": "doubles",
+      "homeTeam": 3,
+      "awayTeam": 4
+    },
+    {
+      "id": "2026-01-22-d-2v4",
+      "date": "2026-01-22",
+      "league": "doubles",
+      "homeTeam": 2,
+      "awayTeam": 4
+    },
+    {
+      "id": "2026-01-27-m-1v3",
+      "date": "2026-01-27",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-01-28-m-2v5",
+      "date": "2026-01-28",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-01-29-d-3v5",
+      "date": "2026-01-29",
+      "league": "doubles",
+      "homeTeam": 3,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-02-03-m-1v5",
+      "date": "2026-02-03",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-02-04-m-2v3",
+      "date": "2026-02-04",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-02-05-d-1v2",
+      "date": "2026-02-05",
+      "league": "doubles",
+      "homeTeam": 1,
+      "awayTeam": 2
+    },
+    {
+      "id": "2026-02-10-m-1v2",
+      "date": "2026-02-10",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 2
+    },
+    {
+      "id": "2026-02-11-m-3v5",
+      "date": "2026-02-11",
+      "league": "mens",
+      "homeTeam": 3,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-02-12-d-3v4",
+      "date": "2026-02-12",
+      "league": "doubles",
+      "homeTeam": 3,
+      "awayTeam": 4
+    },
+    {
+      "id": "2026-02-17-m-1v3",
+      "date": "2026-02-17",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-02-18-m-2v5",
+      "date": "2026-02-18",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-02-19-d-1v5",
+      "date": "2026-02-19",
+      "league": "doubles",
+      "homeTeam": 1,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-02-24-m-1v5",
+      "date": "2026-02-24",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-02-25-m-2v3",
+      "date": "2026-02-25",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-02-26-d-2v3",
+      "date": "2026-02-26",
+      "league": "doubles",
+      "homeTeam": 2,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-03-03-m-1v2",
+      "date": "2026-03-03",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 2
+    },
+    {
+      "id": "2026-03-04-m-3v5",
+      "date": "2026-03-04",
+      "league": "mens",
+      "homeTeam": 3,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-03-05-d-4v5",
+      "date": "2026-03-05",
+      "league": "doubles",
+      "homeTeam": 4,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-03-10-m-1v3",
+      "date": "2026-03-10",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-03-11-m-2v5",
+      "date": "2026-03-11",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-03-12-d-1v3",
+      "date": "2026-03-12",
+      "league": "doubles",
+      "homeTeam": 1,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-03-17-m-1v5",
+      "date": "2026-03-17",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-03-18-m-2v3",
+      "date": "2026-03-18",
+      "league": "mens",
+      "homeTeam": 2,
+      "awayTeam": 3
+    },
+    {
+      "id": "2026-03-19-d-2v4",
+      "date": "2026-03-19",
+      "league": "doubles",
+      "homeTeam": 2,
+      "awayTeam": 4
+    },
+    {
+      "id": "2026-03-24-m-1v2",
+      "date": "2026-03-24",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 2
+    },
+    {
+      "id": "2026-03-25-m-3v5",
+      "date": "2026-03-25",
+      "league": "mens",
+      "homeTeam": 3,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-03-26-d-2v5",
+      "date": "2026-03-26",
+      "league": "doubles",
+      "homeTeam": 2,
+      "awayTeam": 5
+    },
+    {
+      "id": "2026-03-31-m-1v5",
+      "date": "2026-03-31",
+      "league": "mens",
+      "homeTeam": 1,
+      "awayTeam": 5
+    }
+  ],
+  "results": [
+    {
+      "id": "res_2025-10-23-d-1v4",
+      "league": "doubles",
+      "date": "2025-10-23",
+      "teamA": 1,
+      "teamB": 4,
+      "games": [
+        {
+          "aTotal": 352,
+          "bTotal": 327,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 343,
+          "bTotal": 300,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "billK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            102,
+            85
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "brendaK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            75,
+            74
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "willC",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            96,
+            99
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "bonnieK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            79,
+            85
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billR",
+          "league": "doubles",
+          "teamId": 4,
+          "scores": [
+            87,
+            76
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "donnaR",
+          "league": "doubles",
+          "teamId": 4,
+          "scores": [
+            88,
+            80
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "robS",
+          "league": "doubles",
+          "teamId": 4,
+          "scores": [
+            78,
+            78
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "camiO",
+          "league": "doubles",
+          "teamId": 4,
+          "scores": [
+            74,
+            66
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 14,
+      "lowerTeam": "B"
+    },
+    {
+      "id": "res_2025-10-28-m-2v5",
+      "league": "mens",
+      "date": "2025-10-28",
+      "teamA": 2,
+      "teamB": 5,
+      "games": [
+        {
+          "aTotal": 158,
+          "bTotal": 177,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 164,
+          "bTotal": 207,
+          "aPoints": 0,
+          "bPoints": 1
+        }
+      ],
+      "seriesPointsA": 0,
+      "seriesPointsB": 1,
+      "bowlers": [
+        {
+          "playerId": "billK",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            79,
+            86
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ramonM",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            79,
+            78
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "russC",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            82,
+            90
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ivanO",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            95,
+            117
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 16,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-10-30-d-3v5",
+      "league": "doubles",
+      "date": "2025-10-30",
+      "teamA": 3,
+      "teamB": 5,
+      "games": [
+        {
+          "aTotal": 280,
+          "bTotal": 295,
+          "aPoints": 0,
+          "bPoints": 1
+        },
+        {
+          "aTotal": 325,
+          "bTotal": 309,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "conradS",
+          "league": "doubles",
+          "teamId": 3,
+          "scores": [
+            71,
+            121
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "donR",
+          "league": "doubles",
+          "teamId": 3,
+          "scores": [
+            44,
+            66
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "jimW",
+          "league": "doubles",
+          "teamId": 3,
+          "scores": [
+            97,
+            79
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "judyW",
+          "league": "doubles",
+          "teamId": 3,
+          "scores": [
+            68,
+            59
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "jennL",
+          "league": "doubles",
+          "teamId": 5,
+          "scores": [
+            42,
+            68
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "donnaR",
+          "league": "doubles",
+          "teamId": 5,
+          "scores": [
+            86,
+            90
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "roseH",
+          "league": "doubles",
+          "teamId": 5,
+          "scores": [
+            67,
+            68
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "janM",
+          "league": "doubles",
+          "teamId": 5,
+          "scores": [
+            100,
+            83
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 14,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-11-04-m-1v5",
+      "league": "mens",
+      "date": "2025-11-04",
+      "teamA": 1,
+      "teamB": 5,
+      "games": [
+        {
+          "aTotal": 187,
+          "bTotal": 229,
+          "aPoints": 0,
+          "bPoints": 1
+        },
+        {
+          "aTotal": 174,
+          "bTotal": 175,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 0,
+      "seriesPointsB": 1,
+      "bowlers": [
+        {
+          "playerId": "dougT",
+          "league": "mens",
+          "teamId": 1,
+          "scores": [
+            114,
+            111
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "robS",
+          "league": "mens",
+          "teamId": 1,
+          "scores": [
+            73,
+            63
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "russC",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            98,
+            98
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ivanO",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            131,
+            77
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 9,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-11-05-m-2v3",
+      "league": "mens",
+      "date": "2025-11-05",
+      "teamA": 2,
+      "teamB": 3,
+      "games": [
+        {
+          "aTotal": 197,
+          "bTotal": 185,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 177,
+          "bTotal": 157,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "billK",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            98,
+            93
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ramonM",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            99,
+            84
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billW",
+          "league": "mens",
+          "teamId": 3,
+          "scores": [
+            68,
+            62
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "willC",
+          "league": "mens",
+          "teamId": 3,
+          "scores": [
+            117,
+            95
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 9,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-11-06-d-1v2",
+      "league": "doubles",
+      "date": "2025-11-06",
+      "teamA": 1,
+      "teamB": 2,
+      "games": [
+        {
+          "aTotal": 320,
+          "bTotal": 346,
+          "aPoints": 0,
+          "bPoints": 1
+        },
+        {
+          "aTotal": 326,
+          "bTotal": 299,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "billK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            82,
+            74
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "brendaK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            73,
+            83
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "willC",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            83,
+            95
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "bonnieK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            82,
+            74
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billL",
+          "league": "doubles",
+          "teamId": 2,
+          "scores": [
+            63,
+            63
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "nancyM",
+          "league": "doubles",
+          "teamId": 2,
+          "scores": [
+            93,
+            76
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "dougT",
+          "league": "doubles",
+          "teamId": 2,
+          "scores": [
+            102,
+            79
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "maryLouC",
+          "league": "doubles",
+          "teamId": 2,
+          "scores": [
+            88,
+            81
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 3,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-11-12-m-1v2",
+      "league": "mens",
+      "date": "2025-11-12",
+      "teamA": 1,
+      "teamB": 2,
+      "games": [
+        {
+          "aTotal": 174,
+          "bTotal": 149,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 188,
+          "bTotal": 160,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "dougT",
+          "league": "mens",
+          "teamId": 1,
+          "scores": [
+            109,
+            103
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billR",
+          "league": "mens",
+          "teamId": 1,
+          "scores": [
+            65,
+            85
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billK",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            85,
+            85
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ramonM",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            64,
+            75
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 11,
+      "lowerTeam": "B"
+    },
+    {
+      "id": "res_2025-11-18-m-1v3",
+      "league": "mens",
+      "date": "2025-11-18",
+      "teamA": 1,
+      "teamB": 3,
+      "games": [
+        {
+          "aTotal": 184,
+          "bTotal": 150,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 171,
+          "bTotal": 159,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "dougT",
+          "league": "mens",
+          "teamId": 1,
+          "scores": [
+            100,
+            107
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "robS",
+          "league": "mens",
+          "teamId": 1,
+          "scores": [
+            84,
+            64
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billW",
+          "league": "mens",
+          "teamId": 3,
+          "scores": [
+            65,
+            68
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "willC",
+          "league": "mens",
+          "teamId": 3,
+          "scores": [
+            85,
+            91
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 2,
+      "lowerTeam": "B"
+    },
+    {
+      "id": "res_2025-10-21-m-3v5",
+      "league": "mens",
+      "date": "2025-10-21",
+      "teamA": 3,
+      "teamB": 5,
+      "games": [
+        {
+          "aTotal": 158,
+          "bTotal": 170,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 159,
+          "bTotal": 164,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "billW",
+          "league": "mens",
+          "teamId": 3,
+          "scores": [
+            75,
+            62
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "willC",
+          "league": "mens",
+          "teamId": 3,
+          "scores": [
+            83,
+            97
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "russC",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            85,
+            82
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billR",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            85,
+            82
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 3,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-10-07-m-2v3",
+      "league": "mens",
+      "date": "2025-10-07",
+      "teamA": 2,
+      "teamB": 3,
+      "games": [
+        {
+          "aTotal": 159,
+          "bTotal": 165,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 140,
+          "bTotal": 167,
+          "aPoints": 0,
+          "bPoints": 1
+        }
+      ],
+      "seriesPointsA": 0,
+      "seriesPointsB": 1,
+      "bowlers": [
+        {
+          "playerId": "billK",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            82,
+            77
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ramonM",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            77,
+            63
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billW",
+          "league": "mens",
+          "teamId": 3,
+          "scores": [
+            70,
+            70
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "willC",
+          "league": "mens",
+          "teamId": 3,
+          "scores": [
+            95,
+            97
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 14,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-10-14-m-2v5",
+      "league": "mens",
+      "date": "2025-10-14",
+      "teamA": 2,
+      "teamB": 5,
+      "games": [
+        {
+          "aTotal": 161,
+          "bTotal": 170,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 164,
+          "bTotal": 173,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "billK",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            78,
+            90
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ramonM",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            83,
+            74
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "russC",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            85,
+            99
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ivanO",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            85,
+            74
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 16,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-11-19-m-2v5",
+      "league": "mens",
+      "date": "2025-11-19",
+      "teamA": 2,
+      "teamB": 5,
+      "games": [
+        {
+          "aTotal": 165,
+          "bTotal": 196,
+          "aPoints": 0,
+          "bPoints": 1
+        },
+        {
+          "aTotal": 159,
+          "bTotal": 188,
+          "aPoints": 0,
+          "bPoints": 1
+        }
+      ],
+      "seriesPointsA": 0,
+      "seriesPointsB": 1,
+      "bowlers": [
+        {
+          "playerId": "billK",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            89,
+            91
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ramonM",
+          "league": "mens",
+          "teamId": 2,
+          "scores": [
+            76,
+            68
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "russC",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            104,
+            97
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ivanO",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            92,
+            91
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 16,
+      "lowerTeam": "A"
+    },
+    {
+      "id": "res_2025-11-20-d-1v3",
+      "league": "doubles",
+      "date": "2025-11-20",
+      "teamA": 1,
+      "teamB": 3,
+      "games": [
+        {
+          "aTotal": 386,
+          "bTotal": 296,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 347,
+          "bTotal": 266,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "billK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            116,
+            101
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "brendaK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            86,
+            85
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "willC",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            95,
+            85
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "bonnieK",
+          "league": "doubles",
+          "teamId": 1,
+          "scores": [
+            89,
+            76
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "conradS",
+          "league": "doubles",
+          "teamId": 3,
+          "scores": [
+            79,
+            67
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "maryLouC",
+          "league": "doubles",
+          "teamId": 3,
+          "scores": [
+            70,
+            60
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "jimW",
+          "league": "doubles",
+          "teamId": 3,
+          "scores": [
+            85,
+            77
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "judyW",
+          "league": "doubles",
+          "teamId": 3,
+          "scores": [
+            62,
+            62
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 13,
+      "lowerTeam": "B"
+    },
+    {
+      "id": "res_2025-11-25-m-1v5",
+      "league": "mens",
+      "date": "2025-11-25",
+      "teamA": 1,
+      "teamB": 5,
+      "games": [
+        {
+          "aTotal": 184,
+          "bTotal": 149,
+          "aPoints": 1,
+          "bPoints": 0
+        },
+        {
+          "aTotal": 202,
+          "bTotal": 179,
+          "aPoints": 1,
+          "bPoints": 0
+        }
+      ],
+      "seriesPointsA": 1,
+      "seriesPointsB": 0,
+      "bowlers": [
+        {
+          "playerId": "dougT",
+          "league": "mens",
+          "teamId": 1,
+          "scores": [
+            104,
+            88
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billK",
+          "league": "mens",
+          "teamId": 1,
+          "scores": [
+            80,
+            114
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "billR",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            72,
+            83
+          ],
+          "isSub": false
+        },
+        {
+          "playerId": "ivanO",
+          "league": "mens",
+          "teamId": 5,
+          "scores": [
+            77,
+            96
+          ],
+          "isSub": false
+        }
+      ],
+      "handicapPins": 14,
+      "lowerTeam": "B"
+    }
+  ]
+};
+
+const state = {
+  players: [],
+  teams: {},
+  schedule: [],
+  results: []
+};
+
+const MANAGER_PASSWORD = 'duckpin2025';
+
+function initState() {
+  const d = window.INITIAL_DATA || {};
+  state.players = d.players || [];
+  state.teams = d.teams || { mens: [], doubles: [] };
+  state.schedule = d.schedule || [];
+  state.results = d.results || [];
+  state.schedule.sort((a, b) => (a.date > b.date ? 1 : -1));
+  normalizeLegacyData();
+}
+
+function normalizeLegacyData() {
+  // Ensure teams shape
+  if (!state.teams) state.teams = { mens: [], doubles: [] };
+  if (!Array.isArray(state.teams.mens)) state.teams.mens = state.teams.mens || [];
+  if (!Array.isArray(state.teams.doubles)) state.teams.doubles = state.teams.doubles || [];
+
+  if (!Array.isArray(state.results)) {
+    state.results = [];
+    return;
+  }
+
+  state.results = state.results.map((r) => {
+    const nr = { ...r };
+
+    // Map legacy team fields to teamA/teamB if needed
+    if (nr.homeTeam && !nr.teamA) nr.teamA = nr.homeTeam;
+    if (nr.awayTeam && !nr.teamB) nr.teamB = nr.awayTeam;
+
+    // If games array is missing or too short, try to build it from legacy totals
+    const hasGamesArray = Array.isArray(nr.games) && nr.games.length >= 2;
+
+    if (!hasGamesArray) {
+      const num = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+      };
+
+      const g1a = num(nr.g1aTot ?? nr.g1a ?? nr.game1A ?? nr.game1Home);
+      const g1b = num(nr.g1bTot ?? nr.g1b ?? nr.game1B ?? nr.game1Away);
+      const g2a = num(nr.g2aTot ?? nr.g2a ?? nr.game2A ?? nr.game2Home);
+      const g2b = num(nr.g2bTot ?? nr.g2b ?? nr.game2B ?? nr.game2Away);
+
+      const g1aPts = num(nr.g1aPts ?? nr.g1PointsA ?? nr.game1PtsA);
+      const g1bPts = num(nr.g1bPts ?? nr.g1PointsB ?? nr.game1PtsB);
+      const g2aPts = num(nr.g2aPts ?? nr.g2PointsA ?? nr.game2PtsA);
+      const g2bPts = num(nr.g2bPts ?? nr.g2PointsB ?? nr.game2PtsB);
+
+      if (g1a || g1b || g2a || g2b || g1aPts || g1bPts || g2aPts || g2bPts) {
+        nr.games = [
+          { aTotal: g1a, bTotal: g1b, aPoints: g1aPts, bPoints: g1bPts },
+          { aTotal: g2a, bTotal: g2b, aPoints: g2aPts, bPoints: g2bPts }
+        ];
+      }
+    }
+
+    return nr;
+  });
+}
+
+function formatDateLabel(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  const dt = new Date(y, m - 1, d);
+  if (isNaN(dt.getTime())) return dateStr;
+  const opts = { weekday: 'short', month: 'short', day: 'numeric' };
+  return dt.toLocaleDateString(undefined, opts);
+}
+
+function leagueLabel(league) {
+  return league === 'mens' ? "Men's" : 'Doubles';
+}
+
+function getResultForMatch(match) {
+  return state.results.find(r =>
+    r.league === match.league &&
+    r.date === match.date &&
+    r.teamA === match.homeTeam &&
+    r.teamB === match.awayTeam
+  ) || null;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function setActiveTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === tabId);
+  });
+}
+
+function getIsoToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getPlayerById(id) {
+  return (state.players || []).find(p => p.id === id) || null;
+}
+
+const LADY_FIRST_NAMES = new Set([
+  'Brenda',
+  'Bonnie',
+  'Donna',
+  'Jennifer',
+  'Kris',
+  'Rosemond',
+  'Mary',
+  'Nancy',
+  'Judy',
+  'Gay',
+  'Kristin',
+  'Phyllis',
+  'Cami',
+  'Megan'
+]);
+
+function isLady(player) {
+  if (!player) return false;
+  const name = player.name || player.displayName || '';
+  if (!name) return false;
+  const first = name.split(' ')[0];
+  return LADY_FIRST_NAMES.has(first);
+}
+
+function getMensSeasonRange() {
+  const mensMatches = (state.schedule || [])
+    .filter(m => m.league === 'mens' && m.date)
+    .slice()
+    .sort((a, b) => (a.date > b.date ? 1 : -1));
+
+  if (!mensMatches.length) return null;
+
+  const total = mensMatches.length;
+  if (total < 2) {
+    return {
+      seasonLabel: 'Full Season',
+      startDate: mensMatches[0].date,
+      endDate: mensMatches[total - 1].date
+    };
+  }
+
+  const half = Math.floor(total / 2);
+  const fallStart = mensMatches[0].date;
+  const fallEnd = mensMatches[half - 1].date;
+  const springStart = mensMatches[half].date;
+  const springEnd = mensMatches[total - 1].date;
+
+  const todayIso = getIsoToday();
+
+  if (todayIso <= fallEnd) {
+    return {
+      seasonLabel: 'Fall Season',
+      startDate: fallStart,
+      endDate: fallEnd
+    };
+  } else {
+    return {
+      seasonLabel: 'Spring Season',
+      startDate: springStart,
+      endDate: springEnd
+    };
+  }
+}
+
+/* DASHBOARD */
+function renderDashboard() {
+  const recentEl = document.getElementById('dashboardRecent');
+  const rostersEl = document.getElementById('dashboardRosters');
+  const detailEl = document.getElementById('dashboardPlayerDetail');
+
+  // Recent results
+  if (recentEl) {
+    if (!state.results.length) {
+      recentEl.innerHTML = '<p class="muted small">No results recorded yet. Import JSON or enter a result.</p>';
+    } else {
+      const sorted = [...state.results].sort((a, b) => (a.date > b.date ? -1 : 1)).slice(0, 5);
+      let html = '<table class="table"><thead><tr>' +
+        '<th>Date</th><th>Lg</th><th>Match</th><th>H</th><th>G1</th><th>G2</th><th>Pts</th>' +
+        '</tr></thead><tbody>';
+      for (const r of sorted) {
+        const leagueShort = r.league === 'mens' ? 'M' : (r.league === 'doubles' ? 'D' : '');
+        const hp = (typeof r.handicapPins === 'number' && r.handicapPins > 0) ? r.handicapPins : 0;
+        const lowerTeam = r.lowerTeam || null;
+        const aGetsHp = lowerTeam === 'A';
+        const bGetsHp = lowerTeam === 'B';
+
+        const g1a = r.games && r.games[0] ? r.games[0].aTotal : null;
+        const g1b = r.games && r.games[0] ? r.games[0].bTotal : null;
+        const g2a = r.games && r.games[1] ? r.games[1].aTotal : null;
+        const g2b = r.games && r.games[1] ? r.games[1].bTotal : null;
+
+        let g1aText = g1a != null ? String(g1a) : '';
+        let g1bText = g1b != null ? String(g1b) : '';
+        let g2aText = g2a != null ? String(g2a) : '';
+        let g2bText = g2b != null ? String(g2b) : '';
+
+        if (hp && aGetsHp) {
+          if (g1aText) g1aText = '<span class="hp-bump">' + g1aText + '</span>';
+          if (g2aText) g2aText = '<span class="hp-bump">' + g2aText + '</span>';
+        } else if (hp && bGetsHp) {
+          if (g1bText) g1bText = '<span class="hp-bump">' + g1bText + '</span>';
+          if (g2bText) g2bText = '<span class="hp-bump">' + g2bText + '</span>';
+        }
+
+        const g1 = (g1aText && g1bText) ? (g1aText + '–' + g1bText) : '';
+        const g2 = (g2aText && g2bText) ? (g2aText + '–' + g2bText) : '';
+
+        const ptsA = (r.games?.[0]?.aPoints || 0) + (r.games?.[1]?.aPoints || 0) + (r.seriesPointsA || 0);
+        const ptsB = (r.games?.[0]?.bPoints || 0) + (r.games?.[1]?.bPoints || 0) + (r.seriesPointsB || 0);
+        const pts = ptsA + ' – ' + ptsB;
+
+        let matchLabel = 'Team ' + r.teamA + ' vs Team ' + r.teamB;
+        let winnerTag = '';
+        if (ptsA > ptsB) {
+          winnerTag = ' <span class="winner-tag">W: Team ' + r.teamA + '</span>';
+        } else if (ptsB > ptsA) {
+          winnerTag = ' <span class="winner-tag">W: Team ' + r.teamB + '</span>';
+        }
+
+        html += '<tr>' +
+          '<td>' + formatDateLabel(r.date) + '</td>' +
+          '<td>' + leagueShort + '</td>' +
+          '<td>' + matchLabel + winnerTag + '</td>' +
+          '<td class="num">' + (hp || '') + '</td>' +
+          '<td class="num">' + g1 + '</td>' +
+          '<td class="num">' + g2 + '</td>' +
+          '<td class="num">' + pts + '</td>' +
+          '</tr>';
+      }
+      html += '</tbody></table>';
+      recentEl.innerHTML = html;
+    }
+  }
+
+  // Team rosters (including subs)
+  renderDashboardRosters();
+
+  // Default player detail message (until a player is clicked)
+  if (detailEl && !detailEl._hasContent) {
+    detailEl.innerHTML = '<p class="muted small">Click a player in the roster list to see their matches and average.</p>';
+  }
+}
+
+function renderDashboardRosters() {
+  const container = document.getElementById('dashboardRosters');
+  if (!container) return;
+
+  const mensTeams = (state.teams.mens || []);
+  const dblTeams = (state.teams.doubles || []);
+
+  if (!mensTeams.length && !dblTeams.length) {
+    container.innerHTML = '<p class="muted small">No teams defined yet.</p>';
+    return;
+  }
+
+  function buildLeagueRosters(league, teams) {
+    if (!teams.length) return '';
+
+    let html = '<div class="small"><strong>' + (league === 'mens' ? 'Mens League' : 'Doubles League') + '</strong><br>';
+
+    for (const t of teams) {
+      const teamId = t.id;
+      const rosterIds = new Set(t.players || []);
+
+      // Pull subs from results
+      for (const r of state.results || []) {
+        if (r.league !== league) continue;
+        const bowlers = r.bowlers || [];
+        for (const b of bowlers) {
+          if (b.teamId === teamId) {
+            rosterIds.add(b.playerId);
+          }
+        }
+      }
+
+      const players = [];
+      rosterIds.forEach(pid => {
+        const p = getPlayerById(pid);
+        if (!p) return;
+        players.push({ id: pid, name: p.name || pid });
+      });
+      players.sort((a, b) => a.name.localeCompare(b.name));
+
+      html += 'Team ' + teamId + ': ';
+      if (!players.length) {
+        html += '<span class="muted">no players</span><br>';
+      } else {
+        const buttons = players.map(pl => 
+          `<button type="button" class="btn btn-sm" style="background:transparent;border-radius:0;padding:0;border:none;color:#93c5fd;text-decoration:underline;cursor:pointer;" onclick="dashboardShowPlayer('${pl.id}', '${league}')">${pl.name}</button>`
+        ).join(', ');
+        html += buttons + '<br>';
+      }
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  let html = '';
+  html += buildLeagueRosters('mens', mensTeams) || '';
+  html += buildLeagueRosters('doubles', dblTeams) || '';
+
+  container.innerHTML = html || '<p class="muted small">No teams defined yet.</p>';
+}
+
+function dashboardShowPlayer(playerId, league) {
+  const container = document.getElementById('dashboardPlayerDetail');
+  if (!container) return;
+
+  const player = getPlayerById(playerId);
+  if (!player) {
+    container.innerHTML = '<p class="muted small">Player not found.</p>';
+    container._hasContent = true;
+    return;
+  }
+
+  const statsList = computeLeagueStats(league) || [];
+  const stats = statsList.find(s => s.playerId === playerId) || null;
+
+  let avgLine = '';
+  if (stats) {
+    avgLine = 'Current average: ' + (stats.currentAverage ?? '') +
+      ' over ' + (stats.games ?? 0) + ' games (start ' + (stats.startingAverage ?? 0) + ').';
+  } else {
+    avgLine = 'No average on file yet for this league.';
+  }
+
+  // Collect this player's matches in the given league
+  const rows = [];
+  for (const r of state.results || []) {
+    if (r.league !== league) continue;
+    const bowlers = r.bowlers || [];
+    const b = bowlers.find(bw => bw.playerId === playerId);
+    if (!b) continue;
+    const scores = b.scores || [];
+    const series = scores.reduce((a, v) => a + (v || 0), 0);
+    rows.push({
+      date: r.date,
+      league: r.league,
+      teamId: b.teamId,
+      opponentTeamId: (b.teamId === r.teamA ? r.teamB : (b.teamId === r.teamB ? r.teamA : '')),
+      scores,
+      series
+    });
+  }
+
+  rows.sort((a, b) => (a.date > b.date ? 1 : -1));
+
+  let matchesHtml = '';
+  if (!rows.length) {
+    matchesHtml = '<p class="muted small">No completed matches yet for this player in this league.</p>';
+  } else {
+    matchesHtml = '<table class="table small"><thead><tr>' +
+      '<th>Date</th><th>Team</th><th>Opp</th><th>Games</th><th>Series</th>' +
+      '</tr></thead><tbody>' +
+      rows.map(r =>
+        '<tr>' +
+          '<td>' + formatDateLabel(r.date) + '</td>' +
+          '<td>' + (r.teamId || '') + '</td>' +
+          '<td>' + (r.opponentTeamId || '') + '</td>' +
+          '<td>' + (r.scores && r.scores.length ? r.scores.join(', ') : '') + '</td>' +
+          '<td class="num">' + r.series + '</td>' +
+        '</tr>'
+      ).join('') +
+      '</tbody></table>';
+  }
+
+  container.innerHTML =
+    '<div class="small"><strong>' + (player.name || player.id) + '</strong> (' +
+    (league === 'mens' ? 'Mens' : 'Doubles') + ' League)</div>' +
+    '<div class="small mt-1">' + avgLine + '</div>' +
+    '<div class="mt-1">' + matchesHtml + '</div>';
+
+  container._hasContent = true;
+}
+
+/* SCHEDULE LISTS */
+function renderScheduleList() {
+  const body = document.getElementById('schedTableBody');
+  if (!body) return;
+  if (!state.schedule.length) {
+    body.innerHTML = '<tr><td colspan="4" class="small muted">No matches scheduled yet.</td></tr>';
+    return;
+  }
+  let html = '';
+  for (const m of state.schedule) {
+    const res = getResultForMatch(m);
+    let status = 'Upcoming';
+    let cls = 'table-status-upcoming';
+    if (res) {
+      status = 'Completed';
+      cls = 'table-status-done';
+    }
+    if (m.rescheduled) {
+      status = 'Rescheduled';
+      cls = 'table-status-rescheduled';
+    }
+    const badgeCls = m.league === 'mens' ? 'badge badge-mens' : 'badge badge-doubles';
+    html += '<tr data-match-id="' + m.id + '" onclick="openMatchForm(\'' + m.id + '\')">' +
+      '<td>' + formatDateLabel(m.date) + '</td>' +
+      '<td><span class="' + badgeCls + '">' + leagueLabel(m.league) + '</span></td>' +
+      '<td>Team ' + m.homeTeam + ' vs Team ' + m.awayTeam + '</td>' +
+      '<td class="' + cls + ' small">' + status + '</td>' +
+      '</tr>';
+  }
+  body.innerHTML = html;
+}
+
+function renderFullSchedule() {
+  const body = document.getElementById('fullSchedTableBody');
+  if (!body) return;
+  const showUpcomingOnly = document.getElementById('fullSchedUpcomingOnly')?.checked;
+
+  if (!state.schedule.length) {
+    body.innerHTML = '<tr><td colspan="4" class="small muted">No matches scheduled.</td></tr>';
+    return;
+  }
+
+  // Determine Mens Fall / Spring split based on halfway point of mens schedule
+  const mensMatches = (state.schedule || [])
+    .filter(m => m.league === 'mens' && m.date)
+    .slice()
+    .sort((a, b) => (a.date > b.date ? 1 : -1));
+
+  let fallEndDate = null;
+  let springStartDate = null;
+
+  if (mensMatches.length >= 2) {
+    const total = mensMatches.length;
+    const half = Math.floor(total / 2);
+    fallEndDate = mensMatches[half - 1].date;
+    springStartDate = mensMatches[half].date;
+  }
+
+  function isCompleted(match) {
+    return !!getResultForMatch(match);
+  }
+
+  const todayIso = getIsoToday();
+
+  const fallRows = [];
+  const springRows = [];
+
+  const allMatches = state.schedule.slice().sort((a, b) => (a.date > b.date ? 1 : -1));
+
+  for (const m of allMatches) {
+    if (showUpcomingOnly && isCompleted(m)) continue;
+
+    let status = 'Upcoming';
+    let cls = 'table-status-upcoming';
+    if (isCompleted(m)) {
+      status = 'Completed';
+      cls = 'table-status-done';
+    }
+    if (m.rescheduled) {
+      status = 'Rescheduled';
+      cls = 'table-status-rescheduled';
+    }
+    const badgeCls = m.league === 'mens' ? 'badge badge-mens' : 'badge badge-doubles';
+
+    const rowHtml =
+      '<tr data-match-id="' + m.id + '" onclick="openMatchForm(\'' + m.id + '\')">' +
+        '<td>' + formatDateLabel(m.date) + '</td>' +
+        '<td><span class="' + badgeCls + '">' + leagueLabel(m.league) + '</span></td>' +
+        '<td>Team ' + m.homeTeam + ' vs Team ' + m.awayTeam + '</td>' +
+        '<td class="' + cls + ' small">' + status + '</td>' +
+      '</tr>';
+
+    if (m.league === 'mens' && fallEndDate) {
+      if (m.date <= fallEndDate) {
+        fallRows.push(rowHtml);
+      } else {
+        springRows.push(rowHtml);
+      }
+    } else if (m.league === 'mens') {
+      // No split defined yet, treat all as full season (Fall bucket)
+      fallRows.push(rowHtml);
+    } else {
+      // Doubles: follow calendar; if we have a split, use dates; otherwise treat as full season (Fall bucket)
+      if (fallEndDate && springStartDate) {
+        if (m.date <= fallEndDate) {
+          fallRows.push(rowHtml);
+        } else if (m.date >= springStartDate) {
+          springRows.push(rowHtml);
+        } else {
+          // Between fallEnd and springStart is odd; just attach to Spring
+          springRows.push(rowHtml);
+        }
+      } else {
+        fallRows.push(rowHtml);
+      }
+    }
+  }
+
+  let html = '';
+
+  // Fall section
+  html += '<tr><td colspan="4" class="small" style="font-weight:600;border-top:1px solid #1f2937;">Fall Season</td></tr>';
+  if (fallRows.length) {
+    html += fallRows.join('');
+  } else {
+    html += '<tr><td colspan="4" class="small muted">No matches in Fall Season for this filter.</td></tr>';
+  }
+
+  // Spring section
+  html += '<tr><td colspan="4" class="small" style="font-weight:600;border-top:1px solid #1f2937;">Spring Season</td></tr>';
+  if (springRows.length) {
+    html += springRows.join('');
+  } else {
+    html += '<tr><td colspan="4" class="small muted">No matches in Spring Season for this filter.</td></tr>';
+  }
+
+  body.innerHTML = html;
+}
+
+function formatPointsValue(points) {
+  return points.a + '/' + points.b;
+}
+
+function pointsFromNet(aNet, bNet) {
+  if (aNet > bNet) return { a: 1, b: 0 };
+  if (bNet > aNet) return { a: 0, b: 1 };
+  return { a: 0.5, b: 0.5 };
+}
+
+function calculateNetAndPoints(totals, handicapPins, lowerTeam) {
+  const hp = (typeof handicapPins === 'number' && handicapPins > 0) ? handicapPins : 0;
+  const aGetsHp = lowerTeam === 'A';
+  const bGetsHp = lowerTeam === 'B';
+
+  const g1aNet = totals.g1aTot + (aGetsHp ? hp : 0);
+  const g1bNet = totals.g1bTot + (bGetsHp ? hp : 0);
+  const g2aNet = totals.g2aTot + (aGetsHp ? hp : 0);
+  const g2bNet = totals.g2bTot + (bGetsHp ? hp : 0);
+
+  const seriesANet = g1aNet + g2aNet;
+  const seriesBNet = g1bNet + g2bNet;
+
+  return {
+    nets: {
+      g1aNet,
+      g1bNet,
+      g2aNet,
+      g2bNet,
+      seriesANet,
+      seriesBNet
+    },
+    points: {
+      g1: pointsFromNet(g1aNet, g1bNet),
+      g2: pointsFromNet(g2aNet, g2bNet),
+      series: pointsFromNet(seriesANet, seriesBNet)
+    }
+  };
+}
+
+function readMatchFormData(container, match, slotsPerTeam) {
+  const get = name => container.querySelector('[name="' + name + '"]');
+  const bowlers = [];
+  let g1aTot = 0, g2aTot = 0, g1bTot = 0, g2bTot = 0;
+
+  function addSide(prefix, teamId) {
+    for (let i = 1; i <= slotsPerTeam; i++) {
+      const pid = get(prefix + i)?.value || '';
+      const g1 = parseInt(get(prefix + i + 'g1')?.value || '0', 10) || 0;
+      const g2 = parseInt(get(prefix + i + 'g2')?.value || '0', 10) || 0;
+
+      if (prefix === 'a') {
+        g1aTot += g1;
+        g2aTot += g2;
+      } else {
+        g1bTot += g1;
+        g2bTot += g2;
+      }
+
+      if (!pid && !g1 && !g2) continue;
+
+      bowlers.push({
+        playerId: pid,
+        league: match.league,
+        teamId,
+        scores: [g1, g2],
+        isSub: false
+      });
+    }
+  }
+
+  addSide('a', match.homeTeam);
+  addSide('b', match.awayTeam);
+
+  return {
+    bowlers,
+    totals: { g1aTot, g2aTot, g1bTot, g2bTot }
+  };
+}
+
+function calculateHandicapFromLineup(match, bowlers) {
+  const stats = computeLeagueStats(match.league, { endDate: match.date }) || [];
+  const avgByPlayer = new Map();
+  for (const s of stats) {
+    if (!s || !s.playerId) continue;
+    let avg = (typeof s.currentAverage === 'number' ? s.currentAverage : 0);
+    if (s.playerId === 'billR' && match.league === 'mens') {
+      avg = 81;
+    }
+    avgByPlayer.set(s.playerId, avg);
+  }
+
+  let sumA = 0;
+  let sumB = 0;
+  const seenA = new Set();
+  const seenB = new Set();
+
+  for (const b of bowlers) {
+    const pid = b.playerId;
+    if (!pid) continue;
+    const avg = avgByPlayer.get(pid);
+    if (typeof avg !== 'number' || avg <= 0) continue;
+
+    if (b.teamId === match.homeTeam) {
+      if (!seenA.has(pid)) {
+        sumA += avg;
+        seenA.add(pid);
+      }
+    } else if (b.teamId === match.awayTeam) {
+      if (!seenB.has(pid)) {
+        sumB += avg;
+        seenB.add(pid);
+      }
+    }
+  }
+
+  if (!sumA || !sumB) {
+    return { handicapPins: 0, lowerTeam: '', hasTotals: false };
+  }
+
+  if (sumA === sumB) {
+    return { handicapPins: 0, lowerTeam: '', hasTotals: true };
+  }
+
+  const diff = Math.abs(sumA - sumB);
+  const handicapPins = Math.round(diff * 0.8);
+  const lowerTeam = (sumA < sumB) ? 'A' : 'B';
+
+  return { handicapPins, lowerTeam, hasTotals: true };
+}
+
+function updateMatchFormDerived(match, slotsPerTeam) {
+  const container = document.getElementById('matchForm');
+  if (!container) return null;
+  const get = name => container.querySelector('[name="' + name + '"]');
+
+  const { bowlers, totals } = readMatchFormData(container, match, slotsPerTeam);
+  let handicapPins = parseInt(get('handicapPins')?.value || '0', 10) || 0;
+  let lowerTeam = get('lowerTeam')?.value || '';
+
+  if (container.dataset.manualHandicap !== 'true') {
+    const auto = calculateHandicapFromLineup(match, bowlers);
+    if (auto.hasTotals) {
+      handicapPins = auto.handicapPins;
+      lowerTeam = auto.lowerTeam;
+      const hpField = get('handicapPins');
+      const lowerField = get('lowerTeam');
+      if (hpField) hpField.value = String(handicapPins);
+      if (lowerField) lowerField.value = lowerTeam;
+    }
+  }
+
+  const calc = calculateNetAndPoints(totals, handicapPins, lowerTeam);
+
+  const setText = (id, value) => {
+    const el = container.querySelector('#' + id);
+    if (el) el.textContent = value;
+  };
+
+  setText('g1ScratchA', totals.g1aTot);
+  setText('g1ScratchB', totals.g1bTot);
+  setText('g2ScratchA', totals.g2aTot);
+  setText('g2ScratchB', totals.g2bTot);
+
+  setText('g1NetA', calc.nets.g1aNet);
+  setText('g1NetB', calc.nets.g1bNet);
+  setText('g2NetA', calc.nets.g2aNet);
+  setText('g2NetB', calc.nets.g2bNet);
+  setText('seriesNetA', calc.nets.seriesANet);
+  setText('seriesNetB', calc.nets.seriesBNet);
+
+  const ptsG1 = get('ptsG1');
+  const ptsG2 = get('ptsG2');
+  const ptsSeries = get('ptsSeries');
+  if (ptsG1) ptsG1.value = formatPointsValue(calc.points.g1);
+  if (ptsG2) ptsG2.value = formatPointsValue(calc.points.g2);
+  if (ptsSeries) ptsSeries.value = formatPointsValue(calc.points.series);
+
+  return { bowlers, totals, handicapPins, lowerTeam, points: calc.points };
+}
+
+function attachMatchFormAutoCalc(match, slotsPerTeam) {
+  const container = document.getElementById('matchForm');
+  if (!container) return;
+  container.dataset.manualHandicap = 'false';
+
+  const inputs = container.querySelectorAll('input, select');
+  const handler = () => updateMatchFormDerived(match, slotsPerTeam);
+
+  inputs.forEach(el => {
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+    if (el.name === 'handicapPins' || el.name === 'lowerTeam') {
+      el.addEventListener('input', () => { container.dataset.manualHandicap = 'true'; });
+      el.addEventListener('change', () => { container.dataset.manualHandicap = 'true'; });
+    }
+  });
+
+  updateMatchFormDerived(match, slotsPerTeam);
+}
+
+/* MATCH FORM – 2 bowlers for Men’s, 4 for Doubles + handicap fields */
+function openMatchForm(id) {
+  const match = state.schedule.find(m => m.id === id);
+  const container = document.getElementById('matchForm');
+  if (!match || !container) return;
+
+  const isDoubles = (match.league === 'doubles');
+  const slotsPerTeam = isDoubles ? 4 : 2;
+
+  const res = getResultForMatch(match);
+
+  const leaguePlayers = state.players || [];
+  const teamsForLeague = state.teams[match.league] || [];
+  const teamA = teamsForLeague.find(t => t.id === match.homeTeam);
+  const teamB = teamsForLeague.find(t => t.id === match.awayTeam);
+  const rosterA = teamA ? (teamA.players || []) : [];
+  const rosterB = teamB ? (teamB.players || []) : [];
+
+  function playerSelect(name, value, roster) {
+    let html = '<select name="' + name + '">';
+    const idsInOrder = [...roster];
+    const allIds = leaguePlayers.map(p => p.id);
+    const others = allIds.filter(id => !idsInOrder.includes(id));
+    const finalList = idsInOrder.concat(others);
+    for (const id of finalList) {
+      const p = leaguePlayers.find(p => p.id === id);
+      if (!p) continue;
+      const sel = (value === id) ? 'selected' : '';
+      const label = p.displayName || p.name || (p.firstName ? (p.firstName + (p.lastName ? ' ' + p.lastName : '')) : id);
+      html += '<option value="' + id + '" ' + sel + '>' + label + '</option>';
+    }
+    html += '</select>';
+    return html;
+  }
+
+  const bowlersA = new Array(slotsPerTeam).fill('');
+  const scoresA = new Array(slotsPerTeam).fill(null).map(() => [null, null]);
+  const bowlersB = new Array(slotsPerTeam).fill('');
+  const scoresB = new Array(slotsPerTeam).fill(null).map(() => [null, null]);
+
+  for (let i = 0; i < slotsPerTeam; i++) {
+    if (rosterA[i]) bowlersA[i] = rosterA[i];
+    if (rosterB[i]) bowlersB[i] = rosterB[i];
+  }
+
+  if (res) {
+    const teamABowlers = (res.bowlers || []).filter(b => b.teamId === match.homeTeam);
+    const teamBBowlers = (res.bowlers || []).filter(b => b.teamId === match.awayTeam);
+
+    for (let i = 0; i < slotsPerTeam; i++) {
+      if (teamABowlers[i]) {
+        bowlersA[i] = teamABowlers[i].playerId;
+        const sc = teamABowlers[i].scores || [];
+        scoresA[i][0] = sc[0] ?? null;
+        scoresA[i][1] = sc[1] ?? null;
+      }
+      if (teamBBowlers[i]) {
+        bowlersB[i] = teamBBowlers[i].playerId;
+        const sc = teamBBowlers[i].scores || [];
+        scoresB[i][0] = sc[0] ?? null;
+        scoresB[i][1] = sc[1] ?? null;
+      }
+    }
+  }
+
+  function totals(scores) {
+    let g1 = 0, g2 = 0;
+    for (const s of scores) {
+      g1 += Number(s[0] || 0);
+      g2 += Number(s[1] || 0);
+    }
+    return [g1, g2];
+  }
+
+  const [totalA1, totalA2] = totals(scoresA);
+  const [totalB1, totalB2] = totals(scoresB);
+
+  let ptsG1 = '', ptsG2 = '', ptsSeries = '';
+  if (res) {
+    const g1 = res.games?.[0];
+    const g2 = res.games?.[1];
+    if (g1) ptsG1 = (g1.aPoints || 0) + '/' + (g1.bPoints || 0);
+    if (g2) ptsG2 = (g2.aPoints || 0) + '/' + (g2.bPoints || 0);
+    ptsSeries = (res.seriesPointsA || 0) + '/' + (res.seriesPointsB || 0);
+  }
+
+  let handicapPins = null;
+  let lowerTeam = '';
+
+  const avgA = teamAvg(match.league, match.homeTeam);
+  const avgB = teamAvg(match.league, match.awayTeam);
+
+  if (avgA != null && avgB != null && avgA !== avgB) {
+    const diffAvg = Math.abs(avgA - avgB);
+    handicapPins = Math.round(diffAvg * 0.8);
+    lowerTeam = avgA < avgB ? 'A' : 'B';
+  }
+
+  if (res) {
+    if (typeof res.handicapPins === 'number') {
+      handicapPins = res.handicapPins;
+    }
+    if (res.lowerTeam === 'A' || res.lowerTeam === 'B') {
+      lowerTeam = res.lowerTeam;
+    }
+  }
+
+  const hpForNet = (typeof handicapPins === 'number' && handicapPins > 0 ? handicapPins : 0);
+  const aGetsHp = (lowerTeam === 'A');
+  const bGetsHp = (lowerTeam === 'B');
+  const g1aNet = totalA1 + (aGetsHp ? hpForNet : 0);
+  const g1bNet = totalB1 + (bGetsHp ? hpForNet : 0);
+  const g2aNet = totalA2 + (aGetsHp ? hpForNet : 0);
+  const g2bNet = totalB2 + (bGetsHp ? hpForNet : 0);
+  const seriesAScratch = totalA1 + totalA2;
+  const seriesBScratch = totalB1 + totalB2;
+  // Series net is based on net game totals (handicap applied each game)
+  const seriesANet = g1aNet + g2aNet;
+  const seriesBNet = g1bNet + g2bNet;
+
+  let html = '';
+  html += '<div class="card-header">';
+  html += '<div><div class="card-title">' + formatDateLabel(match.date) + ' · ' + leagueLabel(match.league) + '</div>';
+  html += '<div class="small muted">Team ' + match.homeTeam + ' vs Team ' + match.awayTeam + '</div></div>';
+  html += '<div class="flex">';
+  html += '<button class="btn btn-sm" type="button" onclick="rescheduleMatch(\'' + match.id + '\')">Reschedule</button>';
+  html += '</div></div>';
+  html += '<div class="small muted mt-1">Tip: choose subs from the bowler dropdowns as needed.</div>';
+
+  html += '<div class="mt-2">';
+  html += '<div class="small" style="font-weight:600">Team ' + match.homeTeam + '</div>';
+  for (let i = 0; i < slotsPerTeam; i++) {
+    const idx = i + 1;
+    const sc = scoresA[i];
+    const g1 = sc[0] ?? '';
+    const g2 = sc[1] ?? '';
+    html += '<div class="form-row"><label>Bowler ' + idx + '</label>' +
+      playerSelect('a' + idx, bowlersA[i], rosterA) +
+      ' G1 <input type="number" name="a' + idx + 'g1" value="' + g1 + '">' +
+      ' G2 <input type="number" name="a' + idx + 'g2" value="' + g2 + '"></div>';
+  }
+
+  html += '<div class="mt-2 small" style="font-weight:600">Team ' + match.awayTeam + '</div>';
+  for (let i = 0; i < slotsPerTeam; i++) {
+    const idx = i + 1;
+    const sc = scoresB[i];
+    const g1 = sc[0] ?? '';
+    const g2 = sc[1] ?? '';
+    html += '<div class="form-row"><label>Bowler ' + idx + '</label>' +
+      playerSelect('b' + idx, bowlersB[i], rosterB) +
+      ' G1 <input type="number" name="b' + idx + 'g1" value="' + g1 + '">' +
+      ' G2 <input type="number" name="b' + idx + 'g2" value="' + g2 + '"></div>';
+  }
+
+  html += '<div class="mt-2">';
+  html += '<div class="form-row"><label>Team Totals</label>';
+  html += '<span class="small">G1 scratch: <span id="g1ScratchA">' + totalA1 + '</span> – <span id="g1ScratchB">' + totalB1 + '</span></span>';
+  html += '<span class="small" style="margin-left:0.75rem;">G2 scratch: <span id="g2ScratchA">' + totalA2 + '</span> – <span id="g2ScratchB">' + totalB2 + '</span></span>';
+  html += '</div>';
+  html += '<div class="form-row small muted" style="margin-top:0.15rem;">';
+  html += '<span>Net after handicap: G1 <span id="g1NetA">' + g1aNet + '</span> – <span id="g1NetB">' + g1bNet + '</span>, G2 <span id="g2NetA">' + g2aNet + '</span> – <span id="g2NetB">' + g2bNet + '</span>, Series <span id="seriesNetA">' + seriesANet + '</span> – <span id="seriesNetB">' + seriesBNet + '</span>.</span>';
+  html += '</div>';
+  html += '<div class="form-row small muted" style="margin-top:0.15rem;">';
+  html += '<span>Handicap ' +
+    (hpForNet
+      ? (hpForNet + ' pins to Team ' + (aGetsHp ? match.homeTeam : (bGetsHp ? match.awayTeam : '?')))
+      : '0 pins') +
+    ' is added to that team in every game. Game and series points are based on net scores after handicap.</span>';
+  html += '</div>';
+
+  html += '<div class="form-row"><label>Points</label>';
+  html += 'G1 <input type="text" name="ptsG1" value="' + ptsG1 + '" placeholder="A/B" readonly>';
+  html += ' G2 <input type="text" name="ptsG2" value="' + ptsG2 + '" placeholder="A/B" readonly>';
+  html += ' Series <input type="text" name="ptsSeries" value="' + ptsSeries + '" placeholder="A/B" readonly>';
+  html += '</div>';
+
+  html += '<div class="form-row small muted" style="margin-top:0.15rem;">';
+  html += '<span>Enter points as A/B. Game and series points are awarded to the team with the higher net score after handicap.</span>';
+  html += '</div>';
+
+  html += '<div class="form-row"><label>Handicap</label>';
+  html += '<input type="number" name="handicapPins" min="0" value="' +
+    (handicapPins !== null && handicapPins !== undefined ? handicapPins : '') + '">';
+  html += '<select name="lowerTeam">';
+  html += '<option value="">Low team</option>';
+  html += '<option value="A"' + (lowerTeam === 'A' ? ' selected' : '') + '>Team ' + match.homeTeam + '</option>';
+  html += '<option value="B"' + (lowerTeam === 'B' ? ' selected' : '') + '>Team ' + match.awayTeam + '</option>';
+  html += '</select>';
+  html += '<span class="small muted">80% of average difference; applied to the low team (same as Monday Packet).</span>';
+  html += '</div>';
+
+  html += '</div>';
+
+  html += '<div class="form-row" style="margin-top:0.6rem;">';
+  html += '<button type="button" class="btn btn-sm" onclick="saveMatchForm(\'' + match.id + '\')">Save Result</button>';
+  html += '<button type="button" class="btn btn-sm btn-secondary" style="margin-left:0.4rem;" onclick="clearMatchForm()">Close</button>';
+  html += '<span class="muted small">Subs are just chosen from the bowler dropdowns.</span>';
+  html += '</div>';
+
+  container.innerHTML = html;
+  attachMatchFormAutoCalc(match, slotsPerTeam);
+}
+
+function clearMatchForm() {
+  const container = document.getElementById('matchForm');
+  if (container) {
+    container.innerHTML = '<p class="muted small">Choose a match to enter or edit the result.</p>';
+  }
+}
+
+function saveMatchForm(matchId) {
+  const match = state.schedule.find(m => m.id === matchId);
+  if (!match) return;
+  const container = document.getElementById('matchForm');
+  if (!container) return;
+
+  const isDoubles = (match.league === 'doubles');
+  const slotsPerTeam = isDoubles ? 4 : 2;
+  const get = name => container.querySelector('[name="' + name + '"]');
+
+  const manualHandicap = container.dataset.manualHandicap === 'true';
+  const { bowlers, totals } = readMatchFormData(container, match, slotsPerTeam);
+
+  let handicapPins = parseInt(get('handicapPins')?.value || '0', 10) || 0;
+  let lowerTeam = get('lowerTeam')?.value || '';
+
+  if (!manualHandicap) {
+    const auto = calculateHandicapFromLineup(match, bowlers);
+    if (auto.hasTotals) {
+      handicapPins = auto.handicapPins;
+      lowerTeam = auto.lowerTeam;
+      const hpField = get('handicapPins');
+      const lowerField = get('lowerTeam');
+      if (hpField) hpField.value = String(handicapPins);
+      if (lowerField) lowerField.value = lowerTeam;
+    }
+  }
+
+  const calc = calculateNetAndPoints(totals, handicapPins, lowerTeam);
+  const g1aPts = calc.points.g1.a;
+  const g1bPts = calc.points.g1.b;
+  const g2aPts = calc.points.g2.a;
+  const g2bPts = calc.points.g2.b;
+  const sApts = calc.points.series.a;
+  const sBpts = calc.points.series.b;
+
+  const ptsG1 = get('ptsG1');
+  const ptsG2 = get('ptsG2');
+  const ptsSeries = get('ptsSeries');
+  if (ptsG1) ptsG1.value = formatPointsValue(calc.points.g1);
+  if (ptsG2) ptsG2.value = formatPointsValue(calc.points.g2);
+  if (ptsSeries) ptsSeries.value = formatPointsValue(calc.points.series);
+
+  const existingIndex = state.results.findIndex(r =>
+    r.league === match.league &&
+    r.date === match.date &&
+    r.teamA === match.homeTeam &&
+    r.teamB === match.awayTeam
+  );
+
+  if (existingIndex >= 0) {
+    const pwd = prompt('Manager password required to change a completed match. Enter password or leave blank to cancel:');
+    if (!pwd) {
+      showToast('Cancelled – existing result left unchanged');
+      return;
+    }
+    if (pwd !== MANAGER_PASSWORD) {
+      alert('Incorrect password. No changes were made.');
+      return;
+    }
+  }
+
+  const resultObj = {
+    id: 'res_' + match.id,
+    league: match.league,
+    date: match.date,
+    teamA: match.homeTeam,
+    teamB: match.awayTeam,
+    games: [
+      { aTotal: totals.g1aTot, bTotal: totals.g1bTot, aPoints: g1aPts, bPoints: g1bPts },
+      { aTotal: totals.g2aTot, bTotal: totals.g2bTot, aPoints: g2aPts, bPoints: g2bPts }
+    ],
+    seriesPointsA: sApts,
+    seriesPointsB: sBpts,
+    bowlers,
+    handicapPins,
+    lowerTeam
+  };
+
+  if (existingIndex >= 0) {
+    state.results[existingIndex] = resultObj;
+  } else {
+    state.results.push(resultObj);
+  }
+
+  renderScheduleList();
+  renderFullSchedule();
+  renderSavedResults();
+  renderTeamsAndAverages();
+  renderAwards();
+  renderMondayPacket();
+  renderStandings();
+  showToast('Result saved');
+}
+
+function rescheduleMatch(matchId) {
+  const match = state.schedule.find(m => m.id === matchId);
+  if (!match) return;
+
+  const oldDate = match.date;
+
+  const newDate = prompt('Enter new date (YYYY-MM-DD):', match.date);
+  if (!newDate) return;
+  const okFormat = /^\d{4}-\d{2}-\d{2}$/.test(newDate);
+  if (!okFormat) {
+    alert('Please use YYYY-MM-DD format.');
+    return;
+  }
+  const confirmChange = confirm('Reschedule this match to ' + newDate + '?');
+  if (!confirmChange) return;
+
+  const newId = newDate + '-' + (match.league === 'mens' ? 'm' : 'd') +
+    '-' + match.homeTeam + 'v' + match.awayTeam;
+
+  // Update the schedule entry
+  match.date = newDate;
+  match.rescheduled = true;
+  match.id = newId;
+
+  // Update any saved results that belong to this match
+  for (const r of state.results) {
+    if (
+      r.league === match.league &&
+      r.date === oldDate &&
+      r.teamA === match.homeTeam &&
+      r.teamB === match.awayTeam
+    ) {
+      r.date = newDate;
+      if (r.id && r.id.indexOf('res_') === 0) {
+        r.id = 'res_' + newId;
+      }
+    }
+  }
+
+  // Keep schedule sorted by date
+  state.schedule.sort((a, b) => (a.date > b.date ? 1 : -1));
+
+  // Refresh all views that depend on this match
+  renderScheduleList();
+  renderFullSchedule();
+  renderSavedResults();
+  renderTeamsAndAverages();
+  renderAwards();
+  renderMondayPacket();
+  renderStandings();
+
+  // Refresh the open match form so the header shows the new date
+  openMatchForm(match.id);
+
+  showToast('Match rescheduled');
+}
+
+/* SAVED RESULTS TABLE */
+function renderSavedResults() {
+  const body = document.getElementById('savedResultsBody');
+  if (!body) return;
+  if (!state.results.length) {
+    body.innerHTML = '<tr><td colspan="6" class="small muted">No results saved yet.</td></tr>';
+    return;
+  }
+  const sorted = [...state.results].sort((a, b) => (a.date > b.date ? 1 : -1));
+  let html = '';
+  for (const r of sorted) {
+    const g1 = r.games && r.games[0] ? (r.games[0].aTotal + '–' + r.games[0].bTotal) : '';
+    const g2 = r.games && r.games[1] ? (r.games[1].aTotal + '–' + r.games[1].bTotal) : '';
+    const ptsA = (r.games?.[0]?.aPoints || 0) + (r.games?.[1]?.aPoints || 0) + (r.seriesPointsA || 0);
+    const ptsB = (r.games?.[0]?.bPoints || 0) + (r.games?.[1]?.bPoints || 0) + (r.seriesPointsB || 0);
+    html += '<tr>' +
+      '<td>' + formatDateLabel(r.date) + '</td>' +
+      '<td>' + leagueLabel(r.league) + '</td>' +
+      '<td>Team ' + r.teamA + ' vs Team ' + r.teamB + '</td>' +
+      '<td>' + g1 + '</td>' +
+      '<td>' + g2 + '</td>' +
+      '<td>' + ptsA + ' – ' + ptsB + '</td>' +
+      '</tr>';
+  }
+  body.innerHTML = html;
+}
+
+/* AVERAGES / STATS – season-aware */
+function computeLeagueStats(league, opts) {
+  opts = opts || {};
+  const startDate = opts.startDate || null;
+  const endDate = opts.endDate || null;
+
+  const scoresByPlayer = new Map();
+  for (const r of state.results || []) {
+    if (r.league !== league) continue;
+    if (startDate && r.date < startDate) continue;
+    if (endDate && r.date > endDate) continue;
+
+    const bowlers = r.bowlers || [];
+    for (const b of bowlers) {
+      if (b.league !== league) continue;
+      const pid = b.playerId;
+      if (!pid) continue;
+      const arr = scoresByPlayer.get(pid) || [];
+      for (const sc of (b.scores || [])) {
+        if (typeof sc === 'number' && sc > 0) {
+          arr.push(sc);
+        }
+      }
+      scoresByPlayer.set(pid, arr);
+    }
+  }
+
+  const stats = [];
+
+  for (const p of state.players || []) {
+    const startAvg =
+      league === 'mens'
+        ? (typeof p.mensStart === 'number' ? p.mensStart : 0)
+        : (typeof p.doublesStart === 'number' ? p.doublesStart : 0);
+
+    const scores = scoresByPlayer.get(p.id) || [];
+    const n = scores.length;
+
+    if (!startAvg && n === 0) continue;
+
+    let current = startAvg;
+
+    if (n >= 1 && n <= 5) {
+      const s = scores;
+      if (n === 1) current = Math.round((3 * startAvg + s[0]) / 4);
+      if (n === 2) current = Math.round((2 * startAvg + s[0] + s[1]) / 4);
+      if (n === 3) current = Math.round((1 * startAvg + s[0] + s[1] + s[2]) / 4);
+      if (n === 4) current = Math.round((startAvg + s[0] + s[1] + s[2] + s[3]) / 5);
+      if (n === 5) current = Math.round((startAvg + s[0] + s[1] + s[2] + s[3] + s[4]) / 6);
+    } else if (n >= 6) {
+      const total = scores.reduce((a, b) => a + b, 0);
+      current = Math.round(total / n);
+    }
+
+    const name =
+      p.name ||
+      p.displayName ||
+      (p.firstName ? (p.firstName + (p.lastName ? ' ' + p.lastName : '')) : p.id);
+
+    stats.push({
+      playerId: p.id,
+      name,
+      games: n,
+      startingAverage: startAvg,
+      currentAverage: current
+    });
+  }
+
+  return stats;
+}
+
+function renderTeamsAndAverages() {
+  const mensEl = document.getElementById('mensAveragesBody');
+  const dblEl = document.getElementById('doublesAveragesBody');
+
+  const mensSeason = getMensSeasonRange();
+  const mensStats = computeLeagueStats('mens', mensSeason || {})
+    .sort((a, b) => (b.currentAverage - a.currentAverage));
+  const dblStats = computeLeagueStats('doubles')
+    .sort((a, b) => (b.currentAverage - a.currentAverage));
+
+  function rows(stats) {
+    if (!stats.length) return '<tr><td colspan="4" class="small muted">No games yet.</td></tr>';
+    return stats.map(s => '<tr>' +
+      '<td>' + s.name + '</td>' +
+      '<td>' + s.games + '</td>' +
+      '<td>' + (s.startingAverage || '') + '</td>' +
+      '<td>' + (s.currentAverage || '') + '</td>' +
+      '</tr>').join('');
+  }
+
+  if (mensEl) mensEl.innerHTML = rows(mensStats);
+  if (dblEl) dblEl.innerHTML = rows(dblStats);
+
+  const labelEl = document.getElementById('mensAveragesSeasonLabel');
+  if (labelEl) {
+    if (mensSeason) {
+      labelEl.textContent = mensSeason.seasonLabel + ' — starting vs current (per league).';
+    } else {
+      labelEl.textContent = 'Starting vs current (per league).';
+    }
+  }
+}
+
+function teamAvg(league, teamId) {
+  const stats = computeLeagueStats(league);
+  const statsById = new Map(stats.map(s => [s.playerId, s]));
+  const teamsForLeague = state.teams[league] || [];
+  const team = teamsForLeague.find(t => t.id === teamId);
+  if (!team) return null;
+
+  let sum = 0;
+  let count = 0;
+  for (const pid of (team.players || [])) {
+    const info = statsById.get(pid);
+    if (info && typeof info.currentAverage === 'number' && info.currentAverage > 0) {
+      sum += info.currentAverage;
+      count++;
+    }
+  }
+  if (!count) return null;
+  return sum;
+}
+
+/* MONDAY PACKET – upcoming league week (next Monday through Sunday) */
+function renderMondayPacket() {
+  const el = document.getElementById('mondayPacketBody');
+  if (!el) return;
+
+  function parseYMD(str) {
+    if (!str) return null;
+    const parts = str.split('-').map(Number);
+    if (parts.length !== 3) return null;
+    const [y, m, d] = parts;
+    const dt = new Date(y, m - 1, d);
+    if (isNaN(dt.getTime())) return null;
+    return dt;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dow = today.getDay();
+  const daysUntilMonday = (1 - dow + 7) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + daysUntilMonday);
+
+  const weekEnd = new Date(monday);
+  weekEnd.setDate(monday.getDate() + 6);
+
+  const inWindow = state.schedule
+    .filter(m => {
+      const dt = parseYMD(m.date);
+      if (!dt) return false;
+      dt.setHours(0, 0, 0, 0);
+      return dt >= monday && dt <= weekEnd;
+    })
+    .sort((a, b) => (a.date > b.date ? 1 : -1));
+
+  if (!inWindow.length) {
+    el.innerHTML = '<tr><td colspan="6" class="small muted">No matches in the upcoming Monday-to-Sunday week.</td></tr>';
+    return;
+  }
+
+  let html = '';
+  for (const m of inWindow) {
+    const tA = teamAvg(m.league, m.homeTeam);
+    const tB = teamAvg(m.league, m.awayTeam);
+    let lowTeam = null;
+    let handicap = null;
+
+    if (tA != null && tB != null) {
+      if (tA < tB) lowTeam = m.homeTeam;
+      else if (tB < tA) lowTeam = m.awayTeam;
+
+      const diff = Math.abs(tA - tB);
+      handicap = Math.round(diff * 0.8);
+    }
+
+    html += '<tr>' +
+      '<td>' + formatDateLabel(m.date) + '</td>' +
+      '<td>' + leagueLabel(m.league) + '</td>' +
+      '<td>Team ' + m.homeTeam + ' vs Team ' + m.awayTeam + '</td>' +
+      '<td>' + (tA || '') + '</td>' +
+      '<td>' + (tB || '') + '</td>' +
+      '<td>' + (lowTeam != null && handicap != null ? ('Team ' + lowTeam + ' +' + handicap) : '') + '</td>' +
+      '</tr>';
+  }
+  el.innerHTML = html;
+}
+
+/* AWARDS – per-league, plus Ladies Highlights with same categories */
+function renderAwards() {
+  const mensEl = document.getElementById('mensAwards');
+  const dblEl = document.getElementById('doublesAwards');
+  const ladiesEl = document.getElementById('ladiesAwards');
+  if (!mensEl || !dblEl) return;
+
+  function buildLeagueAwards(league, opts) {
+    const seasonLabel = opts.seasonLabel || 'Season';
+    const startDate = opts.startDate || null;
+    const endDate = opts.endDate || null;
+
+    const minGamesAvg = (league === 'doubles' ? 3 : 6);
+    const minGamesSeries = (league === 'doubles' ? 3 : 6);
+    const minGamesImproved = (league === 'doubles' ? 3 : 6);
+
+    const stats = computeLeagueStats(league, { startDate, endDate });
+    const filteredStats = stats.filter(s => !(league === 'mens' && s.playerId === 'billR'));
+    const statsById = new Map(filteredStats.map(s => [s.playerId, s]));
+
+    const leagueResults = (state.results || []).filter(r => {
+      if (r.league !== league) return false;
+      if (startDate && r.date < startDate) return false;
+      if (endDate && r.date > endDate) return false;
+      return true;
+    });
+
+    const highAvg = filteredStats
+      .filter(s => s.games >= minGamesAvg)
+      .sort((a, b) => b.currentAverage - a.currentAverage)
+      .slice(0, 4);
+
+    const gameEntries = [];
+    const seriesEntries = [];
+
+    for (const r of leagueResults) {
+      const bowlers = r.bowlers || [];
+      for (const b of bowlers) {
+        if (b.league !== league) continue;
+        const info = statsById.get(b.playerId);
+        if (!info) continue;
+
+        const scores = b.scores || [];
+
+        if (scores[0]) {
+          gameEntries.push({ playerId: b.playerId, score: scores[0], date: r.date });
+        }
+        if (scores[1]) {
+          gameEntries.push({ playerId: b.playerId, score: scores[1], date: r.date });
+        }
+
+        if (scores.length >= 2 && scores[0] && scores[1] && info.games >= minGamesSeries) {
+          seriesEntries.push({
+            playerId: b.playerId,
+            series: scores[0] + scores[1],
+            date: r.date
+          });
+        }
+      }
+    }
+
+    const highSingle = gameEntries
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4);
+
+    const highTwo = seriesEntries
+      .sort((a, b) => b.series - a.series)
+      .slice(0, 4);
+
+    const mostImproved = [];
+    for (const s of filteredStats) {
+      if (s.games < minGamesImproved) continue;
+      const pid = s.playerId;
+      const scores = [];
+      for (const r of leagueResults) {
+        const bowlers = r.bowlers || [];
+        for (const b of bowlers) {
+          if (b.league !== league || b.playerId !== pid) continue;
+          for (const sc of (b.scores || [])) {
+            if (typeof sc === 'number' && sc > 0) scores.push(sc);
+          }
+        }
+      }
+      if (!scores.length) continue;
+      const firstGame = scores[0];
+      const improvement = s.currentAverage - firstGame;
+      mostImproved.push({
+        playerId: pid,
+        name: s.name,
+        improvement,
+        firstGame,
+        current: s.currentAverage,
+        games: s.games
+      });
+    }
+    mostImproved.sort((a, b) => b.improvement - a.improvement);
+
+    function fmtHighAvg(list) {
+      if (!list.length) return '<p class="small muted">No one has ' + minGamesAvg + ' games yet.</p>';
+      return '<ol class="small">' + list.map(s =>
+        '<li>' + s.name + ' — ' + s.currentAverage +
+        ' over ' + s.games + ' games (start ' + (s.startingAverage || 0) + ')</li>'
+      ).join('') + '</ol>';
+    }
+    function fmtSingle(list) {
+      if (!list.length) return '<p class="small muted">No eligible games yet.</p>';
+      return '<ol class="small">' + list.map(e =>
+        '<li>' + (statsById.get(e.playerId)?.name || e.playerId) +
+        ' — ' + e.score + ' (' + formatDateLabel(e.date) + ')</li>'
+      ).join('') + '</ol>';
+    }
+    function fmtSeries(list) {
+      if (!list.length) return '<p class="small muted">No eligible series yet.</p>';
+      return '<ol class="small">' + list.map(e =>
+        '<li>' + (statsById.get(e.playerId)?.name || e.playerId) +
+        ' — ' + e.series + ' (' + formatDateLabel(e.date) + ')</li>'
+      ).join('') + '</ol>';
+    }
+    function fmtMostImproved(list) {
+      if (!list.length) return '<p class="small muted">No one qualifies yet (need ' + minGamesImproved + ' games).</p>';
+      return '<ol class="small">' + list.slice(0, 4).map(e =>
+        '<li>' + e.name + ' — ' +
+        (e.improvement >= 0 ? '+' : '') + e.improvement.toFixed(1) +
+        ' (first ' + e.firstGame + ', now ' + e.current +
+        ' over ' + e.games + ' games)</li>'
+      ).join('') + '</ol>';
+    }
+
+    return (
+      '<div class="card">' +
+        '<div class="card-header"><div class="card-title">High Average (min ' + minGamesAvg + ' games)</div></div>' +
+        '<p class="small muted">Current season: ' + seasonLabel + '.</p>' +
+        fmtHighAvg(highAvg) +
+      '</div>' +
+      '<div class="card mt-2">' +
+        '<div class="card-header"><div class="card-title">High Single (top 4, all games)</div></div>' +
+        fmtSingle(highSingle) +
+      '</div>' +
+      '<div class="card mt-2">' +
+        '<div class="card-header"><div class="card-title">High Two (series, min ' + minGamesSeries + ' games)</div></div>' +
+        fmtSeries(highTwo) +
+      '</div>' +
+      '<div class="card mt-2">' +
+        '<div class="card-header"><div class="card-title">Most Improved (min ' + minGamesImproved + ' games)</div></div>' +
+        fmtMostImproved(mostImproved) +
+      '</div>'
+    );
+  }
+
+  const mensSeason = getMensSeasonRange();
+  const mensOpts = mensSeason || { seasonLabel: 'Season' };
+  mensEl.innerHTML = buildLeagueAwards('mens', mensOpts);
+
+  dblEl.innerHTML = buildLeagueAwards('doubles', { seasonLabel: 'Full Season' });
+
+  if (ladiesEl) {
+    const league = 'doubles';
+    const minGames = 3;
+
+    const statsAll = computeLeagueStats(league);
+    const ladiesStats = statsAll.filter(s => {
+      const player = getPlayerById(s.playerId);
+      return isLady(player);
+    });
+    const statsById = new Map(ladiesStats.map(s => [s.playerId, s]));
+
+    const leagueResults = (state.results || []).filter(r => r.league === league);
+
+    const highAvgLadies = ladiesStats
+      .filter(s => s.games >= minGames)
+      .sort((a, b) => b.currentAverage - a.currentAverage)
+      .slice(0, 4);
+
+    const gameEntries = [];
+    const seriesEntries = [];
+
+    for (const r of leagueResults) {
+      const bowlers = r.bowlers || [];
+      for (const b of bowlers) {
+        if (b.league !== league) continue;
+        const player = getPlayerById(b.playerId);
+        if (!isLady(player)) continue;
+
+        const info = statsById.get(b.playerId);
+        if (!info) continue;
+
+        const scores = b.scores || [];
+
+        if (scores[0]) {
+          gameEntries.push({
+            playerId: b.playerId,
+            score: scores[0],
+            date: r.date
+          });
+        }
+        if (scores[1]) {
+          gameEntries.push({
+            playerId: b.playerId,
+            score: scores[1],
+            date: r.date
+          });
+        }
+
+        if (scores.length >= 2 && scores[0] && scores[1] && info.games >= minGames) {
+          seriesEntries.push({
+            playerId: b.playerId,
+            series: scores[0] + scores[1],
+            date: r.date
+          });
+        }
+      }
+    }
+
+    const highSingleLadies = gameEntries
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4);
+
+    const highTwoLadies = seriesEntries
+      .sort((a, b) => b.series - a.series)
+      .slice(0, 4);
+
+    const mostImprovedLadies = [];
+    for (const s of ladiesStats) {
+      if (s.games < minGames) continue;
+      const pid = s.playerId;
+      const scores = [];
+      for (const r of leagueResults) {
+        const bowlers = r.bowlers || [];
+        for (const b of bowlers) {
+          if (b.league !== league || b.playerId !== pid) continue;
+          const player = getPlayerById(b.playerId);
+          if (!isLady(player)) continue;
+          for (const sc of (b.scores || [])) {
+            if (typeof sc === 'number' && sc > 0) scores.push(sc);
+          }
+        }
+      }
+      if (!scores.length) continue;
+      const firstGame = scores[0];
+      const improvement = s.currentAverage - firstGame;
+      mostImprovedLadies.push({
+        playerId: pid,
+        name: s.name,
+        improvement,
+        firstGame,
+        current: s.currentAverage,
+        games: s.games
+      });
+    }
+    mostImprovedLadies.sort((a, b) => b.improvement - a.improvement);
+
+    function fmtHighAvgLadies(list) {
+      if (!list.length) return '<p class="small muted">No ladies have ' + minGames + ' games yet.</p>';
+      return '<ol class="small">' + list.map(s =>
+        '<li>' + s.name + ' — ' + s.currentAverage +
+        ' over ' + s.games + ' games</li>'
+      ).join('') + '</ol>';
+    }
+    function fmtSingleLadies(list) {
+      if (!list.length) return '<p class="small muted">No eligible ladies’ games yet.</p>';
+      return '<ol class="small">' + list.map(e =>
+        '<li>' + (statsById.get(e.playerId)?.name || e.playerId) +
+        ' — ' + e.score + ' (' + formatDateLabel(e.date) + ')</li>'
+      ).join('') + '</ol>';
+    }
+    function fmtSeriesLadies(list) {
+      if (!list.length) return '<p class="small muted">No eligible ladies’ series yet.</p>';
+      return '<ol class="small">' + list.map(e =>
+        '<li>' + (statsById.get(e.playerId)?.name || e.playerId) +
+        ' — ' + e.series + ' (' + formatDateLabel(e.date) + ')</li>'
+      ).join('') + '</ol>';
+    }
+    function fmtMostImprovedLadies(list) {
+      if (!list.length) return '<p class="small muted">No ladies qualify yet (need ' + minGames + ' games).</p>';
+      return '<ol class="small">' + list.slice(0, 4).map(e =>
+        '<li>' + e.name + ' — ' +
+        (e.improvement >= 0 ? '+' : '') + e.improvement.toFixed(1) +
+        ' (first ' + e.firstGame + ', now ' + e.current +
+        ' over ' + e.games + ' games)</li>'
+      ).join('') + '</ol>';
+    }
+
+    let html = '';
+
+    html += '<div class="card">';
+    html += '<div class="card-header"><div class="card-title">Ladies High Average (min ' + minGames + ' games)</div></div>';
+    html += fmtHighAvgLadies(highAvgLadies);
+    html += '</div>';
+
+    html += '<div class="card mt-2">';
+    html += '<div class="card-header"><div class="card-title">Ladies High Single (top 4, all games)</div></div>';
+    html += fmtSingleLadies(highSingleLadies);
+    html += '</div>';
+
+    html += '<div class="card mt-2">';
+    html += '<div class="card-header"><div class="card-title">Ladies High Two (series, min ' + minGames + ' games)</div></div>';
+    html += fmtSeriesLadies(highTwoLadies);
+    html += '</div>';
+
+    html += '<div class="card mt-2">';
+    html += '<div class="card-header"><div class="card-title">Ladies Most Improved (min ' + minGames + ' games)</div></div>';
+    html += fmtMostImprovedLadies(mostImprovedLadies);
+    html += '</div>';
+
+    ladiesEl.innerHTML = html;
+  }
+}
+
+/* STANDINGS – by points, per league & season */
+function computeStandings(league, opts) {
+  opts = opts || {};
+  const startDate = opts.startDate || null;
+  const endDate = opts.endDate || null;
+
+  const teamsForLeague = state.teams[league] || [];
+  const teamStats = new Map();
+
+  for (const t of teamsForLeague) {
+    teamStats.set(t.id, {
+      teamId: t.id,
+      wins: 0,
+      losses: 0,
+      ties: 0,
+      points: 0,
+      matches: 0
+    });
+  }
+
+  for (const r of state.results || []) {
+    if (r.league !== league) continue;
+    if (startDate && r.date < startDate) continue;
+    if (endDate && r.date > endDate) continue;
+
+    const teamA = r.teamA;
+    const teamB = r.teamB;
+    const ptsA = (r.games?.[0]?.aPoints || 0) + (r.games?.[1]?.aPoints || 0) + (r.seriesPointsA || 0);
+    const ptsB = (r.games?.[0]?.bPoints || 0) + (r.games?.[1]?.bPoints || 0) + (r.seriesPointsB || 0);
+
+    const recA = teamStats.get(teamA) || { teamId: teamA, wins: 0, losses: 0, ties: 0, points: 0, matches: 0 };
+    const recB = teamStats.get(teamB) || { teamId: teamB, wins: 0, losses: 0, ties: 0, points: 0, matches: 0 };
+
+    recA.points += ptsA;
+    recB.points += ptsB;
+    recA.matches++;
+    recB.matches++;
+
+    if (ptsA > ptsB) {
+      recA.wins++;
+      recB.losses++;
+    } else if (ptsB > ptsA) {
+      recB.wins++;
+      recA.losses++;
+    } else {
+      recA.ties++;
+      recB.ties++;
+    }
+
+    teamStats.set(teamA, recA);
+    teamStats.set(teamB, recB);
+  }
+
+  const arr = Array.from(teamStats.values());
+  const filtered = arr.filter(t => t.matches > 0);
+
+  filtered.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return String(a.teamId).localeCompare(String(b.teamId));
+  });
+
+  return filtered;
+}
+
+function renderStandings() {
+  const mensBody = document.getElementById('mensStandingsBody');
+  const dblBody = document.getElementById('doublesStandingsBody');
+  const mensLabel = document.getElementById('mensStandingsSeasonLabel');
+  if (!mensBody || !dblBody) return;
+
+  const mensSeason = getMensSeasonRange();
+  const mensStats = computeStandings('mens', mensSeason || {});
+  const dblStats = computeStandings('doubles', {});
+
+  function rows(list) {
+    if (!list.length) return '<tr><td colspan="5" class="small muted">No completed matches yet.</td></tr>';
+    return list.map(s =>
+      '<tr>' +
+        '<td>Team ' + s.teamId + '</td>' +
+        '<td>' + s.wins + '</td>' +
+        '<td>' + s.losses + '</td>' +
+        '<td>' + s.points + '</td>' +
+        '<td>' + s.matches + '</td>' +
+      '</tr>'
+    ).join('');
+  }
+
+  mensBody.innerHTML = rows(mensStats);
+  dblBody.innerHTML = rows(dblStats);
+
+  if (mensLabel) {
+    mensLabel.textContent = mensSeason ? mensSeason.seasonLabel : 'Full Season';
+  }
+}
+
+/* EXPORT / IMPORT */
+function exportData() {
+  const payload = {
+    players: state.players,
+    teams: state.teams,
+    schedule: state.schedule,
+    results: state.results
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'thames_duckpin_data.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported JSON');
+}
+
+function handleImport(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let d = null;
+
+    try {
+      d = JSON.parse(e.target.result);
+      if (!d || typeof d !== 'object') {
+        throw new Error('Not an object');
+      }
+    } catch (err) {
+      console.error('JSON parse error', err);
+      alert('Import failed (invalid JSON file). No changes were made.');
+      return;
+    }
+
+    try {
+      state.players = d.players || [];
+      state.teams = d.teams || { mens: [], doubles: [] };
+      state.schedule = d.schedule || [];
+      state.results = d.results || [];
+
+      state.schedule.sort((a, b) => (a.date > b.date ? 1 : -1));
+      normalizeLegacyData();
+      renderAll();
+      showToast('Import successful');
+    } catch (err) {
+      console.error('Import post-parse error', err);
+      alert(
+        'Import failed due to an internal app error after reading the JSON. Your file itself is valid – see console for details.'
+      );
+    }
+  };
+
+  reader.readAsText(file);
+}
+function renderAll() {
+  renderDashboard();
+  renderScheduleList();
+  renderFullSchedule();
+  renderSavedResults();
+  renderTeamsAndAverages();
+  renderMondayPacket();
+  renderAwards();
+  renderStandings();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initState();
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+  });
+
+  const importInput = document.getElementById('importFile');
+  if (importInput) {
+    importInput.addEventListener('change', handleImport);
+  }
+  const importBtn = document.getElementById('importBtn');
+  if (importBtn && importInput) {
+    importBtn.addEventListener('click', () => importInput.click());
+  }
+
+  const upOnly = document.getElementById('fullSchedUpcomingOnly');
+  if (upOnly) upOnly.addEventListener('change', renderFullSchedule);
+
+  setActiveTab('tab-dashboard');
+  renderAll();
+});
+
+window.addEventListener('beforeunload', (e) => {
+  if (state.results.length || state.schedule.length || state.players.length) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+window.openMatchForm = openMatchForm;
+window.saveMatchForm = saveMatchForm;
+window.clearMatchForm = clearMatchForm;
+window.rescheduleMatch = rescheduleMatch;
+window.exportData = exportData;
+window.handleImport = handleImport;
+  </script>
+</body>
+</html>
