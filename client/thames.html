@@ -1756,6 +1756,20 @@ function parsePointsText(text) {
   ];
 }
 
+function formatPointValue(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatPointsPair(aPoints, bPoints) {
+  return `${formatPointValue(aPoints)}/${formatPointValue(bPoints)}`;
+}
+
+function computePointsForNet(aNet, bNet) {
+  if (aNet > bNet) return [1, 0];
+  if (bNet > aNet) return [0, 1];
+  return [0.5, 0.5];
+}
+
 function attachMatchFormLiveUpdates(match, container) {
   if (!match || !container) return;
   const isDoubles = (match.league === 'doubles');
@@ -1822,11 +1836,18 @@ function attachMatchFormLiveUpdates(match, container) {
     setNet(getData('net', 'b-g2'), g2bNet, g2Winner === 'B');
     setNet(getData('net', 'b-series'), seriesBNet, seriesWinner === 'B');
 
-    const [g1aPts, g1bPts] = parsePointsText(get('ptsG1')?.value || '');
-    const [g2aPts, g2bPts] = parsePointsText(get('ptsG2')?.value || '');
-    const [sApts, sBpts] = parsePointsText(get('ptsSeries')?.value || '');
+    const [g1aPts, g1bPts] = computePointsForNet(g1aNet, g1bNet);
+    const [g2aPts, g2bPts] = computePointsForNet(g2aNet, g2bNet);
+    const [sApts, sBpts] = computePointsForNet(seriesANet, seriesBNet);
     const totalPtsA = g1aPts + g2aPts + sApts;
     const totalPtsB = g1bPts + g2bPts + sBpts;
+
+    const ptsG1Input = get('ptsG1');
+    const ptsG2Input = get('ptsG2');
+    const ptsSeriesInput = get('ptsSeries');
+    if (ptsG1Input) ptsG1Input.value = formatPointsPair(g1aPts, g1bPts);
+    if (ptsG2Input) ptsG2Input.value = formatPointsPair(g2aPts, g2bPts);
+    if (ptsSeriesInput) ptsSeriesInput.value = formatPointsPair(sApts, sBpts);
 
     setText(getData('points', 'a-total'), totalPtsA);
     setText(getData('points', 'b-total'), totalPtsB);
@@ -2063,11 +2084,11 @@ function openMatchForm(matchId) {
   html += '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap;white-space:nowrap;">';
   html += '<div class="small" style="font-weight:600;flex-shrink:0;">Points:</div>';
   html += '<label class="small muted" style="flex-shrink:0;">G1</label>';
-  html += '<input type="text" name="ptsG1" value="' + ptsG1 + '" placeholder="A/B" style="width:50px;text-align:center;flex-shrink:0;">';
+  html += '<input type="text" name="ptsG1" value="' + ptsG1 + '" placeholder="A/B" style="width:50px;text-align:center;flex-shrink:0;" readonly>';
   html += '<label class="small muted" style="flex-shrink:0;">G2</label>';
-  html += '<input type="text" name="ptsG2" value="' + ptsG2 + '" placeholder="A/B" style="width:50px;text-align:center;flex-shrink:0;">';
+  html += '<input type="text" name="ptsG2" value="' + ptsG2 + '" placeholder="A/B" style="width:50px;text-align:center;flex-shrink:0;" readonly>';
   html += '<label class="small muted" style="flex-shrink:0;">Series</label>';
-  html += '<input type="text" name="ptsSeries" value="' + ptsSeries + '" placeholder="A/B" style="width:50px;text-align:center;flex-shrink:0;">';
+  html += '<input type="text" name="ptsSeries" value="' + ptsSeries + '" placeholder="A/B" style="width:50px;text-align:center;flex-shrink:0;" readonly>';
   html += '<div class="small muted" style="flex-shrink:0;">|</div>';
   html += '<div class="small" style="font-weight:600;flex-shrink:0;">Total:</div>';
   html += '<div class="small" style="color:#93c5fd;flex-shrink:0;"><strong data-points="a-total">' + totalPtsA + '</strong></div>';
