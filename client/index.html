@@ -985,6 +985,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let audioUnlocked = false;
     let menuDetailsCache = {};
     let selectedMenuDetails = null;
+    let preferencesVisited = false;
     
     // ============================================================
     // INITIALIZATION
@@ -1148,7 +1149,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // NAVIGATION
     // ============================================================
     function goToStep(step) {
-      if (step === 4 && maxStepReached < 3) {
+      if (step >= 4 && !preferencesVisited) {
         step = 3;
       }
       const isStepChange = step !== currentStep;
@@ -1164,6 +1165,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       // Show target step
       document.getElementById('step' + step).classList.remove('hidden');
       currentStep = step;
+
+      if (step === 3) {
+        preferencesVisited = true;
+      }
       
       // Update progress
       updateProgress();
@@ -1173,6 +1178,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
       if (isStepChange) {
         playStepTone();
+      }
+
+      if (step === 6 && selectedMenu !== null) {
+        renderTimelinePreview();
+        loadMenuDetails();
       }
     }
     
@@ -1333,7 +1343,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         renderWineTiers(selectedMenuDetails.wineTiers);
         renderRecipePreview(selectedMenuDetails.recipes);
         renderTimelinePreview();
-        return;
+        return selectedMenuDetails;
       }
 
       showDetailsLoading(true);
@@ -1358,9 +1368,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       } catch (err) {
         renderWineTiers([]);
         renderRecipePreview([]);
+        return null;
       } finally {
         showDetailsLoading(false);
       }
+
+      return selectedMenuDetails;
     }
 
     function prepareTonePlayback() {
@@ -1665,6 +1678,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
     
     async function proceedToMenus() {
+      if (!preferencesVisited) {
+        goToStep(3);
+        return;
+      }
       goToStep(4);
       await generateMenus();
     }
@@ -1838,6 +1855,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // STEP 7: COOKBOOK
     // ============================================================
     async function generateCookbook() {
+      if (!selectedMenuDetails) {
+        await loadMenuDetails();
+      }
       goToStep(7);
       document.getElementById('cookbookLoading').classList.remove('hidden');
       document.getElementById('cookbookComplete').classList.add('hidden');
@@ -1915,6 +1935,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       cookbookId = null;
       menuDetailsCache = {};
       selectedMenuDetails = null;
+      preferencesVisited = false;
       maxStepReached = 2;
       goToStep(2);
     }
