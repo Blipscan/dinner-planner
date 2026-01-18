@@ -52,6 +52,105 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
  
+function parseBudgetRange(value) {
+  if (!value) {
+    return { min: 80, max: 120 };
+  }
+
+  const rangeMatch = value.match(/(\d+)\s*-\s*(\d+)/);
+  if (rangeMatch) {
+    return { min: parseInt(rangeMatch[1], 10), max: parseInt(rangeMatch[2], 10) };
+  }
+
+  const plusMatch = value.match(/(\d+)\s*\+/);
+  if (plusMatch) {
+    const min = parseInt(plusMatch[1], 10);
+    return { min, max: Math.round(min * 1.5) };
+  }
+
+  const singleMatch = value.match(/(\d+)/);
+  if (singleMatch) {
+    const min = parseInt(singleMatch[1], 10);
+    return { min, max: Math.round(min * 1.4) };
+  }
+
+  return { min: 80, max: 120 };
+}
+
+function formatBudgetRange(min, max) {
+  if (!max || max <= min) {
+    return `$${min}+ total`;
+  }
+  return `$${min}-${max} total`;
+}
+
+function buildDemoRecipes(menu, context) {
+  const guestCount = parseInt(context?.guestCount || "6", 10);
+  const timeByCourse = {
+    "Amuse-Bouche": { active: "20 min", total: "45 min" },
+    "First Course": { active: "30 min", total: "1 hour" },
+    "Second Course": { active: "25 min", total: "45 min" },
+    "Main Course": { active: "45 min", total: "1.5 hours" },
+    "Dessert": { active: "35 min", total: "1 hour" },
+  };
+
+  return (menu?.courses || []).map((course) => {
+    const timing = timeByCourse[course.type] || { active: "30 min", total: "1 hour" };
+    const title = course.name || course.type;
+    return {
+      title,
+      serves: guestCount,
+      activeTime: timing.active,
+      totalTime: timing.total,
+      ingredients: [
+        title,
+        "Kosher salt",
+        "Freshly ground black pepper",
+        "Olive oil or butter",
+        "Seasonal herbs",
+      ],
+      steps: [
+        `Prep ingredients for ${title}.`,
+        `Cook the core components of ${title} until perfectly done.`,
+        `Season, plate, and serve ${title}.`,
+      ],
+      notes: "Taste and adjust seasoning right before serving.",
+      makeAhead: "Most prep can be completed earlier in the day.",
+    };
+  });
+}
+
+function buildDemoWineTiers(menu, context) {
+  const baseRange = parseBudgetRange(context?.wineBudget || menu?.wineCost || "$80-120");
+  const basePairings = (menu?.courses || []).map((course) => {
+    return course.wine || `${course.type} pairing`;
+  });
+  const tiers = [
+    { id: "value", label: "Value", factor: 0.7 },
+    { id: "classic", label: "Classic", factor: 1 },
+    { id: "premium", label: "Premium", factor: 1.6 },
+    { id: "splurge", label: "Splurge", factor: 2.4 },
+  ];
+
+  return tiers.map((tier) => {
+    const min = Math.max(30, Math.round(baseRange.min * tier.factor));
+    const max = Math.max(min, Math.round(baseRange.max * tier.factor));
+    return {
+      id: tier.id,
+      label: tier.label,
+      totalCost: formatBudgetRange(min, max),
+      pairings: basePairings.map((pairing) => `${tier.label} pick: ${pairing}`),
+    };
+  });
+}
+
+function buildDemoDetails(menu, context) {
+  return {
+    recipes: buildDemoRecipes(menu, context),
+    wineTiers: buildDemoWineTiers(menu, context),
+  };
+}
+
 // ============================================================
 // API ROUTES
 // ============================================================
@@ -264,12 +363,80 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
   }
 });
  
+// Generate recipes + wine tiers for selected menu
+app.post("/api/generate-details", async (req, res) => {
+  const { menu, context } = req.body || {};
+
+  if (!menu?.courses?.length) {
+    return res.status(400).json({ error: "Menu data is required." });
+  }
+
+  if (!ANTHROPIC_API_KEY) {
+    return res.json(buildDemoDetails(menu, context));
+  }
+
+  try {
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const systemPrompt = `You are an expert culinary team creating detailed recipe previews and tiered wine pairings.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "recipes": [
+    {
+      "title": "string",
+      "serves": number,
+      "activeTime": "string",
+      "totalTime": "string",
+      "ingredients": ["string", "..."],
+      "steps": ["string", "..."],
+      "notes": "string",
+      "makeAhead": "string"
+    }
+  ],
+  "wineTiers": [
+    {
+      "id": "value|classic|premium|splurge",
+      "label": "Value|Classic|Premium|Splurge",
+      "totalCost": "string",
+      "pairings": ["string", "..."]
+    }
+  ]
+}
+
+Rules:
+- Provide exactly 5 recipes, in the same order as the menu courses.
+- Provide exactly 4 wine tiers, each with 5 pairings in course order.
+- Pairings should be specific bottles with producer + vintage when possible.
+- Keep steps concise and practical for a skilled home cook.`;
+
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3072,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Generate details for this menu and context:\n\nMenu:\n${JSON.stringify(menu, null, 2)}\n\nContext:\n${JSON.stringify(context || {}, null, 2)}`,
+        },
+      ],
+    });
+
+    const text = response.content[0].text.trim();
+    const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
+    const details = JSON.parse(jsonText);
+    res.json(details);
+  } catch (err) {
+    console.error("Details generation error:", err);
+    res.json(buildDemoDetails(menu, context));
+  }
+});
+
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
-  const { menu, context, staffing } = req.body || {};
+  const { menu, context, staffing, recipes } = req.body || {};
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
  
-  global.cookbooks[cookbookId] = { menu, context, staffing, recipes: null };
+  global.cookbooks[cookbookId] = { menu, context, staffing, recipes: recipes || null };
   res.json({ success: true, cookbookId });
 });
  

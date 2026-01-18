@@ -320,6 +320,85 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       color: var(--gold-dark);
       font-weight: 600;
     }
+
+    /* ===== DETAIL PREVIEWS ===== */
+    .wine-tier-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+    .wine-tier-card {
+      border: 1px solid var(--cream-dark);
+      border-radius: 12px;
+      padding: 1rem;
+      background: white;
+    }
+    .wine-tier-title {
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 0.35rem;
+      font-size: 0.95rem;
+    }
+    .wine-tier-cost {
+      font-size: 0.85rem;
+      color: var(--gold-dark);
+      margin-bottom: 0.5rem;
+    }
+    .wine-tier-card ul {
+      padding-left: 1.1rem;
+      margin: 0;
+      color: var(--text-light);
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+    .recipe-card {
+      border: 1px solid var(--cream-dark);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.9rem;
+      background: white;
+    }
+    .recipe-card h4 {
+      margin: 0 0 0.4rem;
+      color: var(--navy);
+      font-size: 1rem;
+    }
+    .recipe-meta {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      margin-bottom: 0.6rem;
+    }
+    .recipe-card ul,
+    .recipe-card ol {
+      margin: 0.4rem 0 0.6rem 1.2rem;
+      color: var(--text-light);
+      font-size: 0.85rem;
+    }
+    .timeline-list {
+      display: grid;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+    }
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--cream-dark);
+      border-radius: 10px;
+      background: white;
+    }
+    .timeline-time {
+      font-weight: 600;
+      color: var(--gold-dark);
+      font-size: 0.85rem;
+    }
+    .timeline-task {
+      color: var(--text-light);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
     
     /* ===== BUTTONS ===== */
     .btn {
@@ -799,6 +878,26 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         <h3 class="card-title" style="font-size:1.2rem">Your Selected Menu</h3>
         <div id="selectedMenuSummary"></div>
       </div>
+
+      <div id="detailsLoading" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Preparing recipes, wine tiers, and timeline...</p>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title" style="font-size:1.2rem">Wine Pairing Tiers</h3>
+        <div id="wineTierList" class="wine-tier-grid"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title" style="font-size:1.2rem">Recipe Previews</h3>
+        <div id="recipePreview"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title" style="font-size:1.2rem">Day-Of Timeline</h3>
+        <div id="timelinePreview" class="timeline-list"></div>
+      </div>
       
       <div class="actions">
         <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
@@ -884,6 +983,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let cookbookId = null;
     let audioContext = null;
     let audioUnlocked = false;
+    let menuDetailsCache = {};
+    let selectedMenuDetails = null;
     
     // ============================================================
     // INITIALIZATION
@@ -1095,6 +1196,170 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         } else if (i === currentStep) {
           dot.classList.add('active');
         }
+      }
+    }
+
+    function showDetailsLoading(show) {
+      const loading = document.getElementById('detailsLoading');
+      if (!loading) return;
+      loading.classList.toggle('hidden', !show);
+    }
+
+    function getSelectedMenuKey(menu) {
+      if (!menu) return String(selectedMenu ?? '');
+      return String(menu.id ?? menu.title ?? selectedMenu ?? '');
+    }
+
+    function renderWineTiers(wineTiers) {
+      const container = document.getElementById('wineTierList');
+      if (!container) return;
+
+      if (!wineTiers || !wineTiers.length) {
+        container.innerHTML = '<div class="error-msg">Wine tiers will appear once menu details are ready.</div>';
+        return;
+      }
+
+      container.innerHTML = wineTiers.map(tier => `
+        <div class="wine-tier-card">
+          <div class="wine-tier-title">${tier.label}</div>
+          <div class="wine-tier-cost">${tier.totalCost || ''}</div>
+          <ul>
+            ${(tier.pairings || []).map(p => `<li>${p}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+    }
+
+    function renderRecipePreview(recipes) {
+      const container = document.getElementById('recipePreview');
+      if (!container) return;
+
+      if (!recipes || !recipes.length) {
+        container.innerHTML = '<div class="error-msg">Recipes will appear once menu details are ready.</div>';
+        return;
+      }
+
+      container.innerHTML = recipes.map(recipe => `
+        <div class="recipe-card">
+          <h4>${recipe.title || 'Recipe'}</h4>
+          <div class="recipe-meta">Serves ${recipe.serves || 6} • Active ${recipe.activeTime || '30 min'} • Total ${recipe.totalTime || '1 hour'}</div>
+          <strong>Ingredients</strong>
+          <ul>
+            ${(recipe.ingredients || []).map(i => `<li>${i}</li>`).join('')}
+          </ul>
+          <strong>Method</strong>
+          <ol>
+            ${(recipe.steps || []).map(s => `<li>${s}</li>`).join('')}
+          </ol>
+          ${recipe.notes ? `<div class="recipe-meta"><em>${recipe.notes}</em></div>` : ''}
+          ${recipe.makeAhead ? `<div class="recipe-meta"><strong>Make Ahead:</strong> ${recipe.makeAhead}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function parseServiceTime(timeStr) {
+      if (!timeStr) return null;
+      const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (!match) return null;
+      let hours = parseInt(match[1], 10) % 12;
+      const minutes = parseInt(match[2], 10);
+      const isPm = match[3].toUpperCase() === 'PM';
+      if (isPm) hours += 12;
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return date;
+    }
+
+    function formatTime(date) {
+      const hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${minutes} ${ampm}`;
+    }
+
+    function buildTimelineItems() {
+      const baseTime = parseServiceTime(document.getElementById('serviceTime').value || '7:00 PM');
+      const staffing = DATA.STAFFING?.find(s => s.id === selectedStaffing) || { activeMin: 0 };
+      const timeline = [
+        { offset: -360, label: 'Final shopping for any last-minute items', offsetLabel: '-6 hr' },
+        { offset: -300, label: 'Begin slow-cooking items (braises, stocks)', offsetLabel: '-5 hr' },
+        { offset: -240, label: 'Prep remaining vegetables and garnishes', offsetLabel: '-4 hr' },
+        { offset: -180, label: 'Start sauces and reductions', offsetLabel: '-3 hr' },
+        { offset: -120, label: 'Set out cheese and butter to temper', offsetLabel: '-2 hr' },
+        { offset: -90, label: 'Open and decant red wines', offsetLabel: '-90 min' },
+        { offset: -60, label: 'Final protein prep, bring to room temp', offsetLabel: '-1 hr' },
+        { offset: -45, label: 'Preheat oven, warm plates', offsetLabel: '-45 min' },
+        { offset: -30, label: 'Light candles, start music, final touches', offsetLabel: '-30 min' },
+        { offset: -15, label: 'Plate amuse-bouche, pour welcome drinks', offsetLabel: '-15 min' },
+        { offset: 0, label: 'Guests arrive — service begins', offsetLabel: '0' },
+        { offset: 15, label: 'Serve amuse-bouche', offsetLabel: '+15 min' },
+        { offset: 30, label: 'Fire first course', offsetLabel: '+30 min' },
+        { offset: 50, label: 'Clear, serve second course', offsetLabel: '+50 min' },
+        { offset: 80, label: 'Fire main course', offsetLabel: '+80 min' },
+        { offset: 110, label: 'Clear, prepare dessert', offsetLabel: '+110 min' },
+        { offset: 130, label: 'Serve dessert and dessert wine', offsetLabel: '+130 min' },
+      ];
+
+      return timeline.map(item => {
+        if (!baseTime) {
+          return { time: item.offsetLabel, task: item.label };
+        }
+        const time = new Date(baseTime.getTime() + item.offset * 60000);
+        const timeLabel = `${formatTime(time)} (${item.offsetLabel})`;
+        return { time: timeLabel, task: item.label };
+      }).map(item => ({ ...item, staffingMinutes: staffing.activeMin }));
+    }
+
+    function renderTimelinePreview() {
+      const container = document.getElementById('timelinePreview');
+      if (!container) return;
+      const items = buildTimelineItems();
+      container.innerHTML = items.map(item => `
+        <div class="timeline-item">
+          <div class="timeline-time">${item.time}</div>
+          <div class="timeline-task">${item.task}</div>
+        </div>
+      `).join('');
+    }
+
+    async function loadMenuDetails() {
+      const menu = menus[selectedMenu];
+      if (!menu) return;
+
+      const cacheKey = getSelectedMenuKey(menu);
+      if (menuDetailsCache[cacheKey]) {
+        selectedMenuDetails = menuDetailsCache[cacheKey];
+        renderWineTiers(selectedMenuDetails.wineTiers);
+        renderRecipePreview(selectedMenuDetails.recipes);
+        renderTimelinePreview();
+        return;
+      }
+
+      showDetailsLoading(true);
+      renderWineTiers([]);
+      renderRecipePreview([]);
+      renderTimelinePreview();
+
+      try {
+        const res = await fetch('/api/generate-details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            menu: menu,
+            context: getContext()
+          })
+        });
+        const data = await res.json();
+        selectedMenuDetails = data;
+        menuDetailsCache[cacheKey] = data;
+        renderWineTiers(data.wineTiers);
+        renderRecipePreview(data.recipes);
+      } catch (err) {
+        renderWineTiers([]);
+        renderRecipePreview([]);
+      } finally {
+        showDetailsLoading(false);
       }
     }
 
@@ -1489,6 +1754,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       `;
       
       goToStep(6);
+      loadMenuDetails();
     }
     
     function rejectMenus() {
@@ -1565,6 +1831,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     function selectStaffingOption(id) {
       selectedStaffing = id;
       initStaffingOptions();
+      renderTimelinePreview();
     }
     
     // ============================================================
@@ -1584,7 +1851,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             menu: menus[selectedMenu],
             context: getContext(),
             staffing: selectedStaffing,
-            chatHistory: chatHistory
+            chatHistory: chatHistory,
+            recipes: selectedMenuDetails?.recipes || null
           })
         });
         const data = await res.json();
@@ -1645,6 +1913,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       chatHistory = [];
       rejectionHistory = [];
       cookbookId = null;
+      menuDetailsCache = {};
+      selectedMenuDetails = null;
       maxStepReached = 2;
       goToStep(2);
     }
