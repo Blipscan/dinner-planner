@@ -986,6 +986,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let menuDetailsCache = {};
     let selectedMenuDetails = null;
     let preferencesVisited = false;
+    const FETCH_TIMEOUTS_MS = {
+      menus: 30000,
+      details: 20000
+    };
     
     // ============================================================
     // INITIALIZATION
@@ -1213,6 +1217,17 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const loading = document.getElementById('detailsLoading');
       if (!loading) return;
       loading.classList.toggle('hidden', !show);
+    }
+
+    async function fetchWithTimeout(url, options, timeoutMs) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        return res;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     }
 
     function getSelectedMenuKey(menu) {
@@ -1472,14 +1487,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       renderTimelinePreview();
 
       try {
-        const res = await fetch('/api/generate-details', {
+        const res = await fetchWithTimeout('/api/generate-details', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             menu: menu,
             context: getContext()
           })
-        });
+        }, FETCH_TIMEOUTS_MS.details);
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || data.error) {
@@ -1511,7 +1526,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           renderRecipePreview(selectedMenuDetails.recipes);
           return selectedMenuDetails;
         }
-        renderDetailError('Details generation failed.', 'Network error. Please try again.');
+        const detailMessage = err?.name === 'AbortError'
+          ? 'Request timed out. Please try again.'
+          : 'Network error. Please try again.';
+        renderDetailError('Details generation failed.', detailMessage);
         return null;
       } finally {
         showDetailsLoading(false);
@@ -1840,7 +1858,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       document.getElementById('rejectionChat').classList.add('hidden');
       
       try {
-        const res = await fetch('/api/generate-menus', {
+        const res = await fetchWithTimeout('/api/generate-menus', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1849,7 +1867,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             chatHistory: chatHistory,
             rejectionHistory: rejectionHistory
           })
-        });
+        }, FETCH_TIMEOUTS_MS.menus);
         const data = await res.json().catch(() => ({}));
         
         document.getElementById('menuLoading').classList.add('hidden');
@@ -1876,7 +1894,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
       } catch (err) {
         document.getElementById('menuLoading').classList.add('hidden');
-        renderMenuError('Connection error.', 'Please try again.');
+        const detailMessage = err?.name === 'AbortError'
+          ? 'Request timed out. Please try again.'
+          : 'Please try again.';
+        renderMenuError('Connection error.', detailMessage);
       }
     }
     
