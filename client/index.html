@@ -1240,6 +1240,27 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       `).join('');
     }
 
+    function renderMenuError(message, detail) {
+      const container = document.getElementById('menuList');
+      if (!container) return;
+      const detailHtml = detail ? `<div style="margin-top:0.5rem;font-size:0.85rem;color:#6b7280">${detail}</div>` : '';
+      container.innerHTML = `<div class="error-msg">${message}${detailHtml}</div>`;
+    }
+
+    function renderDetailError(message, detail) {
+      const detailHtml = detail ? `<div style="margin-top:0.5rem;font-size:0.85rem;color:#6b7280">${detail}</div>` : '';
+      const markup = `<div class="error-msg">${message}${detailHtml}</div>`;
+      const wineContainer = document.getElementById('wineTierList');
+      const recipeContainer = document.getElementById('recipePreview');
+      if (wineContainer) wineContainer.innerHTML = markup;
+      if (recipeContainer) recipeContainer.innerHTML = markup;
+    }
+
+    function allowDemoFallback() {
+      if (!DATA) return false;
+      return DATA.apiConfigured === false || DATA.allowDemoFallback === true;
+    }
+
     function renderRecipePreview(recipes) {
       const container = document.getElementById('recipePreview');
       if (!container) return;
@@ -1459,20 +1480,38 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             context: getContext()
           })
         });
-        const data = await res.json();
-        if (!data || data.error || !Array.isArray(data.recipes) || !Array.isArray(data.wineTiers)) {
-          selectedMenuDetails = buildFallbackDetails(menu);
-        } else {
-          selectedMenuDetails = data;
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.error) {
+          if (allowDemoFallback()) {
+            selectedMenuDetails = buildFallbackDetails(menu);
+            menuDetailsCache[cacheKey] = selectedMenuDetails;
+            renderWineTiers(selectedMenuDetails.wineTiers);
+            renderRecipePreview(selectedMenuDetails.recipes);
+            return selectedMenuDetails;
+          }
+          renderDetailError('Details generation failed.', data.detail || 'Check your API key and account credits.');
+          return null;
         }
+
+        if (data.demo && !allowDemoFallback()) {
+          renderDetailError('Details are in demo mode.', 'Enable the API key to generate real recipes and wine tiers.');
+          return null;
+        }
+
+        selectedMenuDetails = data;
         menuDetailsCache[cacheKey] = selectedMenuDetails;
         renderWineTiers(selectedMenuDetails.wineTiers);
         renderRecipePreview(selectedMenuDetails.recipes);
       } catch (err) {
-        selectedMenuDetails = buildFallbackDetails(menu);
-        menuDetailsCache[cacheKey] = selectedMenuDetails;
-        renderWineTiers(selectedMenuDetails.wineTiers);
-        renderRecipePreview(selectedMenuDetails.recipes);
+        if (allowDemoFallback()) {
+          selectedMenuDetails = buildFallbackDetails(menu);
+          menuDetailsCache[cacheKey] = selectedMenuDetails;
+          renderWineTiers(selectedMenuDetails.wineTiers);
+          renderRecipePreview(selectedMenuDetails.recipes);
+          return selectedMenuDetails;
+        }
+        renderDetailError('Details generation failed.', 'Network error. Please try again.');
         return null;
       } finally {
         showDetailsLoading(false);
@@ -1811,20 +1850,33 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             rejectionHistory: rejectionHistory
           })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         
         document.getElementById('menuLoading').classList.add('hidden');
         
+        if (!res.ok || data.error) {
+          renderMenuError('Menu generation failed.', data.detail || 'Check your API key and account credits.');
+          return;
+        }
+
+        if (data.demo && !allowDemoFallback()) {
+          renderMenuError('Menu generation is in demo mode.', 'Enable the API key to generate real menus.');
+          return;
+        }
+
         if (data.menus && data.menus.length > 0) {
           menus = data.menus;
           renderMenus();
+          if (data.demo) {
+            document.getElementById('menuList').insertAdjacentHTML('afterbegin', '<div class="error-msg">Demo menus shown because the AI service is unavailable.</div>');
+          }
           document.getElementById('menuActions').classList.remove('hidden');
         } else {
-          document.getElementById('menuList').innerHTML = '<div class="error-msg">Unable to generate menus. Please try again.</div>';
+          renderMenuError('Unable to generate menus.', 'Please try again.');
         }
       } catch (err) {
         document.getElementById('menuLoading').classList.add('hidden');
-        document.getElementById('menuList').innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
+        renderMenuError('Connection error.', 'Please try again.');
       }
     }
     

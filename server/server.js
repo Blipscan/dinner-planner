@@ -51,6 +51,7 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
  
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
+const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "").toLowerCase() === "true";
 const REQUEST_TIMEOUTS_MS = {
   chat: 15000,
   menus: 25000,
@@ -193,6 +194,8 @@ app.get("/api/data", (req, res) => {
     STAFFING,
     AVERY_PRODUCTS,
     COOKBOOK_SECTIONS,
+    apiConfigured: !!ANTHROPIC_API_KEY,
+    allowDemoFallback: ALLOW_DEMO_FALLBACK,
     personas: Object.fromEntries(
       Object.entries(PERSONAS).map(([k, v]) => [
         k,
@@ -316,7 +319,7 @@ app.post("/api/generate-menus", async (req, res) => {
   }
  
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ menus: DEMO_MENUS });
+    return res.json({ menus: DEMO_MENUS, demo: true });
   }
  
   try {
@@ -380,13 +383,19 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content[0].text);
-      return res.json({ menus: DEMO_MENUS });
+      if (ALLOW_DEMO_FALLBACK) {
+        return res.json({ menus: DEMO_MENUS, demo: true, warning: "AI response parsing failed." });
+      }
+      return res.status(502).json({ error: "Menu generation failed.", detail: "AI returned invalid JSON." });
     }
  
     res.json({ menus });
   } catch (err) {
     console.error("Menu generation error:", err);
-    res.json({ menus: DEMO_MENUS });
+    if (ALLOW_DEMO_FALLBACK) {
+      return res.json({ menus: DEMO_MENUS, demo: true, warning: "AI request failed." });
+    }
+    return res.status(502).json({ error: "Menu generation failed.", detail: err.message });
   }
 });
  
@@ -399,7 +408,7 @@ app.post("/api/generate-details", async (req, res) => {
   }
 
   if (!ANTHROPIC_API_KEY) {
-    return res.json(buildDemoDetails(menu, context));
+    return res.json({ ...buildDemoDetails(menu, context), demo: true });
   }
 
   try {
@@ -458,7 +467,10 @@ Rules:
     res.json(details);
   } catch (err) {
     console.error("Details generation error:", err);
-    res.json(buildDemoDetails(menu, context));
+    if (ALLOW_DEMO_FALLBACK) {
+      return res.json({ ...buildDemoDetails(menu, context), demo: true, warning: "AI request failed." });
+    }
+    return res.status(502).json({ error: "Details generation failed.", detail: err.message });
   }
 });
 
