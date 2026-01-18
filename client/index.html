@@ -83,6 +83,36 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       color: var(--text-light);
     }
     
+    /* ===== CHIPS ===== */
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.6rem;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid var(--cream-dark);
+      background: white;
+      color: var(--navy);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .chip:hover {
+      border-color: var(--gold);
+      color: var(--navy);
+    }
+    .chip.selected {
+      border-color: var(--navy);
+      background: rgba(30,58,95,0.08);
+      color: var(--navy);
+    }
+
     /* ===== CUISINE CASCADING ===== */
     .cuisine-section {
       margin-top: 1.25rem;
