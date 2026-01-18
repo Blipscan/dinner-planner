@@ -1333,6 +1333,105 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       `).join('');
     }
 
+    function parseBudgetRange(value) {
+      if (!value) {
+        return { min: 80, max: 120 };
+      }
+
+      const rangeMatch = value.match(/(\d+)\s*-\s*(\d+)/);
+      if (rangeMatch) {
+        return { min: parseInt(rangeMatch[1], 10), max: parseInt(rangeMatch[2], 10) };
+      }
+
+      const plusMatch = value.match(/(\d+)\s*\+/);
+      if (plusMatch) {
+        const min = parseInt(plusMatch[1], 10);
+        return { min, max: Math.round(min * 1.5) };
+      }
+
+      const singleMatch = value.match(/(\d+)/);
+      if (singleMatch) {
+        const min = parseInt(singleMatch[1], 10);
+        return { min, max: Math.round(min * 1.4) };
+      }
+
+      return { min: 80, max: 120 };
+    }
+
+    function formatBudgetRange(min, max) {
+      if (!max || max <= min) {
+        return `$${min}+ total`;
+      }
+      return `$${min}-${max} total`;
+    }
+
+    function buildFallbackRecipes(menu) {
+      const guestCount = parseInt(document.getElementById('guestCount').value || '6', 10);
+      const timeByCourse = {
+        'Amuse-Bouche': { active: '20 min', total: '45 min' },
+        'First Course': { active: '30 min', total: '1 hour' },
+        'Second Course': { active: '25 min', total: '45 min' },
+        'Main Course': { active: '45 min', total: '1.5 hours' },
+        'Dessert': { active: '35 min', total: '1 hour' }
+      };
+
+      return (menu?.courses || []).map(course => {
+        const timing = timeByCourse[course.type] || { active: '30 min', total: '1 hour' };
+        const title = course.name || course.type;
+        return {
+          title,
+          serves: guestCount,
+          activeTime: timing.active,
+          totalTime: timing.total,
+          ingredients: [
+            title,
+            'Kosher salt',
+            'Freshly ground black pepper',
+            'Olive oil or butter',
+            'Seasonal herbs'
+          ],
+          steps: [
+            `Prep ingredients for ${title}.`,
+            `Cook the core components of ${title} until perfectly done.`,
+            `Season, plate, and serve ${title}.`
+          ],
+          notes: 'Taste and adjust seasoning right before serving.',
+          makeAhead: 'Most prep can be completed earlier in the day.'
+        };
+      });
+    }
+
+    function buildFallbackWineTiers(menu) {
+      const baseRange = parseBudgetRange(document.getElementById('wineBudget').value || menu?.wineCost || '$80-120');
+      const basePairings = (menu?.courses || []).map(course => {
+        return course.wine || `${course.type} pairing`;
+      });
+      const tiers = [
+        { id: 'value', label: 'Value', factor: 0.7 },
+        { id: 'classic', label: 'Classic', factor: 1 },
+        { id: 'premium', label: 'Premium', factor: 1.6 },
+        { id: 'splurge', label: 'Splurge', factor: 2.4 }
+      ];
+
+      return tiers.map(tier => {
+        const min = Math.max(30, Math.round(baseRange.min * tier.factor));
+        const max = Math.max(min, Math.round(baseRange.max * tier.factor));
+        return {
+          id: tier.id,
+          label: tier.label,
+          totalCost: formatBudgetRange(min, max),
+          pairings: basePairings.map(pairing => `${tier.label} pick: ${pairing}`)
+        };
+      });
+    }
+
+    function buildFallbackDetails(menu) {
+      return {
+        recipes: buildFallbackRecipes(menu),
+        wineTiers: buildFallbackWineTiers(menu)
+      };
+    }
+
     async function loadMenuDetails() {
       const menu = menus[selectedMenu];
       if (!menu) return;
@@ -1361,13 +1460,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           })
         });
         const data = await res.json();
-        selectedMenuDetails = data;
-        menuDetailsCache[cacheKey] = data;
-        renderWineTiers(data.wineTiers);
-        renderRecipePreview(data.recipes);
+        if (!data || data.error || !Array.isArray(data.recipes) || !Array.isArray(data.wineTiers)) {
+          selectedMenuDetails = buildFallbackDetails(menu);
+        } else {
+          selectedMenuDetails = data;
+        }
+        menuDetailsCache[cacheKey] = selectedMenuDetails;
+        renderWineTiers(selectedMenuDetails.wineTiers);
+        renderRecipePreview(selectedMenuDetails.recipes);
       } catch (err) {
-        renderWineTiers([]);
-        renderRecipePreview([]);
+        selectedMenuDetails = buildFallbackDetails(menu);
+        menuDetailsCache[cacheKey] = selectedMenuDetails;
+        renderWineTiers(selectedMenuDetails.wineTiers);
+        renderRecipePreview(selectedMenuDetails.recipes);
         return null;
       } finally {
         showDetailsLoading(false);
