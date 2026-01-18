@@ -61,14 +61,11 @@
 
 ### Deployment to Render
 
-1. Push this folder to GitHub (e.g., `Blipscan/dinner-planner`)
-2. Go to Render Dashboard → New → Web Service
-3. Connect your GitHub repo
-4. Set Build Command: `npm install`
-5. Set Start Command: `node server.js`
-6. Add Environment Variable:
-   - `ANTHROPIC_API_KEY` = your Claude API key from console.anthropic.com
-7. Deploy
+See the repo root `README.md` for the current, working Render setup.
+
+**Recommended:** deploy via Render **Blueprint** using the repo’s `render.yaml`:
+- Build: `npm ci --prefix server`
+- Start: `npm start --prefix server`
 
 **Optional Environment Variables:**
 - `ACCESS_CODES` — Comma-separated codes (default: BETA001,BETA002,BETA003)

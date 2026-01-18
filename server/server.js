@@ -30,6 +30,12 @@ app.use(express.json({ limit: "10mb" }));
 const CLIENT_DIR = path.join(__dirname, "..", "client");
 app.use(express.static(CLIENT_DIR));
  
+// Avoid noisy 404s in the browser console for favicon requests.
+app.get("/favicon.ico", (req, res) => {
+  // Browsers often hardcode /favicon.ico; serve our SVG favicon instead.
+  res.redirect(302, "/favicon.svg");
+});
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(CLIENT_DIR, "index.html"));
 });
@@ -40,6 +46,8 @@ app.get("/", (req, res) => {
  
 const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+const AI_PROBE_TTL_MS = 5 * 60 * 1000;
  
 const ADMIN_CODE = process.env.ADMIN_CODE || "ADMIN2024";
 const ACCESS_CODES = (process.env.ACCESS_CODES || "BETA001,BETA002,BETA003")
@@ -52,17 +60,66 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
  
+function summarizeAiError(err) {
+  const name = err?.name || "Error";
+  const status = err?.status || err?.statusCode;
+  const message = typeof err?.message === "string" ? err.message : "";
+  const trimmed = message.replace(/\s+/g, " ").trim().slice(0, 160);
+  return `${name}${status ? ` (${status})` : ""}${trimmed ? `: ${trimmed}` : ""}`;
+}
+
+async function getAiProbe() {
+  const now = Date.now();
+
+  if (global.aiProbe?.at && now - global.aiProbe.at < AI_PROBE_TTL_MS) {
+    return global.aiProbe;
+  }
+
+  const probe = { at: now, ok: false, error: null };
+  if (!ANTHROPIC_API_KEY) {
+    global.aiProbe = { ...probe, ok: false, error: "API key not configured" };
+    return global.aiProbe;
+  }
+
+  try {
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    await client.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 1,
+      messages: [{ role: "user", content: "ping" }],
+    });
+    global.aiProbe = { ...probe, ok: true };
+  } catch (err) {
+    global.aiProbe = { ...probe, ok: false, error: summarizeAiError(err) };
+  }
+
+  return global.aiProbe;
+}
+
 // ============================================================
 // API ROUTES
 // ============================================================
  
 // Health check
-app.get("/api/health", (req, res) => {
-  res.json({
+app.get("/api/health", async (req, res) => {
+  const base = {
     status: "ok",
     apiConfigured: !!ANTHROPIC_API_KEY,
+    model: ANTHROPIC_MODEL,
     betaExpiry: BETA_EXPIRY,
     version: "2.0.0-cadillac",
+  };
+
+  if (req.query.probe !== "1") {
+    return res.json({ ...base, aiReachable: null, probedAt: null, aiError: null });
+  }
+
+  const probe = await getAiProbe();
+  return res.json({
+    ...base,
+    aiReachable: probe.ok,
+    probedAt: probe.at,
+    aiError: probe.ok ? null : probe.error,
   });
 });
  
@@ -138,7 +195,11 @@ app.post("/api/chat", async (req, res) => {
       instructor: "Let's make sure you're set up for success. The key is doing as much as possible the day before. What's your biggest concern about the timing?",
       all: "Chef: That sounds delicious!\n\nSommelier: I have some perfect pairing ideas.\n\nInstructor: And I can help you time everything perfectly.",
     };
-    return res.json({ response: demoResponses[persona] || demoResponses.chef });
+    return res.json({
+      response: demoResponses[persona] || demoResponses.chef,
+      demo: true,
+      aiReachable: false,
+    });
   }
  
   try {
@@ -171,16 +232,23 @@ Be conversational, warm, and helpful. Ask clarifying questions when needed. Shar
     }));
  
     const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: ANTHROPIC_MODEL,
       max_tokens: 1024,
       system: systemPrompt,
       messages: apiMessages,
     });
  
-    res.json({ response: response.content[0].text });
+    global.aiProbe = { at: Date.now(), ok: true, error: null };
+    res.json({ response: response.content[0].text, demo: false, aiReachable: true });
   } catch (err) {
     console.error("Chat error:", err);
-    res.json({ response: "I apologize, but I'm having trouble connecting. Please try again in a moment." });
+    global.aiProbe = { at: Date.now(), ok: false, error: summarizeAiError(err) };
+    res.json({
+      response: "AI is temporarily unavailable. You're seeing a demo response for now.",
+      demo: true,
+      aiReachable: false,
+      aiError: summarizeAiError(err),
+    });
   }
 });
  
@@ -194,7 +262,7 @@ app.post("/api/generate-menus", async (req, res) => {
   }
  
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ menus: DEMO_MENUS });
+    return res.json({ menus: DEMO_MENUS, demo: true, aiReachable: false });
   }
  
   try {
@@ -240,7 +308,7 @@ Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
  
     const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: ANTHROPIC_MODEL,
       max_tokens: 4096,
       system: systemPrompt,
       messages: [{ role: "user", content: "Generate 5 personalized menu options based on the context provided." }],
@@ -254,13 +322,16 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content[0].text);
-      return res.json({ menus: DEMO_MENUS });
+      global.aiProbe = { at: Date.now(), ok: false, error: summarizeAiError(parseErr) };
+      return res.json({ menus: DEMO_MENUS, demo: true, aiReachable: false });
     }
  
+    global.aiProbe = { at: Date.now(), ok: true, error: null };
     res.json({ menus });
   } catch (err) {
     console.error("Menu generation error:", err);
-    res.json({ menus: DEMO_MENUS });
+    global.aiProbe = { at: Date.now(), ok: false, error: summarizeAiError(err) };
+    res.json({ menus: DEMO_MENUS, demo: true, aiReachable: false });
   }
 });
  
