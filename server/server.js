@@ -51,6 +51,11 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
  
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
+const REQUEST_TIMEOUTS_MS = {
+  chat: 15000,
+  menus: 25000,
+  details: 20000,
+};
  
 function parseBudgetRange(value) {
   if (!value) {
@@ -149,6 +154,20 @@ function buildDemoDetails(menu, context) {
     recipes: buildDemoRecipes(menu, context),
     wineTiers: buildDemoWineTiers(menu, context),
   };
+}
+
+async function withTimeout(promise, timeoutMs, label) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 // ============================================================
@@ -269,12 +288,16 @@ Be conversational, warm, and helpful. Ask clarifying questions when needed. Shar
       content: m.content,
     }));
  
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: apiMessages,
-    });
+    const response = await withTimeout(
+      client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: apiMessages,
+      }),
+      REQUEST_TIMEOUTS_MS.chat,
+      "Chat"
+    );
  
     res.json({ response: response.content[0].text });
   } catch (err) {
@@ -338,12 +361,16 @@ Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
  
 RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
  
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: "Generate 5 personalized menu options based on the context provided." }],
-    });
+    const response = await withTimeout(
+      client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: "user", content: "Generate 5 personalized menu options based on the context provided." }],
+      }),
+      REQUEST_TIMEOUTS_MS.menus,
+      "Menu generation"
+    );
  
     let menus;
     try {
@@ -409,17 +436,21 @@ Rules:
 - Pairings should be specific bottles with producer + vintage when possible.
 - Keep steps concise and practical for a skilled home cook.`;
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 3072,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Generate details for this menu and context:\n\nMenu:\n${JSON.stringify(menu, null, 2)}\n\nContext:\n${JSON.stringify(context || {}, null, 2)}`,
-        },
-      ],
-    });
+    const response = await withTimeout(
+      client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3072,
+        system: systemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: `Generate details for this menu and context:\n\nMenu:\n${JSON.stringify(menu, null, 2)}\n\nContext:\n${JSON.stringify(context || {}, null, 2)}`,
+          },
+        ],
+      }),
+      REQUEST_TIMEOUTS_MS.details,
+      "Details generation"
+    );
 
     const text = response.content[0].text.trim();
     const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
