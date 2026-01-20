@@ -39,7 +39,7 @@ app.get("/", (req, res) => {
 // ============================================================
  
 const PORT = process.env.PORT || 3000;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const ANTHROPIC_API_KEY = normalizeApiKey(process.env.ANTHROPIC_API_KEY);
  
 const ADMIN_CODE = process.env.ADMIN_CODE || "ADMIN2024";
 const ACCESS_CODES = (process.env.ACCESS_CODES || "BETA001,BETA002,BETA003")
@@ -58,6 +58,42 @@ const REQUEST_TIMEOUTS_MS = {
   details: 20000,
 };
  
+function normalizeApiKey(value) {
+  if (!value) {
+    return null;
+  }
+
+  let key = value.trim();
+  if (!key) {
+    return null;
+  }
+
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1).trim();
+  }
+
+  if (key.toLowerCase().startsWith("bearer ")) {
+    key = key.slice(7).trim();
+  }
+
+  if (!key || key.toLowerCase().includes("your-key-here")) {
+    return null;
+  }
+
+  return key;
+}
+
+function isAnthropicAuthError(err) {
+  const errorType = err?.error?.error?.type || err?.error?.type;
+  return err?.status === 401 || errorType === "authentication_error";
+}
+
+function buildAuthErrorDetail(err) {
+  const requestId = err?.requestID || err?.error?.request_id || err?.error?.requestId;
+  const baseMessage = "Anthropic authentication failed. Check ANTHROPIC_API_KEY in the server environment.";
+  return requestId ? `${baseMessage} (request id: ${requestId})` : baseMessage;
+}
+
 function parseBudgetRange(value) {
   if (!value) {
     return { min: 80, max: 120 };
@@ -305,6 +341,12 @@ Be conversational, warm, and helpful. Ask clarifying questions when needed. Shar
     res.json({ response: response.content[0].text });
   } catch (err) {
     console.error("Chat error:", err);
+    if (isAnthropicAuthError(err)) {
+      return res.status(401).json({
+        response: "I'm unable to connect right now. Please check the AI configuration.",
+        detail: buildAuthErrorDetail(err),
+      });
+    }
     res.json({ response: "I apologize, but I'm having trouble connecting. Please try again in a moment." });
   }
 });
@@ -395,6 +437,9 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     if (ALLOW_DEMO_FALLBACK) {
       return res.json({ menus: DEMO_MENUS, demo: true, warning: "AI request failed." });
     }
+    if (isAnthropicAuthError(err)) {
+      return res.status(401).json({ error: "Menu generation failed.", detail: buildAuthErrorDetail(err) });
+    }
     return res.status(502).json({ error: "Menu generation failed.", detail: err.message });
   }
 });
@@ -469,6 +514,9 @@ Rules:
     console.error("Details generation error:", err);
     if (ALLOW_DEMO_FALLBACK) {
       return res.json({ ...buildDemoDetails(menu, context), demo: true, warning: "AI request failed." });
+    }
+    if (isAnthropicAuthError(err)) {
+      return res.status(401).json({ error: "Details generation failed.", detail: buildAuthErrorDetail(err) });
     }
     return res.status(502).json({ error: "Details generation failed.", detail: err.message });
   }
