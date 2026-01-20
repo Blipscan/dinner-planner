@@ -1,6 +1,29 @@
 # Dinner Party Planner — Cadillac Edition
 ## Production Ready for Beta
 
+### Safe Local Beta (Single-Port, Windows)
+
+**What this is**
+- Runs UI + backend together on **http://localhost:5000/**
+- Your Anthropic API key stays in `server/.env` (never exposed to the browser)
+- If the backend/API fails, the app falls back to built-in demo menus (set `ALLOW_DEMO_FALLBACK=true`)
+
+**Quick start**
+1) Unzip this folder somewhere simple, e.g. `C:\DinnerPartyPlanner_Beta`
+2) Copy `server\.env.example` → `server\.env` and paste your real key
+3) Double-click **Start_App.bat**
+4) Confirm in PowerShell:
+   `Invoke-RestMethod http://localhost:5000/api/health`
+5) Open:
+   `http://localhost:5000/`
+
+**If you see “ANTHROPIC_API_KEY is not set”**
+- Your `.env` file is missing, misnamed, or has no key.
+- Make sure it is named exactly: `server\.env` (not `.env.txt`)
+
+**Stop**
+- Close the “Dinner Planner Backend” window, or run **Stop_App.bat**
+
 ### Complete Feature Set
 
 **7-Step Wizard Flow**

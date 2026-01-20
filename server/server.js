@@ -5,6 +5,7 @@
 const express = require("express");
 const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
+require("dotenv").config();
  
 const {
   CUISINES,
