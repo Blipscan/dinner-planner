@@ -910,9 +910,16 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         <div id="selectedMenuSummary"></div>
       </div>
 
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
+        <button class="btn btn-outline" onclick="openExpertConsultation()">Consult Experts</button>
+        <button class="btn btn-gold" onclick="generateCookbook()">Generate Complete Cookbook</button>
+      </div>
+
       <div id="detailsLoading" class="loading hidden">
         <div class="spinner"></div>
         <p id="detailsLoadingMessage">Preparing recipes, wine tiers, and timeline...</p>
+        <p class="text-center" style="font-size:0.85rem;color:var(--text-light)">This can take up to 20 seconds. You can continue while details load.</p>
       </div>
 
       <div class="card">
@@ -930,11 +937,6 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         <div id="timelinePreview" class="timeline-list"></div>
       </div>
       
-      <div class="actions">
-        <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
-        <button class="btn btn-outline" onclick="openExpertConsultation()">Consult Experts</button>
-        <button class="btn btn-gold" onclick="generateCookbook()">Generate Complete Cookbook</button>
-      </div>
     </section>
     
     <!-- Step 7: Cookbook & Downloads -->
