@@ -870,7 +870,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     <section id="step5" class="hidden">
       <div class="card">
         <h2 class="card-title">Expert Consultation</h2>
-        <p class="card-subtitle">Want a second opinion or guidance on the menus? Consult our experts anytime.</p>
+        <p class="card-subtitle">Finalize substitutions, wine selections for the menu, and plating details before generating your cookbook.</p>
         <div class="expert-grid" id="expertGrid"></div>
         <div class="actions" style="margin-top:1.5rem">
           <button class="btn btn-outline" onclick="skipConsultation()">Back to Menus</button>
@@ -1875,16 +1875,16 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       
       const greetings = {
         chef: menu
-          ? `Welcome! I'm thrilled to help plan ${eventTitle}. I see you've selected ${menuTitle}.${courseBlock}\nLet's talk course by course. Where do you want to add drama, and where should we keep it elegant and simple?`
+          ? `Welcome! I'm thrilled to help plan ${eventTitle}. I see you've selected ${menuTitle}.${courseBlock}\nThis is the moment to confirm substitutions, finalize the wine list that appears on the menu, and decide on plating details like dish color. Where do you want to add drama, and where should we keep it elegant and simple?`
           : `Welcome! I'm thrilled to help plan ${eventTitle}. I see you're cooking for ${guestCount} guests with a ${inspiration.toLowerCase()} inspiration — wonderful choice. Tell me, what story do you want your menu to tell? Is there an ingredient or dish you've been dreaming about?`,
         sommelier: menu
-          ? `What a pleasure to help with ${eventTitle}! I'll map four tiers (Value, Classic, Premium, Splurge) of wine, champagne, and cocktails for each course.${courseBlock}\nBefore we dive in, are your guests adventurous with wine, or do they prefer familiar favorites?`
+          ? `What a pleasure to help with ${eventTitle}! I'll map four tiers (Value, Classic, Premium, Splurge) of wine, champagne, and cocktails for each course, and we will choose the final wines to appear on the menu.${courseBlock}\nBefore we dive in, are your guests adventurous with wine, or do they prefer familiar favorites?`
           : `What a pleasure to help with ${eventTitle}! Before we discuss wines, tell me about your guests. Are they adventurous with wine, or do they prefer familiar favorites? And is there a memorable bottle you've shared before that we might echo?`,
         instructor: menu
-          ? `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. I'll walk you through the pre-days plan and the cooking-day timeline.${courseBlock}\nFirst, tell me about your kitchen setup and how much time you'll have for prep.`
+          ? `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. I'll walk you through the pre-days plan and the cooking-day timeline, plus any substitutions that affect prep.${courseBlock}\nFirst, tell me about your kitchen setup and how much time you'll have for prep.`
           : `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. First, tell me about your kitchen setup and how much time you'll have for prep. What's your biggest concern about executing this dinner?`,
         all: menu
-          ? `Welcome! The three of us are excited to help plan ${eventTitle}.${courseBlock}\n**Chef:** We'll review the course arc and refine each dish.\n\n**Sommelier:** I'll map four tiers of wine, champagne, and cocktails for every course.\n\n**Instructor:** I'll lay out the pre-days plan and the cooking-day timeline.\n\nWhere would you like to start?`
+          ? `Welcome! The three of us are excited to help plan ${eventTitle}.${courseBlock}\n**Chef:** We'll review the course arc, substitutions, and plating details.\n\n**Sommelier:** I'll map four tiers of wine, champagne, and cocktails for every course, then we will lock the wines for the menu.\n\n**Instructor:** I'll lay out the pre-days plan and the cooking-day timeline.\n\nWhere would you like to start?`
           : `Welcome! The three of us are excited to help plan ${eventTitle}.\n\n**Chef:** Let's start with your vision — what flavors are you craving?\n\n**Sommelier:** I'll ensure every course has the perfect pour.\n\n**Instructor:** And I'll make sure you can execute it all calmly.\n\nWhat would you like to discuss first?`,
         photographer: `Hello! I'm here to help you capture beautiful images of ${eventTitle}. First question: would you like me to create image prompts based on YOUR dining room and what you already have, or shall I propose an ideal setting?\n\nIf you'd like prompts tailored to your space, tell me about your dining room — the table shape, wood tone, wall colors, lighting, and any special pieces you'd like featured.`,
         tablescaper: `Welcome! I'm so excited to help stage ${eventTitle} for ${guestCount} guests. The table is your stage before a single dish arrives — it sets the entire mood.\n\nTell me about your space: What's your table shape and size? Do you have existing linens, chargers, or centerpiece vessels you'd like to incorporate? And what feeling do you want guests to have when they first see the table?`,

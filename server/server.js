@@ -314,6 +314,7 @@ Sommelier focus:
 - Discuss the selected courses in order.
 - Provide 4 tiers of beverage pairings (Value, Classic, Premium, Splurge) for EACH course.
 - Mix wine, champagne, and cocktails across the tiers where it fits the course.
+- Help choose the final wines that will appear on the printed menu.
 - Explain why the pairings work, in approachable language.
 - Ask one clarifying question about guest preferences or budget.`;
   }
@@ -329,6 +330,7 @@ Instructor focus:
 - Give a pre-days plan (two days before, day before).
 - Give a cooking-day plan with key timestamps (use timeline if provided).
 - Call out make-ahead items, staging, and calm checkpoints.
+- Note any substitutions that change prep or timing.
 - Ask one question about kitchen setup or timing comfort.`;
   }
 
@@ -338,6 +340,8 @@ Instructor focus:
 Chef focus:
 - Talk course-by-course about flavor arc, balance, and technique.
 - Highlight one or two upgrades or tweaks per course.
+- Suggest substitutions for dietary needs or availability.
+- Ask about plating preferences (dish color, rimless vs rimmed).
 - Ask which course they are most excited or nervous about.`;
   }
 
@@ -346,8 +350,9 @@ Chef focus:
 
 Team focus:
 - Chef covers course-by-course flavor arc and technique.
-- Sommelier provides 4 tiers (Value, Classic, Premium, Splurge) of wine/champagne/cocktails for each course.
-- Instructor provides pre-days plan and cooking-day timeline.
+- Chef also confirms substitutions and plating details (dish color).
+- Sommelier provides 4 tiers (Value, Classic, Premium, Splurge) of wine/champagne/cocktails for each course and locks the menu wine list.
+- Instructor provides pre-days plan, cooking-day timeline, and notes substitution impacts.
 - Use labels "Chef:", "Sommelier:", "Instructor:" when switching voices.`;
   }
 
@@ -359,7 +364,7 @@ function buildDemoChefResponse(menu) {
     return "Chef: I can dive into the course-by-course plan as soon as you select a menu. Which menu are you leaning toward?";
   }
   const courseLines = menu.courses.map((course) => `- ${course.type}: ${course.name}`).join("\n");
-  return `Chef: Here is your selected course arc:\n${courseLines}\n\nFor each course, we can sharpen the flavor story and keep the pacing elegant. Which course do you want to elevate first?`;
+  return `Chef: Here is your selected course arc:\n${courseLines}\n\nThis is also the moment to confirm substitutions and plating preferences (dish color, rimmed vs rimless). For each course, we can sharpen the flavor story and keep the pacing elegant. Which course do you want to elevate first?`;
 }
 
 function buildDemoSommelierResponse(menu) {
@@ -406,7 +411,7 @@ function buildDemoSommelierResponse(menu) {
     return `${course.type}: ${course.name}\n${tierLines.join("\n")}`;
   });
 
-  return `Sommelier: Four-tier beverage map by course (wine, champagne, and cocktails mixed across tiers):\n\n${courseBlocks.join("\n\n")}\n\nTell me which spirits or wine regions your guests love, and I will refine the tiers.`;
+  return `Sommelier: Four-tier beverage map by course (wine, champagne, and cocktails mixed across tiers):\n\n${courseBlocks.join("\n\n")}\n\nTell me which spirits or wine regions your guests love, and I will refine the tiers and lock the wines that should appear on the printed menu.`;
 }
 
 function buildDemoInstructorResponse(menu, timeline) {
@@ -416,7 +421,7 @@ function buildDemoInstructorResponse(menu, timeline) {
   const timelineSummary = formatTimelineItems(timeline);
   const dayOfPlan = timelineSummary || "- Final prep, warm plates, and staggered firing by course.\n- Plate, serve, reset, repeat.";
 
-  return `Instructor: Here is a calm, staged plan around your menu:\n${courseSummary}\n\nTwo days before:\n- Confirm menu, shopping list, and equipment.\n- Prep any long-hold elements (stocks, sauces, dessert bases).\n\nDay before:\n- Shop perishables and proteins.\n- Pre-chop, pre-measure, and label.\n- Set the table and stage serving pieces.\n\nCooking day:\n${dayOfPlan}\n\nWhat is your kitchen setup and how much prep time do you have the day before?`;
+  return `Instructor: Here is a calm, staged plan around your menu:\n${courseSummary}\n\nTwo days before:\n- Confirm menu, substitutions, shopping list, and equipment.\n- Prep any long-hold elements (stocks, sauces, dessert bases).\n\nDay before:\n- Shop perishables and proteins.\n- Pre-chop, pre-measure, and label.\n- Set the table and stage serving pieces.\n\nCooking day:\n${dayOfPlan}\n\nWhat is your kitchen setup and how much prep time do you have the day before?`;
 }
 
 function buildDemoTeamResponse(menu, timeline) {
