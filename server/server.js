@@ -29,6 +29,15 @@ app.use(express.json({ limit: "10mb" }));
  
 const CLIENT_DIR = path.join(__dirname, "..", "client");
 app.use(express.static(CLIENT_DIR));
+
+app.get("/favicon.ico", (req, res) => {
+  res.type("image/svg+xml");
+  res.sendFile(path.join(CLIENT_DIR, "favicon.svg"), (err) => {
+    if (err) {
+      res.status(204).end();
+    }
+  });
+});
  
 app.get("/", (req, res) => {
   res.sendFile(path.join(CLIENT_DIR, "index.html"));
@@ -57,6 +66,63 @@ const REQUEST_TIMEOUTS_MS = {
   menus: 25000,
   details: 20000,
 };
+
+function extractAccessCode(req) {
+  const body = req.body || {};
+  const candidates = [
+    body.code,
+    body.accessCode,
+    body.access_code,
+    body.token,
+    req.query?.code,
+  ];
+  let code = candidates.find((value) => typeof value === "string" && value.trim());
+  if (!code) {
+    code = req.get("x-access-code") || req.get("x-access-token");
+  }
+  if (!code) {
+    const authHeader = req.get("authorization") || "";
+    const match = authHeader.match(/Bearer\s+(.+)/i);
+    if (match) {
+      code = match[1];
+    }
+  }
+  return typeof code === "string" ? code.trim() : "";
+}
+
+function evaluateAccessCode(code) {
+  if (!code) {
+    return { valid: false, message: "Please enter an access code." };
+  }
+
+  const upperCode = code.trim().toUpperCase();
+
+  if (upperCode === ADMIN_CODE.toUpperCase()) {
+    return { valid: true, isAdmin: true, remaining: 999 };
+  }
+
+  if (new Date() > new Date(BETA_EXPIRY)) {
+    return { valid: false, message: "Beta period has ended." };
+  }
+
+  if (!ACCESS_CODES.map((c) => c.toUpperCase()).includes(upperCode)) {
+    return { valid: false, message: "Invalid access code." };
+  }
+
+  if (!usageStats[upperCode]) {
+    usageStats[upperCode] = { generations: 0, lastUsed: new Date() };
+  }
+
+  if (usageStats[upperCode].generations >= MAX_GENERATIONS) {
+    return { valid: false, message: "Usage limit reached for this code." };
+  }
+
+  usageStats[upperCode].lastUsed = new Date();
+  return {
+    valid: true,
+    remaining: MAX_GENERATIONS - usageStats[upperCode].generations,
+  };
+}
  
 function parseBudgetRange(value) {
   if (!value) {
@@ -212,40 +278,23 @@ app.get("/api/data", (req, res) => {
  
 // Validate access code
 app.post("/api/validate-code", (req, res) => {
-  const { code } = req.body;
- 
-  if (!code) {
-    return res.json({ valid: false, message: "Please enter an access code." });
-  }
- 
-  const upperCode = code.trim().toUpperCase();
- 
-  // Admin code
-  if (upperCode === ADMIN_CODE.toUpperCase()) {
-    return res.json({ valid: true, isAdmin: true, remaining: 999 });
-  }
- 
-  // Check beta expiry
-  if (new Date() > new Date(BETA_EXPIRY)) {
-    return res.json({ valid: false, message: "Beta period has ended." });
-  }
- 
-  // Check if valid code
-  if (!ACCESS_CODES.map((c) => c.toUpperCase()).includes(upperCode)) {
-    return res.json({ valid: false, message: "Invalid access code." });
-  }
- 
-  // Initialize or check usage
-  if (!usageStats[upperCode]) {
-    usageStats[upperCode] = { generations: 0, lastUsed: new Date() };
-  }
- 
-  if (usageStats[upperCode].generations >= MAX_GENERATIONS) {
-    return res.json({ valid: false, message: "Usage limit reached for this code." });
-  }
- 
-  usageStats[upperCode].lastUsed = new Date();
-  res.json({ valid: true, remaining: MAX_GENERATIONS - usageStats[upperCode].generations });
+  const code = extractAccessCode(req);
+  const result = evaluateAccessCode(code);
+  res.json({
+    ...result,
+    authorized: result.valid,
+    success: result.valid,
+  });
+});
+
+app.post("/api/verify", (req, res) => {
+  const code = extractAccessCode(req);
+  const result = evaluateAccessCode(code);
+  res.status(result.valid ? 200 : 401).json({
+    ...result,
+    authorized: result.valid,
+    success: result.valid,
+  });
 });
  
 // Chat with expert persona
