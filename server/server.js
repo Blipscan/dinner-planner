@@ -219,6 +219,19 @@ function buildDemoDetails(menu, context) {
   };
 }
 
+function getCookbookTestContext(context = {}) {
+  return {
+    eventTitle: context.eventTitle || "Cookbook Test Dinner",
+    eventDate: context.eventDate || "TBD",
+    guestCount: context.guestCount || 4,
+    serviceTime: context.serviceTime || "7:00 PM",
+    wineBudget: context.wineBudget || "$80-120",
+    foodBudget: context.foodBudget || "$45-60",
+    guestList: context.guestList || "",
+    ...context,
+  };
+}
+
 async function withTimeout(promise, timeoutMs, label) {
   let timeoutId;
   const timeoutPromise = new Promise((_, reject) => {
@@ -472,6 +485,36 @@ app.post("/api/verify", (req, res) => {
     authorized: result.valid,
     success: result.valid,
   });
+});
+
+// Internal test: confirm cookbook generation pipeline runs
+app.post("/api/debug/test-cookbook", async (req, res) => {
+  const code = extractAccessCode(req);
+  const result = evaluateAccessCode(code);
+  if (!result.valid) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+
+  const menu = req.body?.menu || DEMO_MENUS[0];
+  const context = getCookbookTestContext(req.body?.context);
+  const staffing = req.body?.staffing || STAFFING[0]?.id || "solo";
+  const recipes = req.body?.recipes || null;
+
+  try {
+    const start = Date.now();
+    const buffer = await buildCookbook(menu, context, staffing, recipes);
+    const elapsedMs = Date.now() - start;
+    res.json({
+      success: true,
+      bytes: buffer.length,
+      elapsedMs,
+      menuTitle: menu?.title || "Unknown",
+      staffing,
+    });
+  } catch (err) {
+    console.error("Cookbook test error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
  
 // Chat with expert persona

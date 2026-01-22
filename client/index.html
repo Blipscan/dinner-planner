@@ -1314,6 +1314,37 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       };
     }
 
+    async function runCookbookTest() {
+      const menu = getSelectedMenu() || menus[0] || null;
+      if (!menu) {
+        return { success: false, error: 'No menu available for test.' };
+      }
+      const payload = {
+        code: accessCode,
+        menu,
+        context: getContext(),
+        staffing: selectedStaffing,
+        recipes: selectedMenuDetails?.recipes || null
+      };
+      try {
+        const res = await fetch('/api/debug/test-cookbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) {
+          console.warn('Cookbook test failed:', data);
+          return data;
+        }
+        console.info('Cookbook test success:', data);
+        return data;
+      } catch (err) {
+        console.error('Cookbook test error:', err);
+        return { success: false, error: err.message };
+      }
+    }
+
     function renderWineTiers(wineTiers) {
       const container = document.getElementById('wineTierList');
       if (!container) return;
