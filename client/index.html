@@ -932,6 +932,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       
       <div class="actions">
         <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
+        <button class="btn btn-outline" onclick="openExpertConsultation()">Consult Experts</button>
         <button class="btn btn-gold" onclick="generateCookbook()">Generate Complete Cookbook</button>
       </div>
     </section>
@@ -1201,6 +1202,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       // Show target step
       document.getElementById('step' + step).classList.remove('hidden');
       currentStep = step;
+
+      if (step === 5 && !selectedExpert && DATA?.personas?.chef) {
+        selectExpert('chef');
+      }
 
       if (step === 3) {
         preferencesVisited = true;
@@ -1835,7 +1840,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     function selectExpert(key) {
       selectedExpert = key;
-      const persona = DATA.personas[key];
+      const persona = DATA.personas?.[key];
+      if (!persona) {
+        console.warn('Expert persona missing:', key);
+        return;
+      }
       
       // Update expert cards
       document.querySelectorAll('.expert-card').forEach((card, i) => {
@@ -1978,6 +1987,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     function skipConsultation() {
       goToStep(4);
+    }
+
+    function openExpertConsultation() {
+      goToStep(5);
+      if (!selectedExpert && DATA?.personas?.chef) {
+        selectExpert('chef');
+      }
     }
     
     async function proceedToMenus() {
