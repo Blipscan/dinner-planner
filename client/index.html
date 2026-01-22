@@ -891,7 +891,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         </div>
         <div class="actions">
           <button class="btn btn-secondary" onclick="goToStep(4)">Back to Menus</button>
-          <button class="btn btn-outline" onclick="endChat()">End Consultation</button>
+          <button class="btn btn-outline" onclick="finishConsultation()">Done &amp; Print Cookbook</button>
           <button class="btn btn-gold" onclick="goToStep(4)">Return to Menus</button>
         </div>
       </div>
@@ -1264,6 +1264,39 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     function getSelectedMenuKey(menu) {
       if (!menu) return String(selectedMenu ?? '');
       return String(menu.id ?? menu.title ?? selectedMenu ?? '');
+    }
+
+    function getSelectedMenu() {
+      if (selectedMenu === null || selectedMenu === undefined) {
+        return null;
+      }
+      return menus[selectedMenu] || null;
+    }
+
+    function formatMenuCourses(menu) {
+      if (!menu || !menu.courses || !menu.courses.length) {
+        return '';
+      }
+      return menu.courses.map((course, index) => `${index + 1}. ${course.type}: ${course.name}`).join('\n');
+    }
+
+    function getExpertChatPayload() {
+      const menu = getSelectedMenu();
+      let menuDetails = null;
+      if (menu) {
+        const cacheKey = getSelectedMenuKey(menu);
+        menuDetails = selectedMenuDetails || menuDetailsCache[cacheKey] || null;
+        if (!menuDetails && allowDemoFallback()) {
+          menuDetails = buildFallbackDetails(menu);
+        }
+      }
+      const wineTiers = menuDetails?.wineTiers ? menuDetails.wineTiers : null;
+      return {
+        menu,
+        menuDetails: wineTiers ? { wineTiers } : null,
+        timeline: buildTimelineItems(),
+        staffing: selectedStaffing
+      };
     }
 
     function renderWineTiers(wineTiers) {
@@ -1776,12 +1809,24 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const eventTitle = document.getElementById('eventTitle').value || 'your dinner party';
       const guestCount = document.getElementById('guestCount').value;
       const inspiration = DATA.MENU_INSPIRATIONS?.find(i => i.id === selectedInspiration)?.title || 'special';
+      const menu = getSelectedMenu();
+      const menuTitle = menu?.title ? `"${menu.title}"` : '';
+      const courseSummary = formatMenuCourses(menu);
+      const courseBlock = courseSummary ? `\n\nHere are the courses:\n${courseSummary}\n` : '';
       
       const greetings = {
-        chef: `Welcome! I'm thrilled to help plan ${eventTitle}. I see you're cooking for ${guestCount} guests with a ${inspiration.toLowerCase()} inspiration — wonderful choice. Tell me, what story do you want your menu to tell? Is there an ingredient or dish you've been dreaming about?`,
-        sommelier: `What a pleasure to help with ${eventTitle}! Before we discuss wines, tell me about your guests. Are they adventurous with wine, or do they prefer familiar favorites? And is there a memorable bottle you've shared before that we might echo?`,
-        instructor: `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. First, tell me about your kitchen setup and how much time you'll have for prep. What's your biggest concern about executing this dinner?`,
-        all: `Welcome! The three of us are excited to help plan ${eventTitle}.\n\n**Chef:** Let's start with your vision — what flavors are you craving?\n\n**Sommelier:** I'll ensure every course has the perfect pour.\n\n**Instructor:** And I'll make sure you can execute it all calmly.\n\nWhat would you like to discuss first?`,
+        chef: menu
+          ? `Welcome! I'm thrilled to help plan ${eventTitle}. I see you've selected ${menuTitle}.${courseBlock}\nLet's talk course by course. Where do you want to add drama, and where should we keep it elegant and simple?`
+          : `Welcome! I'm thrilled to help plan ${eventTitle}. I see you're cooking for ${guestCount} guests with a ${inspiration.toLowerCase()} inspiration — wonderful choice. Tell me, what story do you want your menu to tell? Is there an ingredient or dish you've been dreaming about?`,
+        sommelier: menu
+          ? `What a pleasure to help with ${eventTitle}! I'll map four tiers (Value, Classic, Premium, Splurge) of wine, champagne, and cocktails for each course.${courseBlock}\nBefore we dive in, are your guests adventurous with wine, or do they prefer familiar favorites?`
+          : `What a pleasure to help with ${eventTitle}! Before we discuss wines, tell me about your guests. Are they adventurous with wine, or do they prefer familiar favorites? And is there a memorable bottle you've shared before that we might echo?`,
+        instructor: menu
+          ? `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. I'll walk you through the pre-days plan and the cooking-day timeline.${courseBlock}\nFirst, tell me about your kitchen setup and how much time you'll have for prep.`
+          : `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. First, tell me about your kitchen setup and how much time you'll have for prep. What's your biggest concern about executing this dinner?`,
+        all: menu
+          ? `Welcome! The three of us are excited to help plan ${eventTitle}.${courseBlock}\n**Chef:** We'll review the course arc and refine each dish.\n\n**Sommelier:** I'll map four tiers of wine, champagne, and cocktails for every course.\n\n**Instructor:** I'll lay out the pre-days plan and the cooking-day timeline.\n\nWhere would you like to start?`
+          : `Welcome! The three of us are excited to help plan ${eventTitle}.\n\n**Chef:** Let's start with your vision — what flavors are you craving?\n\n**Sommelier:** I'll ensure every course has the perfect pour.\n\n**Instructor:** And I'll make sure you can execute it all calmly.\n\nWhat would you like to discuss first?`,
         photographer: `Hello! I'm here to help you capture beautiful images of ${eventTitle}. First question: would you like me to create image prompts based on YOUR dining room and what you already have, or shall I propose an ideal setting?\n\nIf you'd like prompts tailored to your space, tell me about your dining room — the table shape, wood tone, wall colors, lighting, and any special pieces you'd like featured.`,
         tablescaper: `Welcome! I'm so excited to help stage ${eventTitle} for ${guestCount} guests. The table is your stage before a single dish arrives — it sets the entire mood.\n\nTell me about your space: What's your table shape and size? Do you have existing linens, chargers, or centerpiece vessels you'd like to incorporate? And what feeling do you want guests to have when they first see the table?`,
         plating: `Hello! I'm here to help your dishes look as extraordinary as they taste at ${eventTitle}. Every plate is a composition — and I'll help you think like a professional.\n\nFirst, tell me about your plating experience. Are you comfortable with tweezers and squeeze bottles, or would you prefer techniques that are elegant but approachable? And do you have rimmed or rimless plates?`
@@ -1811,6 +1856,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const message = input.value.trim();
       if (!message) return;
       
+      const expertPayload = getExpertChatPayload();
       chatHistory.push({ role: 'user', content: message });
       input.value = '';
       renderChat();
@@ -1827,7 +1873,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             code: accessCode,
             persona: selectedExpert,
             messages: chatHistory.slice(0, -1),
-            context: getContext()
+            context: getContext(),
+            focus: 'expert',
+            menu: expertPayload.menu,
+            menuDetails: expertPayload.menuDetails,
+            timeline: expertPayload.timeline,
+            staffing: expertPayload.staffing
           })
         });
         const data = await res.json();
@@ -1864,6 +1915,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       document.getElementById('chatSection').classList.add('hidden');
       selectedExpert = null;
       document.querySelectorAll('.expert-card').forEach(c => c.classList.remove('selected'));
+    }
+
+    async function finishConsultation() {
+      if (selectedMenu === null) {
+        alert('Please select a menu before generating the cookbook.');
+        return;
+      }
+      endChat();
+      await generateCookbook({ autoDownload: true });
     }
     
     function skipConsultation() {
@@ -2026,7 +2086,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             code: accessCode,
             persona: 'chef',
             messages: rejectionHistory.slice(0, -1),
-            context: getContext()
+            context: getContext(),
+            focus: 'rejection'
           })
         });
         const data = await res.json();
@@ -2063,7 +2124,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // STEP 7: COOKBOOK
     // ============================================================
-    async function generateCookbook() {
+    async function generateCookbook(options = {}) {
+      const { autoDownload = false } = options;
       if (!selectedMenuDetails) {
         await loadMenuDetails();
       }
@@ -2091,6 +2153,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         if (data.success) {
           cookbookId = data.cookbookId;
           document.getElementById('cookbookComplete').classList.remove('hidden');
+          if (autoDownload) {
+            await downloadCookbook();
+          }
         } else {
           document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
           document.getElementById('cookbookComplete').classList.remove('hidden');
