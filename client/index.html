@@ -912,7 +912,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
       <div id="detailsLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Preparing recipes, wine tiers, and timeline...</p>
+        <p id="detailsLoadingMessage">Preparing recipes, wine tiers, and timeline...</p>
       </div>
 
       <div class="card">
@@ -940,7 +940,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     <section id="step7" class="hidden">
       <div id="cookbookLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Creating your complete cookbook with recipes, timeline, and shopping list...</p>
+        <p id="cookbookLoadingMessage">Creating your complete cookbook with recipes, timeline, and shopping list...</p>
       </div>
       
       <div id="cookbookComplete" class="hidden">
@@ -1251,6 +1251,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       loading.classList.toggle('hidden', !show);
     }
 
+    function setDetailsLoadingMessage(message) {
+      const messageEl = document.getElementById('detailsLoadingMessage');
+      if (messageEl && message) {
+        messageEl.textContent = message;
+      }
+    }
+
+    function setCookbookLoadingMessage(message) {
+      const messageEl = document.getElementById('cookbookLoadingMessage');
+      if (messageEl && message) {
+        messageEl.textContent = message;
+      }
+    }
+
     async function fetchWithTimeout(url, options, timeoutMs) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -1546,12 +1560,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         return selectedMenuDetails;
       }
 
+      setDetailsLoadingMessage('Loading menu details...');
       showDetailsLoading(true);
       renderWineTiers([]);
       renderRecipePreview([]);
       renderTimelinePreview();
 
       try {
+        setDetailsLoadingMessage('Generating recipes and wine tiers...');
         const res = await fetchWithTimeout('/api/generate-details', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1564,6 +1580,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
         if (!res.ok || data.error) {
           if (allowDemoFallback()) {
+            setDetailsLoadingMessage('Using fallback details...');
             selectedMenuDetails = buildFallbackDetails(menu);
             menuDetailsCache[cacheKey] = selectedMenuDetails;
             renderWineTiers(selectedMenuDetails.wineTiers);
@@ -1585,6 +1602,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         renderRecipePreview(selectedMenuDetails.recipes);
       } catch (err) {
         if (allowDemoFallback()) {
+          setDetailsLoadingMessage('Using fallback details...');
           selectedMenuDetails = buildFallbackDetails(menu);
           menuDetailsCache[cacheKey] = selectedMenuDetails;
           renderWineTiers(selectedMenuDetails.wineTiers);
@@ -2127,14 +2145,18 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     async function generateCookbook(options = {}) {
       const { autoDownload = false } = options;
+      const loadingEl = document.getElementById('cookbookLoading');
+      const completeEl = document.getElementById('cookbookComplete');
       goToStep(7);
-      document.getElementById('cookbookLoading').classList.remove('hidden');
-      document.getElementById('cookbookComplete').classList.add('hidden');
+      loadingEl.classList.remove('hidden');
+      completeEl.classList.add('hidden');
       if (cookbookInProgress) return;
       cookbookInProgress = true;
+      setCookbookLoadingMessage('Generating your cookbook...');
 
       try {
         if (!selectedMenuDetails) {
+          setCookbookLoadingMessage('Finalizing menu details for the cookbook...');
           await loadMenuDetails();
         }
         const res = await fetch('/api/generate-cookbook', {
@@ -2150,30 +2172,38 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           })
         });
         const data = await res.json();
-        
-        document.getElementById('cookbookLoading').classList.add('hidden');
-        
+
         if (data.success) {
           cookbookId = data.cookbookId;
-          document.getElementById('cookbookComplete').classList.remove('hidden');
+          completeEl.classList.remove('hidden');
           if (autoDownload) {
+            setCookbookLoadingMessage('Preparing your download...');
             await downloadCookbook();
+            loadingEl.classList.add('hidden');
+          } else {
+            loadingEl.classList.add('hidden');
           }
         } else {
-          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
-          document.getElementById('cookbookComplete').classList.remove('hidden');
+          completeEl.innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
+          completeEl.classList.remove('hidden');
+          loadingEl.classList.add('hidden');
         }
       } catch (err) {
-        document.getElementById('cookbookLoading').classList.add('hidden');
-        document.getElementById('cookbookComplete').innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
-        document.getElementById('cookbookComplete').classList.remove('hidden');
+        loadingEl.classList.add('hidden');
+        completeEl.innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
+        completeEl.classList.remove('hidden');
       } finally {
         cookbookInProgress = false;
       }
     }
     
     async function downloadCookbook() {
+      const loadingEl = document.getElementById('cookbookLoading');
       try {
+        if (loadingEl) {
+          loadingEl.classList.remove('hidden');
+        }
+        setCookbookLoadingMessage('Downloading cookbook...');
         const res = await fetch('/api/download-cookbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2199,6 +2229,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
       } catch (err) {
         alert('Connection error. Please try again.');
+      } finally {
+        if (loadingEl && !cookbookInProgress) {
+          loadingEl.classList.add('hidden');
+        }
       }
     }
     

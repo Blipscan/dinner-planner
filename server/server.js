@@ -28,15 +28,11 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
  
 const CLIENT_DIR = path.join(__dirname, "..", "client");
+const INLINE_FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dinner Party Planner"><rect width="64" height="64" rx="12" fill="#1E3A5F"/><circle cx="32" cy="32" r="18" fill="#C9A227"/><text x="32" y="39" text-anchor="middle" font-size="20" font-family="Georgia, serif" fill="#1E3A5F">DP</text></svg>`;
 app.use(express.static(CLIENT_DIR));
 
 app.get("/favicon.ico", (req, res) => {
-  res.type("image/svg+xml");
-  res.sendFile(path.join(CLIENT_DIR, "favicon.svg"), (err) => {
-    if (err) {
-      res.status(204).end();
-    }
-  });
+  res.status(200).type("image/svg+xml").send(INLINE_FAVICON_SVG);
 });
  
 app.get("/", (req, res) => {
