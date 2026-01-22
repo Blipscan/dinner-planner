@@ -1012,6 +1012,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let selectedStaffing = 'solo';
     let rejectionHistory = [];
     let cookbookId = null;
+    let cookbookInProgress = false;
     let audioContext = null;
     let audioUnlocked = false;
     let menuDetailsCache = {};
@@ -2126,14 +2127,16 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     async function generateCookbook(options = {}) {
       const { autoDownload = false } = options;
-      if (!selectedMenuDetails) {
-        await loadMenuDetails();
-      }
       goToStep(7);
       document.getElementById('cookbookLoading').classList.remove('hidden');
       document.getElementById('cookbookComplete').classList.add('hidden');
-      
+      if (cookbookInProgress) return;
+      cookbookInProgress = true;
+
       try {
+        if (!selectedMenuDetails) {
+          await loadMenuDetails();
+        }
         const res = await fetch('/api/generate-cookbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2164,6 +2167,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         document.getElementById('cookbookLoading').classList.add('hidden');
         document.getElementById('cookbookComplete').innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
         document.getElementById('cookbookComplete').classList.remove('hidden');
+      } finally {
+        cookbookInProgress = false;
       }
     }
     
