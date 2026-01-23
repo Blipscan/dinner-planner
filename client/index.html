@@ -832,7 +832,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       
       <div id="menuLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Our culinary team is crafting your personalized menus...</p>
+        <p id="menuLoadingMessage">Creating 5 menus...</p>
+        <div id="menuLoadingFallback" class="hidden">
+          <p class="text-center" style="font-size:0.85rem;color:var(--text-light)">Still working. You can retry or go back.</p>
+          <div class="actions" style="margin-top:1rem">
+            <button class="btn btn-outline" onclick="generateMenus()">Try Again</button>
+            <button class="btn btn-secondary" onclick="goToStep(3)">Back to Preferences</button>
+          </div>
+        </div>
       </div>
       
       <div id="menuList"></div>
@@ -1299,6 +1306,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       }
     }
 
+    function setMenuLoadingMessage(message) {
+      const messageEl = document.getElementById('menuLoadingMessage');
+      if (messageEl && message) {
+        messageEl.textContent = message;
+      }
+    }
+
+    function showMenuLoadingFallback(show) {
+      const fallback = document.getElementById('menuLoadingFallback');
+      if (!fallback) return;
+      fallback.classList.toggle('hidden', !show);
+    }
+
     async function fetchWithTimeout(url, options, timeoutMs) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -1403,7 +1423,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const container = document.getElementById('menuList');
       if (!container) return;
       const detailHtml = detail ? `<div style="margin-top:0.5rem;font-size:0.85rem;color:#6b7280">${detail}</div>` : '';
-      container.innerHTML = `<div class="error-msg">${message}${detailHtml}</div>`;
+      container.innerHTML = `
+        <div class="error-msg">${message}${detailHtml}</div>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-outline" onclick="generateMenus()">Try Again</button>
+          <button class="btn btn-secondary" onclick="goToStep(3)">Back to Preferences</button>
+        </div>
+      `;
     }
 
     function renderDetailError(message, detail) {
@@ -2050,10 +2076,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // STEP 5: MENU SELECTION
     // ============================================================
     async function generateMenus() {
-      document.getElementById('menuLoading').classList.remove('hidden');
+      const loadingEl = document.getElementById('menuLoading');
+      const fallbackDelay = FETCH_TIMEOUTS_MS.menus + 1500;
+      setMenuLoadingMessage('Creating 5 menus...');
+      showMenuLoadingFallback(false);
+      loadingEl.classList.remove('hidden');
       document.getElementById('menuList').innerHTML = '';
       document.getElementById('menuActions').classList.add('hidden');
       document.getElementById('rejectionChat').classList.add('hidden');
+      const fallbackTimer = setTimeout(() => {
+        if (!loadingEl.classList.contains('hidden')) {
+          setMenuLoadingMessage('Still working on your menus...');
+          showMenuLoadingFallback(true);
+        }
+      }, fallbackDelay);
       
       try {
         const res = await fetchWithTimeout('/api/generate-menus', {
@@ -2068,7 +2104,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }, FETCH_TIMEOUTS_MS.menus);
         const data = await res.json().catch(() => ({}));
         
-        document.getElementById('menuLoading').classList.add('hidden');
+        loadingEl.classList.add('hidden');
+        showMenuLoadingFallback(false);
         
         if (!res.ok || data.error) {
           renderMenuError('Menu generation failed.', data.detail || 'Check your API key and account credits.');
@@ -2091,11 +2128,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           renderMenuError('Unable to generate menus.', 'Please try again.');
         }
       } catch (err) {
-        document.getElementById('menuLoading').classList.add('hidden');
+        loadingEl.classList.add('hidden');
+        showMenuLoadingFallback(false);
         const detailMessage = err?.name === 'AbortError'
           ? 'Request timed out. Please try again.'
           : 'Please try again.';
         renderMenuError('Connection error.', detailMessage);
+      } finally {
+        clearTimeout(fallbackTimer);
       }
     }
     
