@@ -84,8 +84,23 @@ Menu styles (8):
 - Rustic Elegant, Vintage Botanical, Coastal Elegance, Urban Chic
 
 Cuisine selections (cascading):
-- American (regions + styles)
-- European (country -> region)
+- American (region -> subregion):
+  - Northeast: New England, Mid-Atlantic
+  - South: Lowcountry, Deep South, Gulf Coast, Texas, Appalachia
+  - Midwest: Great Lakes, Plains, Upper Midwest
+  - West: Pacific Northwest, California, Southwest, Mountain West, Alaska, Hawaii
+- European (country -> region):
+  - France: Provence, Bordeaux, Burgundy, Loire Valley, Alsace, Champagne, Rhone, Normandy, Brittany
+  - Italy: Tuscany, Piedmont, Veneto, Emilia-Romagna, Campania, Sicily, Sardinia, Lazio, Puglia
+  - Spain: Basque, Catalonia, Andalusia, Galicia, Rioja, Valencia, Madrid
+  - Germany: Bavaria, Mosel, Rheingau, Baden, Pfalz, Saxony
+  - UK and Ireland: England (Cornwall, London, Yorkshire), Scotland (Highlands, Islands), Wales, Ireland
+  - Portugal: Douro, Alentejo, Lisboa, Madeira, Azores
+  - Greece: Crete, Cyclades, Macedonia, Peloponnese, Athens
+  - Scandinavia: Sweden, Denmark, Norway, Finland, Iceland
+  - Benelux: Belgium (Flanders, Wallonia), Netherlands (North Holland, South Holland)
+  - Central Europe: Austria (Vienna, Styria, Tyrol), Switzerland (Valais, Ticino)
+  - Eastern Europe: Poland, Hungary, Czechia, Croatia, Romania, Bulgaria
 - Asian (country -> region)
 - Mexican (region + style)
 - Middle Eastern, Caribbean, Mediterranean, South American
@@ -114,7 +129,11 @@ Generate 5 menus, each with:
   - Second Course
   - Main Course
   - Dessert
-  - Each course includes dish name and wine pairing (nullable where needed).
+  - Each course includes dish name and wine pairing with 4 tiers:
+    - Highest rated worldwide
+    - Highest rated domestic
+    - Highest rated budget
+    - What would James Bond order
 
 Regeneration:
 - Allow the user to reject menus with feedback.
@@ -148,8 +167,8 @@ Produce a DOCX with 15 sections:
 15. Copyright
 
 Include:
-- Detailed recipe previews with ingredients and steps.
-- Tiered wine pairing budgets.
+- Detailed recipe previews with ingredients, steps, and why it works.
+- Four-tier wine pairings per course (worldwide, domestic, budget, Bond pick).
 - Staffing-adjusted timing.
 
 ### 6.8 Print Product Recommendations
@@ -203,11 +222,56 @@ Provide Avery SKU suggestions for:
   "foodCost": "$45-55/person",
   "wineCost": "$120 total",
   "courses": [
-    { "type": "Amuse-Bouche", "name": "Dish name", "wine": null },
-    { "type": "First Course", "name": "Dish name", "wine": "Wine name" },
-    { "type": "Second Course", "name": "Dish name", "wine": "Wine name" },
-    { "type": "Main Course", "name": "Dish name", "wine": "Wine name" },
-    { "type": "Dessert", "name": "Dish name", "wine": "Wine name" }
+    {
+      "type": "Amuse-Bouche",
+      "name": "Dish name",
+      "wine": {
+        "worldwideTopRated": "Wine name",
+        "domesticTopRated": "Wine name",
+        "budgetTopRated": "Wine name",
+        "bondPick": "Wine name"
+      }
+    },
+    {
+      "type": "First Course",
+      "name": "Dish name",
+      "wine": {
+        "worldwideTopRated": "Wine name",
+        "domesticTopRated": "Wine name",
+        "budgetTopRated": "Wine name",
+        "bondPick": "Wine name"
+      }
+    },
+    {
+      "type": "Second Course",
+      "name": "Dish name",
+      "wine": {
+        "worldwideTopRated": "Wine name",
+        "domesticTopRated": "Wine name",
+        "budgetTopRated": "Wine name",
+        "bondPick": "Wine name"
+      }
+    },
+    {
+      "type": "Main Course",
+      "name": "Dish name",
+      "wine": {
+        "worldwideTopRated": "Wine name",
+        "domesticTopRated": "Wine name",
+        "budgetTopRated": "Wine name",
+        "bondPick": "Wine name"
+      }
+    },
+    {
+      "type": "Dessert",
+      "name": "Dish name",
+      "wine": {
+        "worldwideTopRated": "Wine name",
+        "domesticTopRated": "Wine name",
+        "budgetTopRated": "Wine name",
+        "bondPick": "Wine name"
+      }
+    }
   ]
 }
 ```
@@ -222,7 +286,18 @@ Provide Avery SKU suggestions for:
   "ingredients": ["Ingredient 1", "Ingredient 2"],
   "steps": ["Step 1", "Step 2"],
   "notes": "Chef note",
-  "makeAhead": "Prep notes"
+  "makeAhead": "Prep notes",
+  "whyItWorks": "Short explanation of flavor and technique balance."
+}
+```
+
+### Wine Pairing (per course)
+```
+{
+  "worldwideTopRated": "Highest rated worldwide pick",
+  "domesticTopRated": "Highest rated domestic pick",
+  "budgetTopRated": "Highest rated budget pick",
+  "bondPick": "What would James Bond order"
 }
 ```
 
@@ -244,7 +319,7 @@ All endpoints return JSON unless otherwise noted.
   - Response: `{ "menus": [...] }`
 - `POST /api/generate-details`
   - Request: `{ "menu": {...}, "context": {...} }`
-  - Response: `{ "recipes": [...], "wineTiers": [...] }`
+  - Response: `{ "recipes": [...], "winePairings": [...] }`
 - `POST /api/generate-cookbook`
   - Request: `{ "menu": {...}, "details": {...}, "context": {...} }`
   - Response: `{ "cookbookId": "..." }`
