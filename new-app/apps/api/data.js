@@ -722,6 +722,583 @@ const DEMO_MENUS = [
   }
 ];
 
+const DEMO_MENU_RECIPES = {
+  1: [
+    {
+      title: "Chive Blossoms with Lemon Creme Fraiche on Potato Crisp",
+      serves: 6,
+      activeTime: "20 min",
+      totalTime: "45 min",
+      ingredients: [
+        "Baby potatoes or Yukon golds, thinly sliced",
+        "Olive oil",
+        "Creme fraiche",
+        "Lemon zest and juice",
+        "Chives or chive blossoms",
+        "Kosher salt and black pepper"
+      ],
+      steps: [
+        "Bake or fry potato slices until crisp and golden; season with salt.",
+        "Stir creme fraiche with lemon zest, a squeeze of juice, and pepper.",
+        "Spoon a small dollop onto each crisp and top with chives.",
+        "Serve immediately for maximum crunch."
+      ],
+      notes: "Keep crisps dry and assemble right before serving.",
+      makeAhead: "Potato crisps can be made 6 hours ahead and stored airtight."
+    },
+    {
+      title: "Chilled English Pea Soup with Mint Oil and Creme Fraiche",
+      serves: 6,
+      activeTime: "25 min",
+      totalTime: "1 hour",
+      ingredients: [
+        "English peas (fresh or frozen)",
+        "Yellow onion or shallot, diced",
+        "Vegetable stock",
+        "Fresh mint leaves",
+        "Creme fraiche",
+        "Lemon juice",
+        "Olive oil, salt, and pepper"
+      ],
+      steps: [
+        "Saute onion in olive oil until soft; add peas and stock.",
+        "Simmer until peas are tender, then blend with mint and lemon.",
+        "Chill thoroughly and adjust seasoning.",
+        "Finish with a swirl of creme fraiche and mint oil."
+      ],
+      notes: "A high-speed blend yields the smoothest texture.",
+      makeAhead: "Soup can be made 1 day ahead; garnish just before serving."
+    },
+    {
+      title: "Butter Lettuce Salad with Shaved Radish and Champagne Vinaigrette",
+      serves: 6,
+      activeTime: "15 min",
+      totalTime: "20 min",
+      ingredients: [
+        "Butter lettuce leaves",
+        "Radishes, thinly shaved",
+        "Fresh herbs (chervil, parsley, or dill)",
+        "Champagne vinegar",
+        "Dijon mustard",
+        "Extra virgin olive oil",
+        "Kosher salt and black pepper"
+      ],
+      steps: [
+        "Whisk vinegar, mustard, salt, and pepper; stream in olive oil.",
+        "Toss lettuce and herbs lightly with vinaigrette.",
+        "Add radishes and finish with fresh cracked pepper.",
+        "Serve chilled."
+      ],
+      notes: "Dress lightly to keep the lettuce crisp.",
+      makeAhead: "Vinaigrette can be made 2 days ahead."
+    },
+    {
+      title: "Herb-Crusted Rack of Lamb with Spring Vegetables and Mint Gremolata",
+      serves: 6,
+      activeTime: "45 min",
+      totalTime: "1.5 hours",
+      ingredients: [
+        "Rack of lamb",
+        "Panko or fresh breadcrumbs",
+        "Parsley and mint, chopped",
+        "Garlic and lemon zest",
+        "Asparagus and snap peas",
+        "Olive oil, salt, and pepper"
+      ],
+      steps: [
+        "Season lamb, sear well, then coat with herb crumbs.",
+        "Roast to medium-rare and rest before slicing.",
+        "Blanch vegetables and finish with olive oil and salt.",
+        "Top lamb with mint gremolata and serve with vegetables."
+      ],
+      notes: "Use an instant-read thermometer for precise doneness.",
+      makeAhead: "Herb crust and gremolata can be prepped earlier."
+    },
+    {
+      title: "Meyer Lemon Posset with Lavender Shortbread",
+      serves: 6,
+      activeTime: "20 min",
+      totalTime: "3 hours",
+      ingredients: [
+        "Heavy cream",
+        "Sugar",
+        "Meyer lemon zest and juice",
+        "Pinch of salt",
+        "Shortbread cookies with lavender"
+      ],
+      steps: [
+        "Warm cream and sugar until dissolved, then remove from heat.",
+        "Stir in lemon zest, juice, and salt to thicken.",
+        "Pour into cups and chill until set.",
+        "Serve with lavender shortbread."
+      ],
+      notes: "Strain for the smoothest texture.",
+      makeAhead: "Posset sets well overnight."
+    }
+  ],
+  2: [
+    {
+      title: "Burrata with San Marzano Tomato Confit and Basil Oil",
+      serves: 6,
+      activeTime: "20 min",
+      totalTime: "1 hour",
+      ingredients: [
+        "Burrata",
+        "San Marzano tomatoes",
+        "Garlic cloves",
+        "Extra virgin olive oil",
+        "Fresh basil",
+        "Sea salt and black pepper"
+      ],
+      steps: [
+        "Slow-roast tomatoes with garlic, olive oil, salt, and pepper.",
+        "Blend basil with olive oil and strain for a bright oil.",
+        "Plate burrata with warm tomato confit.",
+        "Finish with basil oil and flaky salt."
+      ],
+      notes: "Serve with toasted bread if desired.",
+      makeAhead: "Tomato confit and basil oil can be made 2 days ahead."
+    },
+    {
+      title: "Wild Mushroom Risotto with Shaved Black Truffle",
+      serves: 6,
+      activeTime: "35 min",
+      totalTime: "50 min",
+      ingredients: [
+        "Arborio rice",
+        "Mixed wild mushrooms",
+        "Shallot and garlic",
+        "Dry white wine",
+        "Warm chicken or vegetable stock",
+        "Parmigiano-Reggiano and butter",
+        "Black truffle or truffle oil"
+      ],
+      steps: [
+        "Saute mushrooms until golden and set aside.",
+        "Sweat shallot and toast rice; deglaze with wine.",
+        "Add stock gradually, stirring until creamy.",
+        "Finish with butter, parmesan, mushrooms, and truffle."
+      ],
+      notes: "Keep stock hot to maintain consistent texture.",
+      makeAhead: "Par-cook risotto 10 minutes, then finish before serving."
+    },
+    {
+      title: "Arugula and Shaved Parmigiano with Aged Balsamic",
+      serves: 6,
+      activeTime: "10 min",
+      totalTime: "10 min",
+      ingredients: [
+        "Baby arugula",
+        "Parmigiano-Reggiano, shaved",
+        "Aged balsamic vinegar",
+        "Extra virgin olive oil",
+        "Lemon juice",
+        "Sea salt and black pepper"
+      ],
+      steps: [
+        "Toss arugula with olive oil, lemon juice, salt, and pepper.",
+        "Plate and top with generous parmesan shavings.",
+        "Drizzle with aged balsamic to finish.",
+        "Serve immediately."
+      ],
+      notes: "Use a light hand with balsamic to avoid overpowering.",
+      makeAhead: "Shave cheese and prep greens ahead; dress at service."
+    },
+    {
+      title: "Bistecca alla Fiorentina with Roasted Fingerlings and Salsa Verde",
+      serves: 6,
+      activeTime: "40 min",
+      totalTime: "1.5 hours",
+      ingredients: [
+        "Thick-cut porterhouse or ribeye",
+        "Fingerling potatoes",
+        "Parsley and basil",
+        "Capers and garlic",
+        "Lemon juice and olive oil",
+        "Kosher salt and black pepper"
+      ],
+      steps: [
+        "Roast fingerlings with olive oil, salt, and pepper until crisp.",
+        "Sear or grill steak to medium-rare and rest well.",
+        "Blend herbs, capers, garlic, lemon, and oil into salsa verde.",
+        "Slice steak, spoon salsa verde, and serve with potatoes."
+      ],
+      notes: "Resting is essential for juicy slices.",
+      makeAhead: "Salsa verde can be made 1 day ahead."
+    },
+    {
+      title: "Panna Cotta with Macerated Berries and Aged Balsamic",
+      serves: 6,
+      activeTime: "20 min",
+      totalTime: "4 hours",
+      ingredients: [
+        "Heavy cream",
+        "Sugar",
+        "Gelatin",
+        "Vanilla bean or extract",
+        "Mixed berries",
+        "Aged balsamic vinegar"
+      ],
+      steps: [
+        "Bloom gelatin, then dissolve in warm sweetened cream.",
+        "Pour into cups and chill until set.",
+        "Macerate berries with a splash of balsamic.",
+        "Top panna cotta with berries and a balsamic drizzle."
+      ],
+      notes: "Do not boil the cream once gelatin is added.",
+      makeAhead: "Panna cotta can be made 2 days ahead."
+    }
+  ],
+  3: [
+    {
+      title: "Gougeres (Warm Gruyere Cheese Puffs)",
+      serves: 6,
+      activeTime: "25 min",
+      totalTime: "50 min",
+      ingredients: [
+        "Water",
+        "Butter",
+        "All-purpose flour",
+        "Eggs",
+        "Gruyere cheese, grated",
+        "Salt and black pepper"
+      ],
+      steps: [
+        "Boil water and butter, then stir in flour to form a dough.",
+        "Beat in eggs one at a time until glossy.",
+        "Fold in gruyere and pipe small mounds.",
+        "Bake until puffed and deeply golden."
+      ],
+      notes: "Do not open the oven early or the puffs may deflate.",
+      makeAhead: "Bake earlier and rewarm briefly before serving."
+    },
+    {
+      title: "French Onion Soup Gratinee with Gruyere Crouton",
+      serves: 6,
+      activeTime: "45 min",
+      totalTime: "1.5 hours",
+      ingredients: [
+        "Yellow onions, thinly sliced",
+        "Butter and olive oil",
+        "Dry white wine",
+        "Beef or chicken stock",
+        "Thyme and bay leaf",
+        "Baguette and gruyere cheese"
+      ],
+      steps: [
+        "Caramelize onions slowly until deep brown.",
+        "Deglaze with wine, add stock and herbs, and simmer.",
+        "Toast baguette slices with gruyere.",
+        "Ladle soup, top with crouton and cheese, and broil."
+      ],
+      notes: "Low and slow onions give the best flavor.",
+      makeAhead: "Soup base can be made 2 days ahead."
+    },
+    {
+      title: "Salade Lyonnaise with Frisee, Lardons, and Poached Egg",
+      serves: 6,
+      activeTime: "25 min",
+      totalTime: "30 min",
+      ingredients: [
+        "Frisee",
+        "Thick-cut bacon lardons",
+        "Eggs",
+        "Shallot, minced",
+        "Red wine vinegar",
+        "Dijon mustard",
+        "Olive oil, salt, and pepper"
+      ],
+      steps: [
+        "Cook lardons until crisp; reserve fat.",
+        "Whisk vinegar, mustard, and shallot; add warm bacon fat and oil.",
+        "Toss frisee with warm vinaigrette and lardons.",
+        "Top each plate with a poached egg."
+      ],
+      notes: "Serve immediately so the egg stays warm.",
+      makeAhead: "Vinaigrette base can be made earlier."
+    },
+    {
+      title: "Coq au Vin with Pearl Onions, Mushrooms, and Pommes Puree",
+      serves: 6,
+      activeTime: "45 min",
+      totalTime: "2 hours",
+      ingredients: [
+        "Chicken thighs and drumsticks",
+        "Bacon",
+        "Red wine",
+        "Mushrooms and pearl onions",
+        "Chicken stock",
+        "Garlic and thyme",
+        "Potatoes, butter, and cream"
+      ],
+      steps: [
+        "Brown bacon and chicken; saute mushrooms and onions.",
+        "Deglaze with wine, add stock and herbs, then simmer.",
+        "Cook potatoes and mash with butter and cream.",
+        "Serve chicken and sauce over pommes puree."
+      ],
+      notes: "Skim fat from the sauce for a cleaner finish.",
+      makeAhead: "Stew improves when made a day ahead."
+    },
+    {
+      title: "Tarte Tatin with Calvados Creme Fraiche",
+      serves: 6,
+      activeTime: "30 min",
+      totalTime: "1.5 hours",
+      ingredients: [
+        "Apples, peeled and halved",
+        "Sugar",
+        "Butter",
+        "Puff pastry",
+        "Creme fraiche",
+        "Calvados or apple brandy"
+      ],
+      steps: [
+        "Caramelize sugar and butter in an oven-safe skillet.",
+        "Arrange apples and cook until slightly softened.",
+        "Top with puff pastry and bake until golden.",
+        "Invert and serve with Calvados creme fraiche."
+      ],
+      notes: "Let the tart rest 10 minutes before inverting.",
+      makeAhead: "Tart is best the day it is baked."
+    }
+  ],
+  4: [
+    {
+      title: "Oysters on the Half Shell with Champagne Mignonette",
+      serves: 6,
+      activeTime: "15 min",
+      totalTime: "20 min",
+      ingredients: [
+        "Fresh oysters",
+        "Champagne or white wine vinegar",
+        "Shallot, minced",
+        "Cracked black pepper",
+        "Lemon wedges"
+      ],
+      steps: [
+        "Stir vinegar with shallot and pepper; chill.",
+        "Shuck oysters and arrange on ice.",
+        "Spoon mignonette over each oyster.",
+        "Serve with lemon."
+      ],
+      notes: "Keep oysters cold until the last moment.",
+      makeAhead: "Mignonette can be made 1 day ahead."
+    },
+    {
+      title: "Maine Lobster Bisque with Cognac Cream and Chive Oil",
+      serves: 6,
+      activeTime: "45 min",
+      totalTime: "2 hours",
+      ingredients: [
+        "Lobster shells",
+        "Onion, celery, and carrot",
+        "Tomato paste",
+        "Cognac or brandy",
+        "Seafood stock",
+        "Heavy cream",
+        "Chives and olive oil"
+      ],
+      steps: [
+        "Roast shells, then saute aromatics and tomato paste.",
+        "Deglaze with cognac, add stock, and simmer.",
+        "Blend and strain, then finish with cream.",
+        "Drizzle with chive oil before serving."
+      ],
+      notes: "Strain through a fine mesh for a silky texture.",
+      makeAhead: "Bisque base can be made 1 day ahead."
+    },
+    {
+      title: "Baby Spinach with Warm Bacon Vinaigrette and Shaved Apple",
+      serves: 6,
+      activeTime: "15 min",
+      totalTime: "20 min",
+      ingredients: [
+        "Baby spinach",
+        "Bacon, diced",
+        "Shallot, minced",
+        "Apple cider vinegar",
+        "Dijon mustard",
+        "Apple, thinly shaved",
+        "Olive oil, salt, and pepper"
+      ],
+      steps: [
+        "Cook bacon until crisp; reserve fat.",
+        "Whisk vinegar, mustard, and shallot; add warm bacon fat.",
+        "Toss spinach with warm vinaigrette.",
+        "Top with shaved apple and bacon."
+      ],
+      notes: "Serve immediately while the vinaigrette is warm.",
+      makeAhead: "Vinaigrette base can be prepped ahead."
+    },
+    {
+      title: "Pan-Seared Chilean Sea Bass with Herb Beurre Blanc and Haricots Verts",
+      serves: 6,
+      activeTime: "35 min",
+      totalTime: "45 min",
+      ingredients: [
+        "Chilean sea bass fillets",
+        "Butter",
+        "Shallot, minced",
+        "White wine",
+        "Lemon juice",
+        "Fresh herbs",
+        "Haricots verts"
+      ],
+      steps: [
+        "Season and sear fish until golden; finish gently in the oven.",
+        "Simmer wine and shallot, whisk in butter to make beurre blanc.",
+        "Blanch haricots verts and toss with salt and butter.",
+        "Plate fish with sauce and beans."
+      ],
+      notes: "Keep beurre blanc warm, not hot, to avoid breaking.",
+      makeAhead: "Beans can be blanched ahead and reheated."
+    },
+    {
+      title: "Maine Blueberry Buckle with Vanilla Bean Ice Cream",
+      serves: 6,
+      activeTime: "20 min",
+      totalTime: "1 hour",
+      ingredients: [
+        "Blueberries",
+        "All-purpose flour",
+        "Sugar",
+        "Butter",
+        "Eggs",
+        "Baking powder",
+        "Vanilla bean or extract",
+        "Vanilla ice cream"
+      ],
+      steps: [
+        "Mix batter with flour, sugar, butter, eggs, and vanilla.",
+        "Fold in blueberries and pour into a buttered dish.",
+        "Bake until golden and set.",
+        "Serve warm with vanilla ice cream."
+      ],
+      notes: "A toothpick should come out clean from the center.",
+      makeAhead: "Buckle is best baked the day of service."
+    }
+  ],
+  5: [
+    {
+      title: "Beef Tartare on Black Pepper Crostini with Quail Egg",
+      serves: 6,
+      activeTime: "25 min",
+      totalTime: "25 min",
+      ingredients: [
+        "Beef tenderloin, finely diced",
+        "Shallot, minced",
+        "Capers, chopped",
+        "Dijon mustard",
+        "Egg yolk",
+        "Black pepper crostini",
+        "Quail eggs",
+        "Salt and pepper"
+      ],
+      steps: [
+        "Combine beef with shallot, capers, mustard, and seasoning.",
+        "Toast crostini and rub with a garlic clove if desired.",
+        "Spoon tartare onto crostini.",
+        "Top with a quail egg and cracked pepper."
+      ],
+      notes: "Use the freshest beef and keep it very cold.",
+      makeAhead: "Dice beef and prep mix-ins ahead; assemble at service."
+    },
+    {
+      title: "Classic Wedge Salad with Point Reyes Blue Cheese and Applewood Bacon",
+      serves: 6,
+      activeTime: "20 min",
+      totalTime: "20 min",
+      ingredients: [
+        "Iceberg lettuce",
+        "Point Reyes blue cheese",
+        "Applewood bacon",
+        "Cherry tomatoes",
+        "Chives",
+        "Buttermilk",
+        "Sour cream or mayo",
+        "Lemon juice, salt, and pepper"
+      ],
+      steps: [
+        "Cook bacon until crisp and crumble.",
+        "Whisk buttermilk, sour cream, blue cheese, lemon, salt, and pepper.",
+        "Cut lettuce into wedges and plate.",
+        "Top with dressing, bacon, tomatoes, and chives."
+      ],
+      notes: "Keep lettuce very cold for best crunch.",
+      makeAhead: "Dressing can be made 2 days ahead."
+    },
+    {
+      title: "Jumbo Shrimp Cocktail with House Cocktail Sauce",
+      serves: 6,
+      activeTime: "20 min",
+      totalTime: "30 min",
+      ingredients: [
+        "Jumbo shrimp, peeled and deveined",
+        "Lemon, bay leaf, and peppercorns",
+        "Ketchup and chili sauce",
+        "Prepared horseradish",
+        "Worcestershire sauce",
+        "Lemon juice"
+      ],
+      steps: [
+        "Poach shrimp in seasoned water until just pink; chill.",
+        "Mix ketchup, chili sauce, horseradish, Worcestershire, and lemon.",
+        "Serve shrimp over ice with cocktail sauce.",
+        "Garnish with lemon wedges."
+      ],
+      notes: "Do not overcook shrimp; they should be tender.",
+      makeAhead: "Sauce can be made 3 days ahead."
+    },
+    {
+      title: "45-Day Dry-Aged Ribeye with Truffle Butter and Roasted Bone Marrow",
+      serves: 6,
+      activeTime: "35 min",
+      totalTime: "1.5 hours",
+      ingredients: [
+        "Dry-aged ribeye steaks",
+        "Beef marrow bones",
+        "Butter",
+        "Truffle oil or minced truffle",
+        "Garlic and thyme",
+        "Kosher salt and black pepper"
+      ],
+      steps: [
+        "Roast marrow bones until bubbling; season with salt.",
+        "Season steaks and sear hard; finish to desired doneness.",
+        "Mix softened butter with truffle and garlic.",
+        "Rest steaks, then top with truffle butter and marrow."
+      ],
+      notes: "Let steaks rest 8-10 minutes before slicing.",
+      makeAhead: "Truffle butter can be made 2 days ahead."
+    },
+    {
+      title: "New York Cheesecake with Seasonal Berry Compote",
+      serves: 6,
+      activeTime: "30 min",
+      totalTime: "5 hours",
+      ingredients: [
+        "Cream cheese",
+        "Sugar",
+        "Eggs",
+        "Sour cream",
+        "Graham crackers and butter",
+        "Vanilla extract",
+        "Mixed berries",
+        "Lemon juice"
+      ],
+      steps: [
+        "Press graham crust into a pan and bake briefly.",
+        "Beat cream cheese with sugar, then add eggs and sour cream.",
+        "Bake until set, then cool and chill completely.",
+        "Simmer berries with sugar and lemon for compote; serve on top."
+      ],
+      notes: "Chill overnight for clean slices.",
+      makeAhead: "Cheesecake keeps well for 2 days."
+    }
+  ]
+};
+
 // Cookbook sections for DOCX generation
 const COOKBOOK_SECTIONS = [
   'Cover Page',
@@ -751,6 +1328,7 @@ module.exports = {
   AVERY_PRODUCTS,
   PERSONAS,
   DEMO_MENUS,
+  DEMO_MENU_RECIPES,
   COOKBOOK_SECTIONS,
   COPYRIGHT_TEXT
 };

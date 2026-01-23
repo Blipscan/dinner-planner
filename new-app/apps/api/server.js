@@ -17,6 +17,7 @@ const {
   AVERY_PRODUCTS,
   PERSONAS,
   DEMO_MENUS,
+  DEMO_MENU_RECIPES,
   COOKBOOK_SECTIONS,
 } = require("./data");
 
@@ -369,6 +370,14 @@ async function buildPrintProductPdf({ type, product, context, menu }) {
 
 function buildDemoRecipes(menu, context) {
   const guestCount = parseInt(context?.guestCount || "6", 10);
+  const menuId = menu?.id;
+  const preset = menuId ? DEMO_MENU_RECIPES?.[menuId] : null;
+  if (preset?.length) {
+    return preset.map((recipe) => ({
+      ...recipe,
+      serves: guestCount || recipe.serves || 6,
+    }));
+  }
   const timeByCourse = {
     "Amuse-Bouche": { active: "20 min", total: "45 min" },
     "First Course": { active: "30 min", total: "1 hour" },
