@@ -59,7 +59,7 @@ const DETAIL_COMPACT_MODE = COOKBOOK_EXPERIENCE_MAX_TOKENS <= 1200;
 const REQUEST_TIMEOUTS_MS = {
   chat: 15000,
   menus: parseInt(process.env.MENUS_TIMEOUT_MS || "60000", 10),
-  details: 20000,
+  details: parseInt(process.env.DETAILS_TIMEOUT_MS || "60000", 10),
 };
 
 const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000", 10);

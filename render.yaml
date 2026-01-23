@@ -25,6 +25,8 @@ services:
         sync: false
       - key: MENUS_TIMEOUT_MS
         sync: false
+      - key: DETAILS_TIMEOUT_MS
+        sync: false
       - key: RATE_LIMIT_WINDOW_MS
         sync: false
       - key: RATE_LIMIT_MAX
