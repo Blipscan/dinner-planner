@@ -42,13 +42,18 @@ const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const ADMIN_CODE = process.env.ADMIN_CODE || "ADMIN2024";
-const ACCESS_CODES = (process.env.ACCESS_CODES || "BETA001,BETA002,BETA003")
+const ACCESS_CODES = (process.env.ACCESS_CODES || process.env.BETA_ACCESS_CODE || "BETA001,BETA002,BETA003")
   .split(",")
-  .map((c) => c.trim());
+  .map((c) => c.trim())
+  .filter(Boolean);
 
 const BETA_EXPIRY = process.env.BETA_EXPIRY || "2026-03-01";
 const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 10);
 const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "").toLowerCase() === "true";
+const COOKBOOK_EXPERIENCE_MAX_TOKENS = parseInt(
+  process.env.COOKBOOK_EXPERIENCE_MAX_TOKENS || "3072",
+  10
+);
 const REQUEST_TIMEOUTS_MS = {
   chat: 15000,
   menus: 25000,
@@ -552,7 +557,7 @@ Rules:
     const response = await withTimeout(
       client.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 3072,
+        max_tokens: COOKBOOK_EXPERIENCE_MAX_TOKENS,
         system: systemPrompt,
         messages: [
           {

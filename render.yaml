@@ -11,6 +11,8 @@ services:
         sync: false
       - key: ACCESS_CODES
         sync: false
+      - key: BETA_ACCESS_CODE
+        sync: false
       - key: ADMIN_CODE
         sync: false
       - key: BETA_EXPIRY
@@ -18,6 +20,8 @@ services:
       - key: MAX_GENERATIONS_PER_CODE
         sync: false
       - key: ALLOW_DEMO_FALLBACK
+        sync: false
+      - key: COOKBOOK_EXPERIENCE_MAX_TOKENS
         sync: false
       - key: RATE_LIMIT_WINDOW_MS
         sync: false

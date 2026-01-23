@@ -23,6 +23,8 @@ This folder contains the next-generation app build for the Dinner Party Planner.
 2. Configure environment variables:
    - copy new-app/apps/api/.env.example to .env
    - set ANTHROPIC_API_KEY
+   - use ACCESS_CODES or BETA_ACCESS_CODE for access setup
+   - COOKBOOK_EXPERIENCE_MAX_TOKENS controls recipe detail length
 3. Start the API (serves the web UI):
    - npm start
 4. Open http://localhost:3000
