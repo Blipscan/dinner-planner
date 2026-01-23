@@ -2,9 +2,26 @@ services:
   - type: web
     name: dinner-planner-cadillac
     env: node
-    buildCommand: npm ci
+    rootDir: new-app/apps/api
+    buildCommand: npm install
     startCommand: npm start
     autoDeploy: true
     envVars:
       - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ACCESS_CODES
+        sync: false
+      - key: ADMIN_CODE
+        sync: false
+      - key: BETA_EXPIRY
+        sync: false
+      - key: MAX_GENERATIONS_PER_CODE
+        sync: false
+      - key: ALLOW_DEMO_FALLBACK
+        sync: false
+      - key: RATE_LIMIT_WINDOW_MS
+        sync: false
+      - key: RATE_LIMIT_MAX
+        sync: false
+      - key: COOKBOOK_TTL_MS
         sync: false
