@@ -833,12 +833,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div id="menuLoading" class="loading hidden">
         <div class="spinner"></div>
         <p id="menuLoadingMessage">Creating 5 menus...</p>
-        <div id="menuLoadingFallback" class="hidden">
-          <p class="text-center" style="font-size:0.85rem;color:var(--text-light)">Still working. You can retry or go back.</p>
-          <div class="actions" style="margin-top:1rem">
-            <button class="btn btn-outline" onclick="generateMenus()">Try Again</button>
-            <button class="btn btn-secondary" onclick="goToStep(3)">Back to Preferences</button>
-          </div>
+        <p id="menuLoadingStatus" class="text-center hidden" style="font-size:0.85rem;color:var(--text-light)">Still working. You can retry or go back.</p>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-outline" onclick="generateMenus()">Try Again</button>
+          <button class="btn btn-secondary" onclick="goToStep(3)">Back to Preferences</button>
         </div>
       </div>
       
@@ -1314,9 +1312,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
 
     function showMenuLoadingFallback(show) {
-      const fallback = document.getElementById('menuLoadingFallback');
-      if (!fallback) return;
-      fallback.classList.toggle('hidden', !show);
+      const status = document.getElementById('menuLoadingStatus');
+      if (!status) return;
+      status.classList.toggle('hidden', !show);
     }
 
     async function fetchWithTimeout(url, options, timeoutMs) {
