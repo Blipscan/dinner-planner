@@ -52,7 +52,7 @@ const BETA_EXPIRY = process.env.BETA_EXPIRY || "2026-03-01";
 const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 10);
 const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "").toLowerCase() === "true";
 const COOKBOOK_EXPERIENCE_MAX_TOKENS = parseInt(
-  process.env.COOKBOOK_EXPERIENCE_MAX_TOKENS || "3072",
+  process.env.COOKBOOK_EXPERIENCE_MAX_TOKENS || "4096",
   10
 );
 const DETAIL_COMPACT_MODE = COOKBOOK_EXPERIENCE_MAX_TOKENS <= 1200;
