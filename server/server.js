@@ -28,7 +28,12 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
  
 const CLIENT_DIR = path.join(__dirname, "..", "client");
+const INLINE_FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dinner Party Planner"><rect width="64" height="64" rx="12" fill="#1E3A5F"/><circle cx="32" cy="32" r="18" fill="#C9A227"/><text x="32" y="39" text-anchor="middle" font-size="20" font-family="Georgia, serif" fill="#1E3A5F">DP</text></svg>`;
 app.use(express.static(CLIENT_DIR));
+
+app.get("/favicon.ico", (req, res) => {
+  res.status(200).type("image/svg+xml").send(INLINE_FAVICON_SVG);
+});
  
 app.get("/", (req, res) => {
   res.sendFile(path.join(CLIENT_DIR, "index.html"));
@@ -57,6 +62,63 @@ const REQUEST_TIMEOUTS_MS = {
   menus: 25000,
   details: 20000,
 };
+
+function extractAccessCode(req) {
+  const body = req.body || {};
+  const candidates = [
+    body.code,
+    body.accessCode,
+    body.access_code,
+    body.token,
+    req.query?.code,
+  ];
+  let code = candidates.find((value) => typeof value === "string" && value.trim());
+  if (!code) {
+    code = req.get("x-access-code") || req.get("x-access-token");
+  }
+  if (!code) {
+    const authHeader = req.get("authorization") || "";
+    const match = authHeader.match(/Bearer\s+(.+)/i);
+    if (match) {
+      code = match[1];
+    }
+  }
+  return typeof code === "string" ? code.trim() : "";
+}
+
+function evaluateAccessCode(code) {
+  if (!code) {
+    return { valid: false, message: "Please enter an access code." };
+  }
+
+  const upperCode = code.trim().toUpperCase();
+
+  if (upperCode === ADMIN_CODE.toUpperCase()) {
+    return { valid: true, isAdmin: true, remaining: 999 };
+  }
+
+  if (new Date() > new Date(BETA_EXPIRY)) {
+    return { valid: false, message: "Beta period has ended." };
+  }
+
+  if (!ACCESS_CODES.map((c) => c.toUpperCase()).includes(upperCode)) {
+    return { valid: false, message: "Invalid access code." };
+  }
+
+  if (!usageStats[upperCode]) {
+    usageStats[upperCode] = { generations: 0, lastUsed: new Date() };
+  }
+
+  if (usageStats[upperCode].generations >= MAX_GENERATIONS) {
+    return { valid: false, message: "Usage limit reached for this code." };
+  }
+
+  usageStats[upperCode].lastUsed = new Date();
+  return {
+    valid: true,
+    remaining: MAX_GENERATIONS - usageStats[upperCode].generations,
+  };
+}
  
 function parseBudgetRange(value) {
   if (!value) {
@@ -157,6 +219,19 @@ function buildDemoDetails(menu, context) {
   };
 }
 
+function getCookbookTestContext(context = {}) {
+  return {
+    eventTitle: context.eventTitle || "Cookbook Test Dinner",
+    eventDate: context.eventDate || "TBD",
+    guestCount: context.guestCount || 4,
+    serviceTime: context.serviceTime || "7:00 PM",
+    wineBudget: context.wineBudget || "$80-120",
+    foodBudget: context.foodBudget || "$45-60",
+    guestList: context.guestList || "",
+    ...context,
+  };
+}
+
 async function withTimeout(promise, timeoutMs, label) {
   let timeoutId;
   const timeoutPromise = new Promise((_, reject) => {
@@ -169,6 +244,192 @@ async function withTimeout(promise, timeoutMs, label) {
       clearTimeout(timeoutId);
     }
   }
+}
+
+function formatMenuCourses(menu) {
+  if (!menu?.courses?.length) {
+    return "";
+  }
+  return menu.courses
+    .map((course, index) => `${index + 1}. ${course.type}: ${course.name}`)
+    .join("\n");
+}
+
+function formatWineTierMatrix(menu, wineTiers) {
+  if (!menu?.courses?.length || !Array.isArray(wineTiers) || wineTiers.length === 0) {
+    return "";
+  }
+  return menu.courses
+    .map((course, index) => {
+      const tierLines = wineTiers.map((tier) => {
+        const pairing = tier?.pairings?.[index] || "Pairing TBD";
+        return `  - ${tier.label}: ${pairing}`;
+      });
+      return `${course.type}: ${course.name}\n${tierLines.join("\n")}`;
+    })
+    .join("\n\n");
+}
+
+function formatTimelineItems(timeline) {
+  if (!Array.isArray(timeline) || timeline.length === 0) {
+    return "";
+  }
+  return timeline
+    .map((item) => {
+      const time = item?.time || item?.offsetLabel || "Time";
+      const task = item?.task || "Task";
+      return `- ${time}: ${task}`;
+    })
+    .join("\n");
+}
+
+function formatStaffingSummary(staffingId) {
+  if (!staffingId) {
+    return "";
+  }
+  const staffing = STAFFING.find((option) => option.id === staffingId);
+  if (!staffing) {
+    return "";
+  }
+  return `${staffing.name} (${staffing.desc}, ~${staffing.activeMin} min active)`;
+}
+
+function buildExpertFocusPrompt(persona, options) {
+  const menuSummary = options.menuSummary;
+  const tierMatrix = options.tierMatrix;
+  const timelineSummary = options.timelineSummary;
+  const staffingSummary = options.staffingSummary;
+
+  if (!menuSummary) {
+    return "If no menu is selected, ask the host to choose a menu so you can give course-specific guidance.";
+  }
+
+  if (persona === "sommelier") {
+    return `Selected menu courses:\n${menuSummary}
+
+Wine tier matrix (if available):
+${tierMatrix || "Not provided"}
+
+Sommelier focus:
+- Discuss the selected courses in order.
+- Provide 4 tiers of beverage pairings (Value, Classic, Premium, Splurge) for EACH course.
+- Mix wine, champagne, and cocktails across the tiers where it fits the course.
+- Help choose the final wines that will appear on the printed menu.
+- Explain why the pairings work, in approachable language.
+- Ask one clarifying question about guest preferences or budget.`;
+  }
+
+  if (persona === "instructor") {
+    return `Selected menu courses:\n${menuSummary}
+
+Staffing: ${staffingSummary || "Not provided"}
+Day-of timeline (if available):
+${timelineSummary || "Not provided"}
+
+Instructor focus:
+- Give a pre-days plan (two days before, day before).
+- Give a cooking-day plan with key timestamps (use timeline if provided).
+- Call out make-ahead items, staging, and calm checkpoints.
+- Note any substitutions that change prep or timing.
+- Ask one question about kitchen setup or timing comfort.`;
+  }
+
+  if (persona === "chef") {
+    return `Selected menu courses:\n${menuSummary}
+
+Chef focus:
+- Talk course-by-course about flavor arc, balance, and technique.
+- Highlight one or two upgrades or tweaks per course.
+- Suggest substitutions for dietary needs or availability.
+- Ask about plating preferences (dish color, rimless vs rimmed).
+- Ask which course they are most excited or nervous about.`;
+  }
+
+  if (persona === "all") {
+    return `Selected menu courses:\n${menuSummary}
+
+Team focus:
+- Chef covers course-by-course flavor arc and technique.
+- Chef also confirms substitutions and plating details (dish color).
+- Sommelier provides 4 tiers (Value, Classic, Premium, Splurge) of wine/champagne/cocktails for each course and locks the menu wine list.
+- Instructor provides pre-days plan, cooking-day timeline, and notes substitution impacts.
+- Use labels "Chef:", "Sommelier:", "Instructor:" when switching voices.`;
+  }
+
+  return `Selected menu courses:\n${menuSummary}\nProvide guidance tailored to these courses.`;
+}
+
+function buildDemoChefResponse(menu) {
+  if (!menu?.courses?.length) {
+    return "Chef: I can dive into the course-by-course plan as soon as you select a menu. Which menu are you leaning toward?";
+  }
+  const courseLines = menu.courses.map((course) => `- ${course.type}: ${course.name}`).join("\n");
+  return `Chef: Here is your selected course arc:\n${courseLines}\n\nThis is also the moment to confirm substitutions and plating preferences (dish color, rimmed vs rimless). For each course, we can sharpen the flavor story and keep the pacing elegant. Which course do you want to elevate first?`;
+}
+
+function buildDemoSommelierResponse(menu) {
+  if (!menu?.courses?.length) {
+    return "Sommelier: Select a menu and I will map four tiers of wine, champagne, and cocktails for each course.";
+  }
+  const tierNames = ["Value", "Classic", "Premium", "Splurge"];
+  const tierSuggestions = {
+    "Amuse-Bouche": [
+      "Cocktail: citrus spritz",
+      "Champagne: brut cava",
+      "Champagne: vintage blanc de blancs",
+      "Champagne: prestige cuvee",
+    ],
+    "First Course": [
+      "Cocktail: herb gimlet",
+      "Wine: Sauvignon Blanc",
+      "Wine: White Burgundy",
+      "Champagne: vintage brut",
+    ],
+    "Second Course": [
+      "Cocktail: dry martini",
+      "Wine: rose Provence",
+      "Wine: Pinot Noir",
+      "Champagne: rose vintage",
+    ],
+    "Main Course": [
+      "Cocktail: black Manhattan",
+      "Wine: Syrah or Cabernet",
+      "Wine: premier cru Bordeaux",
+      "Wine: grand cru Burgundy",
+    ],
+    "Dessert": [
+      "Cocktail: espresso martini",
+      "Wine: Moscato d'Asti",
+      "Wine: Sauternes",
+      "Champagne: demi-sec",
+    ],
+  };
+
+  const courseBlocks = menu.courses.map((course) => {
+    const suggestions = tierSuggestions[course.type] || tierSuggestions["Main Course"];
+    const tierLines = tierNames.map((tier, index) => `- ${tier}: ${suggestions[index]}`);
+    return `${course.type}: ${course.name}\n${tierLines.join("\n")}`;
+  });
+
+  return `Sommelier: Four-tier beverage map by course (wine, champagne, and cocktails mixed across tiers):\n\n${courseBlocks.join("\n\n")}\n\nTell me which spirits or wine regions your guests love, and I will refine the tiers and lock the wines that should appear on the printed menu.`;
+}
+
+function buildDemoInstructorResponse(menu, timeline) {
+  const courseSummary = menu?.courses?.length
+    ? menu.courses.map((course) => `- ${course.type}: ${course.name}`).join("\n")
+    : "- Menu selection pending";
+  const timelineSummary = formatTimelineItems(timeline);
+  const dayOfPlan = timelineSummary || "- Final prep, warm plates, and staggered firing by course.\n- Plate, serve, reset, repeat.";
+
+  return `Instructor: Here is a calm, staged plan around your menu:\n${courseSummary}\n\nTwo days before:\n- Confirm menu, substitutions, shopping list, and equipment.\n- Prep any long-hold elements (stocks, sauces, dessert bases).\n\nDay before:\n- Shop perishables and proteins.\n- Pre-chop, pre-measure, and label.\n- Set the table and stage serving pieces.\n\nCooking day:\n${dayOfPlan}\n\nWhat is your kitchen setup and how much prep time do you have the day before?`;
+}
+
+function buildDemoTeamResponse(menu, timeline) {
+  return [
+    buildDemoChefResponse(menu),
+    buildDemoSommelierResponse(menu),
+    buildDemoInstructorResponse(menu, timeline),
+  ].join("\n\n");
 }
 
 // ============================================================
@@ -212,47 +473,70 @@ app.get("/api/data", (req, res) => {
  
 // Validate access code
 app.post("/api/validate-code", (req, res) => {
-  const { code } = req.body;
- 
-  if (!code) {
-    return res.json({ valid: false, message: "Please enter an access code." });
+  const code = extractAccessCode(req);
+  const result = evaluateAccessCode(code);
+  res.json({
+    ...result,
+    authorized: result.valid,
+    success: result.valid,
+  });
+});
+
+app.post("/api/verify", (req, res) => {
+  const code = extractAccessCode(req);
+  const result = evaluateAccessCode(code);
+  res.status(result.valid ? 200 : 401).json({
+    ...result,
+    authorized: result.valid,
+    success: result.valid,
+  });
+});
+
+// Internal test: confirm cookbook generation pipeline runs
+app.post("/api/debug/test-cookbook", async (req, res) => {
+  const code = extractAccessCode(req);
+  const result = evaluateAccessCode(code);
+  if (!result.valid) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
   }
- 
-  const upperCode = code.trim().toUpperCase();
- 
-  // Admin code
-  if (upperCode === ADMIN_CODE.toUpperCase()) {
-    return res.json({ valid: true, isAdmin: true, remaining: 999 });
+
+  const menu = req.body?.menu || DEMO_MENUS[0];
+  const context = getCookbookTestContext(req.body?.context);
+  const staffing = req.body?.staffing || STAFFING[0]?.id || "solo";
+  const recipes = req.body?.recipes || null;
+
+  try {
+    const start = Date.now();
+    const buffer = await buildCookbook(menu, context, staffing, recipes);
+    const elapsedMs = Date.now() - start;
+    res.json({
+      success: true,
+      bytes: buffer.length,
+      elapsedMs,
+      menuTitle: menu?.title || "Unknown",
+      staffing,
+    });
+  } catch (err) {
+    console.error("Cookbook test error:", err);
+    res.status(500).json({ success: false, error: err.message });
   }
- 
-  // Check beta expiry
-  if (new Date() > new Date(BETA_EXPIRY)) {
-    return res.json({ valid: false, message: "Beta period has ended." });
-  }
- 
-  // Check if valid code
-  if (!ACCESS_CODES.map((c) => c.toUpperCase()).includes(upperCode)) {
-    return res.json({ valid: false, message: "Invalid access code." });
-  }
- 
-  // Initialize or check usage
-  if (!usageStats[upperCode]) {
-    usageStats[upperCode] = { generations: 0, lastUsed: new Date() };
-  }
- 
-  if (usageStats[upperCode].generations >= MAX_GENERATIONS) {
-    return res.json({ valid: false, message: "Usage limit reached for this code." });
-  }
- 
-  usageStats[upperCode].lastUsed = new Date();
-  res.json({ valid: true, remaining: MAX_GENERATIONS - usageStats[upperCode].generations });
 });
  
 // Chat with expert persona
 app.post("/api/chat", async (req, res) => {
-  const { persona, messages, context } = req.body || {};
- 
+  const { persona, messages, context, menu, menuDetails, timeline, staffing, focus } = req.body || {};
+  const isExpertFocus = focus === "expert";
+
   if (!ANTHROPIC_API_KEY) {
+    if (isExpertFocus) {
+      const responseByPersona = {
+        chef: buildDemoChefResponse(menu),
+        sommelier: buildDemoSommelierResponse(menu),
+        instructor: buildDemoInstructorResponse(menu, timeline),
+        all: buildDemoTeamResponse(menu, timeline),
+      };
+      return res.json({ response: responseByPersona[persona] || buildDemoChefResponse(menu) });
+    }
     const demoResponses = {
       chef: "I love the direction you're thinking! For a dinner party this size, I'd suggest building around one show-stopping protein. What ingredients are you most excited about right now?",
       sommelier: "Great question! For your menu style, I'd recommend starting with something crisp and refreshing, then building to fuller-bodied wines as the meal progresses. What's your comfort level with wine - do your guests tend toward adventure or familiar favorites?",
@@ -261,15 +545,29 @@ app.post("/api/chat", async (req, res) => {
     };
     return res.json({ response: demoResponses[persona] || demoResponses.chef });
   }
- 
+
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const personaData = PERSONAS?.[persona] || PERSONAS.chef;
- 
+    const menuSummary = isExpertFocus ? formatMenuCourses(menu) : "";
+    const tierMatrix = isExpertFocus ? formatWineTierMatrix(menu, menuDetails?.wineTiers) : "";
+    const timelineSummary = isExpertFocus ? formatTimelineItems(timeline) : "";
+    const staffingSummary = isExpertFocus ? formatStaffingSummary(staffing) : "";
+    const focusPrompt = isExpertFocus
+      ? buildExpertFocusPrompt(persona, {
+          menuSummary,
+          tierMatrix,
+          timelineSummary,
+          staffingSummary,
+        })
+      : "";
+    const focusSection = focusPrompt ? `\n\n${focusPrompt}\n` : "\n";
+
     const systemPrompt =
       (personaData?.systemPrompt || "") +
+      focusSection +
       `
- 
+
 Current event context:
 - Event: ${context?.eventTitle || "Dinner Party"}
 - Date: ${context?.eventDate || "TBD"}
@@ -283,14 +581,14 @@ Current event context:
 - Likes: ${context?.likes?.join(", ") || "none specified"}
 - Dislikes: ${context?.dislikes?.join(", ") || "none specified"}
 - Restrictions: ${context?.restrictions?.join(", ") || "none"}
- 
+
 Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.`;
- 
+
     const apiMessages = (messages || []).map((m) => ({
       role: m.role === "user" ? "user" : "assistant",
       content: m.content,
     }));
- 
+
     const response = await withTimeout(
       client.messages.create({
         model: "claude-sonnet-4-20250514",
@@ -301,7 +599,7 @@ Be conversational, warm, and helpful. Ask clarifying questions when needed. Shar
       REQUEST_TIMEOUTS_MS.chat,
       "Chat"
     );
- 
+
     res.json({ response: response.content[0].text });
   } catch (err) {
     console.error("Chat error:", err);

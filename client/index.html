@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dinner Party Planner</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <style>
 :root{
   --navy:#1E3A5F; --navy-dark:#152b46;
@@ -631,6 +632,18 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     .hidden { display: none !important; }
     .text-center { text-align: center; }
     .mt-2 { margin-top: 2rem; }
+    .build-stamp {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(30, 58, 95, 0.85);
+      color: #f8fafc;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 8px;
+      letter-spacing: 0.02em;
+      z-index: 999;
+    }
     
     /* ===== RESPONSIVE ===== */
     @media (max-width: 700px) {
@@ -831,7 +844,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       
       <div id="menuLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Our culinary team is crafting your personalized menus...</p>
+        <p id="menuLoadingMessage">Creating 5 menus...</p>
+        <p id="menuLoadingStatus" class="text-center hidden" style="font-size:0.85rem;color:var(--text-light)">Still working. You can retry or go back.</p>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-outline" onclick="generateMenus()">Try Again</button>
+          <button class="btn btn-secondary" onclick="goToStep(3)">Back to Preferences</button>
+        </div>
       </div>
       
       <div id="menuList"></div>
@@ -869,7 +887,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     <section id="step5" class="hidden">
       <div class="card">
         <h2 class="card-title">Expert Consultation</h2>
-        <p class="card-subtitle">Want a second opinion or guidance on the menus? Consult our experts anytime.</p>
+        <p class="card-subtitle">Finalize substitutions, wine selections for the menu, and plating details before generating your cookbook.</p>
         <div class="expert-grid" id="expertGrid"></div>
         <div class="actions" style="margin-top:1.5rem">
           <button class="btn btn-outline" onclick="skipConsultation()">Back to Menus</button>
@@ -890,7 +908,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         </div>
         <div class="actions">
           <button class="btn btn-secondary" onclick="goToStep(4)">Back to Menus</button>
-          <button class="btn btn-outline" onclick="endChat()">End Consultation</button>
+          <button class="btn btn-outline" onclick="finishConsultation()">Done &amp; Print Cookbook</button>
           <button class="btn btn-gold" onclick="goToStep(4)">Return to Menus</button>
         </div>
       </div>
@@ -909,9 +927,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         <div id="selectedMenuSummary"></div>
       </div>
 
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
+        <button class="btn btn-outline" onclick="openExpertConsultation()">Consult Experts</button>
+        <button class="btn btn-gold" onclick="generateCookbook()">Generate Complete Cookbook</button>
+      </div>
+
       <div id="detailsLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Preparing recipes, wine tiers, and timeline...</p>
+        <p id="detailsLoadingMessage">Preparing recipes, wine tiers, and timeline...</p>
+        <p class="text-center" style="font-size:0.85rem;color:var(--text-light)">This can take up to 20 seconds. You can continue while details load.</p>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-outline" onclick="openExpertConsultation()">Consult Experts</button>
+          <button class="btn btn-gold" onclick="generateCookbook()">Generate Complete Cookbook</button>
+        </div>
       </div>
 
       <div class="card">
@@ -929,17 +958,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         <div id="timelinePreview" class="timeline-list"></div>
       </div>
       
-      <div class="actions">
-        <button class="btn btn-secondary" onclick="goToStep(4)">Back</button>
-        <button class="btn btn-gold" onclick="generateCookbook()">Generate Complete Cookbook</button>
-      </div>
     </section>
     
     <!-- Step 7: Cookbook & Downloads -->
     <section id="step7" class="hidden">
       <div id="cookbookLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Creating your complete cookbook with recipes, timeline, and shopping list...</p>
+        <p id="cookbookLoadingMessage">Creating your complete cookbook with recipes, timeline, and shopping list...</p>
       </div>
       
       <div id="cookbookComplete" class="hidden">
@@ -988,6 +1013,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <p style="font-size:0.75rem;margin-top:0.35rem;opacity:0.7">AI-assisted recipe development. Recipes are original adaptations inspired by classic techniques.</p>
     </footer>
   </div>
+  <div class="build-stamp" aria-label="Build version">Build: 2026-01-22.1</div>
   
   <script>
     // ============================================================
@@ -1011,6 +1037,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let selectedStaffing = 'solo';
     let rejectionHistory = [];
     let cookbookId = null;
+    let cookbookInProgress = false;
     let audioContext = null;
     let audioUnlocked = false;
     let menuDetailsCache = {};
@@ -1058,6 +1085,29 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // INIT HELPERS
     // ============================================================
+    async function ensureDataLoaded() {
+      if (DATA && Object.keys(DATA).length > 0) {
+        return true;
+      }
+      try {
+        const res = await fetch('/api/data');
+        DATA = await res.json();
+      } catch (err) {
+        console.error('Failed to reload data:', err);
+        return false;
+      }
+
+      initStyleGrid();
+      initInspirationGrid();
+      initCuisineChips();
+      initPreferenceChips();
+      initExpertGrid();
+      initStaffingOptions();
+      initAveryProducts();
+      initCookbookSections();
+      return true;
+    }
+
     function initStyleGrid() {
       const grid = document.getElementById('styleGrid');
       if (!DATA.MENU_STYLES) return;
@@ -1200,6 +1250,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       document.getElementById('step' + step).classList.remove('hidden');
       currentStep = step;
 
+      if (step === 5 && !selectedExpert && DATA?.personas?.chef) {
+        selectExpert('chef');
+      }
+
       if (step === 3) {
         preferencesVisited = true;
       }
@@ -1249,6 +1303,33 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       loading.classList.toggle('hidden', !show);
     }
 
+    function setDetailsLoadingMessage(message) {
+      const messageEl = document.getElementById('detailsLoadingMessage');
+      if (messageEl && message) {
+        messageEl.textContent = message;
+      }
+    }
+
+    function setCookbookLoadingMessage(message) {
+      const messageEl = document.getElementById('cookbookLoadingMessage');
+      if (messageEl && message) {
+        messageEl.textContent = message;
+      }
+    }
+
+    function setMenuLoadingMessage(message) {
+      const messageEl = document.getElementById('menuLoadingMessage');
+      if (messageEl && message) {
+        messageEl.textContent = message;
+      }
+    }
+
+    function showMenuLoadingFallback(show) {
+      const status = document.getElementById('menuLoadingStatus');
+      if (!status) return;
+      status.classList.toggle('hidden', !show);
+    }
+
     async function fetchWithTimeout(url, options, timeoutMs) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -1263,6 +1344,70 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     function getSelectedMenuKey(menu) {
       if (!menu) return String(selectedMenu ?? '');
       return String(menu.id ?? menu.title ?? selectedMenu ?? '');
+    }
+
+    function getSelectedMenu() {
+      if (selectedMenu === null || selectedMenu === undefined) {
+        return null;
+      }
+      return menus[selectedMenu] || null;
+    }
+
+    function formatMenuCourses(menu) {
+      if (!menu || !menu.courses || !menu.courses.length) {
+        return '';
+      }
+      return menu.courses.map((course, index) => `${index + 1}. ${course.type}: ${course.name}`).join('\n');
+    }
+
+    function getExpertChatPayload() {
+      const menu = getSelectedMenu();
+      let menuDetails = null;
+      if (menu) {
+        const cacheKey = getSelectedMenuKey(menu);
+        menuDetails = selectedMenuDetails || menuDetailsCache[cacheKey] || null;
+        if (!menuDetails && allowDemoFallback()) {
+          menuDetails = buildFallbackDetails(menu);
+        }
+      }
+      const wineTiers = menuDetails?.wineTiers ? menuDetails.wineTiers : null;
+      return {
+        menu,
+        menuDetails: wineTiers ? { wineTiers } : null,
+        timeline: buildTimelineItems(),
+        staffing: selectedStaffing
+      };
+    }
+
+    async function runCookbookTest() {
+      const menu = getSelectedMenu() || menus[0] || null;
+      if (!menu) {
+        return { success: false, error: 'No menu available for test.' };
+      }
+      const payload = {
+        code: accessCode,
+        menu,
+        context: getContext(),
+        staffing: selectedStaffing,
+        recipes: selectedMenuDetails?.recipes || null
+      };
+      try {
+        const res = await fetch('/api/debug/test-cookbook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.success === false) {
+          console.warn('Cookbook test failed:', data);
+          return data;
+        }
+        console.info('Cookbook test success:', data);
+        return data;
+      } catch (err) {
+        console.error('Cookbook test error:', err);
+        return { success: false, error: err.message };
+      }
     }
 
     function renderWineTiers(wineTiers) {
@@ -1289,7 +1434,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const container = document.getElementById('menuList');
       if (!container) return;
       const detailHtml = detail ? `<div style="margin-top:0.5rem;font-size:0.85rem;color:#6b7280">${detail}</div>` : '';
-      container.innerHTML = `<div class="error-msg">${message}${detailHtml}</div>`;
+      container.innerHTML = `
+        <div class="error-msg">${message}${detailHtml}</div>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-outline" onclick="generateMenus()">Try Again</button>
+          <button class="btn btn-secondary" onclick="goToStep(3)">Back to Preferences</button>
+        </div>
+      `;
     }
 
     function renderDetailError(message, detail) {
@@ -1511,12 +1662,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         return selectedMenuDetails;
       }
 
+      setDetailsLoadingMessage('Loading menu details...');
       showDetailsLoading(true);
       renderWineTiers([]);
       renderRecipePreview([]);
       renderTimelinePreview();
 
       try {
+        setDetailsLoadingMessage('Generating recipes and wine tiers...');
         const res = await fetchWithTimeout('/api/generate-details', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1529,6 +1682,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
         if (!res.ok || data.error) {
           if (allowDemoFallback()) {
+            setDetailsLoadingMessage('Using fallback details...');
             selectedMenuDetails = buildFallbackDetails(menu);
             menuDetailsCache[cacheKey] = selectedMenuDetails;
             renderWineTiers(selectedMenuDetails.wineTiers);
@@ -1550,6 +1704,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         renderRecipePreview(selectedMenuDetails.recipes);
       } catch (err) {
         if (allowDemoFallback()) {
+          setDetailsLoadingMessage('Using fallback details...');
           selectedMenuDetails = buildFallbackDetails(menu);
           menuDetailsCache[cacheKey] = selectedMenuDetails;
           renderWineTiers(selectedMenuDetails.wineTiers);
@@ -1751,7 +1906,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     function selectExpert(key) {
       selectedExpert = key;
-      const persona = DATA.personas[key];
+      const persona = DATA.personas?.[key];
+      if (!persona) {
+        console.warn('Expert persona missing:', key);
+        return;
+      }
       
       // Update expert cards
       document.querySelectorAll('.expert-card').forEach((card, i) => {
@@ -1775,12 +1934,24 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const eventTitle = document.getElementById('eventTitle').value || 'your dinner party';
       const guestCount = document.getElementById('guestCount').value;
       const inspiration = DATA.MENU_INSPIRATIONS?.find(i => i.id === selectedInspiration)?.title || 'special';
+      const menu = getSelectedMenu();
+      const menuTitle = menu?.title ? `"${menu.title}"` : '';
+      const courseSummary = formatMenuCourses(menu);
+      const courseBlock = courseSummary ? `\n\nHere are the courses:\n${courseSummary}\n` : '';
       
       const greetings = {
-        chef: `Welcome! I'm thrilled to help plan ${eventTitle}. I see you're cooking for ${guestCount} guests with a ${inspiration.toLowerCase()} inspiration — wonderful choice. Tell me, what story do you want your menu to tell? Is there an ingredient or dish you've been dreaming about?`,
-        sommelier: `What a pleasure to help with ${eventTitle}! Before we discuss wines, tell me about your guests. Are they adventurous with wine, or do they prefer familiar favorites? And is there a memorable bottle you've shared before that we might echo?`,
-        instructor: `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. First, tell me about your kitchen setup and how much time you'll have for prep. What's your biggest concern about executing this dinner?`,
-        all: `Welcome! The three of us are excited to help plan ${eventTitle}.\n\n**Chef:** Let's start with your vision — what flavors are you craving?\n\n**Sommelier:** I'll ensure every course has the perfect pour.\n\n**Instructor:** And I'll make sure you can execute it all calmly.\n\nWhat would you like to discuss first?`,
+        chef: menu
+          ? `Welcome! I'm thrilled to help plan ${eventTitle}. I see you've selected ${menuTitle}.${courseBlock}\nThis is the moment to confirm substitutions, finalize the wine list that appears on the menu, and decide on plating details like dish color. Where do you want to add drama, and where should we keep it elegant and simple?`
+          : `Welcome! I'm thrilled to help plan ${eventTitle}. I see you're cooking for ${guestCount} guests with a ${inspiration.toLowerCase()} inspiration — wonderful choice. Tell me, what story do you want your menu to tell? Is there an ingredient or dish you've been dreaming about?`,
+        sommelier: menu
+          ? `What a pleasure to help with ${eventTitle}! I'll map four tiers (Value, Classic, Premium, Splurge) of wine, champagne, and cocktails for each course, and we will choose the final wines to appear on the menu.${courseBlock}\nBefore we dive in, are your guests adventurous with wine, or do they prefer familiar favorites?`
+          : `What a pleasure to help with ${eventTitle}! Before we discuss wines, tell me about your guests. Are they adventurous with wine, or do they prefer familiar favorites? And is there a memorable bottle you've shared before that we might echo?`,
+        instructor: menu
+          ? `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. I'll walk you through the pre-days plan and the cooking-day timeline, plus any substitutions that affect prep.${courseBlock}\nFirst, tell me about your kitchen setup and how much time you'll have for prep.`
+          : `Hello! I'm here to make sure ${eventTitle} runs smoothly for your ${guestCount} guests. First, tell me about your kitchen setup and how much time you'll have for prep. What's your biggest concern about executing this dinner?`,
+        all: menu
+          ? `Welcome! The three of us are excited to help plan ${eventTitle}.${courseBlock}\n**Chef:** We'll review the course arc, substitutions, and plating details.\n\n**Sommelier:** I'll map four tiers of wine, champagne, and cocktails for every course, then we will lock the wines for the menu.\n\n**Instructor:** I'll lay out the pre-days plan and the cooking-day timeline.\n\nWhere would you like to start?`
+          : `Welcome! The three of us are excited to help plan ${eventTitle}.\n\n**Chef:** Let's start with your vision — what flavors are you craving?\n\n**Sommelier:** I'll ensure every course has the perfect pour.\n\n**Instructor:** And I'll make sure you can execute it all calmly.\n\nWhat would you like to discuss first?`,
         photographer: `Hello! I'm here to help you capture beautiful images of ${eventTitle}. First question: would you like me to create image prompts based on YOUR dining room and what you already have, or shall I propose an ideal setting?\n\nIf you'd like prompts tailored to your space, tell me about your dining room — the table shape, wood tone, wall colors, lighting, and any special pieces you'd like featured.`,
         tablescaper: `Welcome! I'm so excited to help stage ${eventTitle} for ${guestCount} guests. The table is your stage before a single dish arrives — it sets the entire mood.\n\nTell me about your space: What's your table shape and size? Do you have existing linens, chargers, or centerpiece vessels you'd like to incorporate? And what feeling do you want guests to have when they first see the table?`,
         plating: `Hello! I'm here to help your dishes look as extraordinary as they taste at ${eventTitle}. Every plate is a composition — and I'll help you think like a professional.\n\nFirst, tell me about your plating experience. Are you comfortable with tweezers and squeeze bottles, or would you prefer techniques that are elegant but approachable? And do you have rimmed or rimless plates?`
@@ -1810,6 +1981,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const message = input.value.trim();
       if (!message) return;
       
+      const expertPayload = getExpertChatPayload();
       chatHistory.push({ role: 'user', content: message });
       input.value = '';
       renderChat();
@@ -1826,7 +1998,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             code: accessCode,
             persona: selectedExpert,
             messages: chatHistory.slice(0, -1),
-            context: getContext()
+            context: getContext(),
+            focus: 'expert',
+            menu: expertPayload.menu,
+            menuDetails: expertPayload.menuDetails,
+            timeline: expertPayload.timeline,
+            staffing: expertPayload.staffing
           })
         });
         const data = await res.json();
@@ -1864,9 +2041,37 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       selectedExpert = null;
       document.querySelectorAll('.expert-card').forEach(c => c.classList.remove('selected'));
     }
+
+    async function finishConsultation() {
+      if (selectedMenu === null) {
+        alert('Please select a menu before generating the cookbook.');
+        return;
+      }
+      endChat();
+      await generateCookbook({ autoDownload: true });
+    }
     
     function skipConsultation() {
       goToStep(4);
+    }
+
+    function openExpertConsultation() {
+      goToStep(5);
+      const grid = document.getElementById('expertGrid');
+      if (grid && (!DATA || !DATA.personas)) {
+        grid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading experts...</p></div>';
+      }
+      ensureDataLoaded().then((ok) => {
+        if (!ok) {
+          if (grid) {
+            grid.innerHTML = '<div class="error-msg">Unable to load experts. Please refresh and try again.</div>';
+          }
+          return;
+        }
+        if (!selectedExpert && DATA?.personas?.chef) {
+          selectExpert('chef');
+        }
+      });
     }
     
     async function proceedToMenus() {
@@ -1882,10 +2087,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // STEP 5: MENU SELECTION
     // ============================================================
     async function generateMenus() {
-      document.getElementById('menuLoading').classList.remove('hidden');
+      const loadingEl = document.getElementById('menuLoading');
+      const fallbackDelay = FETCH_TIMEOUTS_MS.menus + 1500;
+      setMenuLoadingMessage('Creating 5 menus...');
+      showMenuLoadingFallback(false);
+      loadingEl.classList.remove('hidden');
       document.getElementById('menuList').innerHTML = '';
       document.getElementById('menuActions').classList.add('hidden');
       document.getElementById('rejectionChat').classList.add('hidden');
+      const fallbackTimer = setTimeout(() => {
+        if (!loadingEl.classList.contains('hidden')) {
+          setMenuLoadingMessage('Still working on your menus...');
+          showMenuLoadingFallback(true);
+        }
+      }, fallbackDelay);
       
       try {
         const res = await fetchWithTimeout('/api/generate-menus', {
@@ -1900,7 +2115,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }, FETCH_TIMEOUTS_MS.menus);
         const data = await res.json().catch(() => ({}));
         
-        document.getElementById('menuLoading').classList.add('hidden');
+        loadingEl.classList.add('hidden');
+        showMenuLoadingFallback(false);
         
         if (!res.ok || data.error) {
           renderMenuError('Menu generation failed.', data.detail || 'Check your API key and account credits.');
@@ -1923,11 +2139,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           renderMenuError('Unable to generate menus.', 'Please try again.');
         }
       } catch (err) {
-        document.getElementById('menuLoading').classList.add('hidden');
+        loadingEl.classList.add('hidden');
+        showMenuLoadingFallback(false);
         const detailMessage = err?.name === 'AbortError'
           ? 'Request timed out. Please try again.'
           : 'Please try again.';
         renderMenuError('Connection error.', detailMessage);
+      } finally {
+        clearTimeout(fallbackTimer);
       }
     }
     
@@ -2025,7 +2244,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             code: accessCode,
             persona: 'chef',
             messages: rejectionHistory.slice(0, -1),
-            context: getContext()
+            context: getContext(),
+            focus: 'rejection'
           })
         });
         const data = await res.json();
@@ -2062,15 +2282,22 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // STEP 7: COOKBOOK
     // ============================================================
-    async function generateCookbook() {
-      if (!selectedMenuDetails) {
-        await loadMenuDetails();
-      }
+    async function generateCookbook(options = {}) {
+      const { autoDownload = false } = options;
+      const loadingEl = document.getElementById('cookbookLoading');
+      const completeEl = document.getElementById('cookbookComplete');
       goToStep(7);
-      document.getElementById('cookbookLoading').classList.remove('hidden');
-      document.getElementById('cookbookComplete').classList.add('hidden');
-      
+      loadingEl.classList.remove('hidden');
+      completeEl.classList.add('hidden');
+      if (cookbookInProgress) return;
+      cookbookInProgress = true;
+      setCookbookLoadingMessage('Generating your cookbook...');
+
       try {
+        if (!selectedMenuDetails) {
+          setCookbookLoadingMessage('Finalizing menu details for the cookbook...');
+          await loadMenuDetails();
+        }
         const res = await fetch('/api/generate-cookbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2084,25 +2311,38 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           })
         });
         const data = await res.json();
-        
-        document.getElementById('cookbookLoading').classList.add('hidden');
-        
+
         if (data.success) {
           cookbookId = data.cookbookId;
-          document.getElementById('cookbookComplete').classList.remove('hidden');
+          completeEl.classList.remove('hidden');
+          if (autoDownload) {
+            setCookbookLoadingMessage('Preparing your download...');
+            await downloadCookbook();
+            loadingEl.classList.add('hidden');
+          } else {
+            loadingEl.classList.add('hidden');
+          }
         } else {
-          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
-          document.getElementById('cookbookComplete').classList.remove('hidden');
+          completeEl.innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
+          completeEl.classList.remove('hidden');
+          loadingEl.classList.add('hidden');
         }
       } catch (err) {
-        document.getElementById('cookbookLoading').classList.add('hidden');
-        document.getElementById('cookbookComplete').innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
-        document.getElementById('cookbookComplete').classList.remove('hidden');
+        loadingEl.classList.add('hidden');
+        completeEl.innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
+        completeEl.classList.remove('hidden');
+      } finally {
+        cookbookInProgress = false;
       }
     }
     
     async function downloadCookbook() {
+      const loadingEl = document.getElementById('cookbookLoading');
       try {
+        if (loadingEl) {
+          loadingEl.classList.remove('hidden');
+        }
+        setCookbookLoadingMessage('Downloading cookbook...');
         const res = await fetch('/api/download-cookbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2128,6 +2368,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
       } catch (err) {
         alert('Connection error. Please try again.');
+      } finally {
+        if (loadingEl && !cookbookInProgress) {
+          loadingEl.classList.add('hidden');
+        }
       }
     }
     
