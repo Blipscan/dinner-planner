@@ -5,6 +5,7 @@
 const express = require("express");
 const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
+const { jsonrepair } = require("jsonrepair");
 
 const {
   CUISINES,
@@ -480,7 +481,11 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     try {
       const text = response.content[0].text.trim();
       const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
-      menus = JSON.parse(jsonText);
+      try {
+        menus = JSON.parse(jsonText);
+      } catch (parseErr) {
+        menus = JSON.parse(jsonrepair(jsonText));
+      }
       menus = Array.isArray(menus) ? menus.map(normalizeMenuWinePairings) : [];
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
@@ -584,7 +589,12 @@ Rules:
 
     const text = response.content[0].text.trim();
     const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
-    const details = JSON.parse(jsonText);
+    let details;
+    try {
+      details = JSON.parse(jsonText);
+    } catch (parseErr) {
+      details = JSON.parse(jsonrepair(jsonText));
+    }
     const normalizedRecipes = Array.isArray(details.recipes)
       ? details.recipes.map((recipe) => ({
           ...recipe,
