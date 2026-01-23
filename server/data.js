@@ -6,43 +6,104 @@
 const CUISINES = {
   american: {
     label: 'American',
-    regions: ['Southern', 'New England', 'Pacific Northwest', 'California', 'Midwest', 'Southwest', 'Mid-Atlantic', 'Hawaiian'],
-    styles: ['BBQ', 'Soul Food', 'Tex-Mex', 'Cajun/Creole', 'Farm-to-Table', 'New American']
+    regions: [
+      'New England',
+      'Mid-Atlantic',
+      'Lowcountry',
+      'Deep South',
+      'Gulf Coast',
+      'Texas Hill Country',
+      'Appalachian',
+      'Great Lakes',
+      'Plains',
+      'Upper Midwest',
+      'Pacific Northwest',
+      'California',
+      'Southwest',
+      'Mountain West',
+      'Alaska',
+      'Hawaii'
+    ],
+    styles: ['BBQ', 'Soul Food', 'Tex-Mex', 'Cajun/Creole', 'Farm-to-Table', 'New American', 'Coastal', 'Diner Classics']
   },
   european: {
     label: 'European',
     countries: {
       france: { 
         label: 'France', 
-        regions: ['Provence', 'Alsace', 'Burgundy', 'Lyon', 'Normandy', 'Brittany', 'Paris Bistro', 'Bordeaux'] 
+        regions: ['Provence', 'Bordeaux', 'Burgundy', 'Loire Valley', 'Alsace', 'Champagne', 'Rhone', 'Normandy', 'Brittany', 'Paris Bistro'] 
       },
       italy: { 
         label: 'Italy', 
-        regions: ['Tuscany', 'Sicily', 'Piedmont', 'Emilia-Romagna', 'Campania', 'Veneto', 'Rome', 'Lombardy'] 
+        regions: ['Tuscany', 'Sicily', 'Piedmont', 'Emilia-Romagna', 'Campania', 'Veneto', 'Lazio (Rome)', 'Lombardy', 'Puglia', 'Sardinia'] 
       },
       spain: { 
         label: 'Spain', 
-        regions: ['Basque', 'Catalonia', 'Andalusia', 'Galicia', 'Madrid', 'Valencia'] 
+        regions: ['Basque', 'Catalonia', 'Andalusia', 'Galicia', 'Madrid', 'Valencia', 'Rioja'] 
       },
       germany: { 
         label: 'Germany', 
-        regions: ['Bavaria', 'Rhineland', 'Berlin', 'Black Forest'] 
+        regions: ['Bavaria', 'Rhineland', 'Berlin', 'Black Forest', 'Mosel', 'Rheingau', 'Baden', 'Pfalz'] 
       },
       uk: { 
-        label: 'British', 
-        regions: ['Traditional', 'Modern British', 'Scottish', 'Welsh'] 
+        label: 'United Kingdom', 
+        regions: ['Traditional', 'Modern British', 'Scottish', 'Welsh', 'Cornish', 'Yorkshire', 'London'] 
       },
       portugal: { 
         label: 'Portugal', 
-        regions: ['Lisbon', 'Porto', 'Algarve', 'Azores'] 
+        regions: ['Lisbon', 'Porto', 'Algarve', 'Azores', 'Douro', 'Alentejo', 'Madeira'] 
       },
       greece: { 
         label: 'Greece', 
-        regions: ['Athens', 'Islands', 'Northern', 'Peloponnese'] 
+        regions: ['Athens', 'Islands', 'Northern', 'Peloponnese', 'Crete', 'Cyclades', 'Macedonia'] 
       },
       scandinavia: { 
         label: 'Scandinavia', 
-        regions: ['Swedish', 'Danish', 'Norwegian', 'Finnish', 'New Nordic'] 
+        regions: ['Swedish', 'Danish', 'Norwegian', 'Finnish', 'Icelandic', 'New Nordic'] 
+      },
+      ireland: {
+        label: 'Ireland',
+        regions: ['Dublin', 'Cork', 'Galway', 'Connemara']
+      },
+      belgium: {
+        label: 'Belgium',
+        regions: ['Flanders', 'Wallonia', 'Brussels']
+      },
+      netherlands: {
+        label: 'Netherlands',
+        regions: ['Amsterdam', 'North Holland', 'South Holland', 'Zeeland']
+      },
+      austria: {
+        label: 'Austria',
+        regions: ['Vienna', 'Styria', 'Tyrol', 'Salzburg']
+      },
+      switzerland: {
+        label: 'Switzerland',
+        regions: ['Valais', 'Ticino', 'Zurich', 'Geneva']
+      },
+      poland: {
+        label: 'Poland',
+        regions: ['Krakow', 'Warsaw', 'Gdansk']
+      },
+      hungary: {
+        label: 'Hungary',
+        regions: ['Budapest', 'Tokaj', 'Eger']
+      },
+      czechia: {
+        label: 'Czechia',
+        regions: ['Prague', 'Bohemia', 'Moravia']
+      },
+      croatia: {
+        label: 'Croatia',
+        regions: ['Dalmatia', 'Istria', 'Zagreb']
+      },
+      romania: {
+        label: 'Romania',
+        regions: ['Transylvania', 'Wallachia', 'Moldavia']
+      },
+      bulgaria: {
+        label: 'Bulgaria',
+        regions: ['Sofia', 'Thrace', 'Black Sea Coast']
       }
     }
   },
@@ -356,6 +417,13 @@ You teach the principles so hosts can adapt, not just follow steps. You help hom
   }
 };
 
+const buildWineTiers = (worldwideTopRated, domesticTopRated, budgetTopRated, bondPick) => ({
+  worldwideTopRated,
+  domesticTopRated,
+  budgetTopRated,
+  bondPick
+});
+
 const DEMO_MENUS = [
   {
     id: 1,
@@ -364,11 +432,56 @@ const DEMO_MENUS = [
     foodCost: "$45-55/person",
     wineCost: "$120 total",
     courses: [
-      { type: "Amuse-Bouche", name: "Chive Blossoms with Lemon Crème Fraîche on Potato Crisp", wine: null },
-      { type: "First Course", name: "Chilled English Pea Soup with Mint Oil and Crème Fraîche", wine: "Sancerre, Domaine Vacheron 2023" },
-      { type: "Second Course", name: "Butter Lettuce Salad with Shaved Radish, Herbs & Champagne Vinaigrette", wine: null },
-      { type: "Main Course", name: "Herb-Crusted Rack of Lamb with Spring Vegetables and Mint Gremolata", wine: "Châteauneuf-du-Pape, Château de Beaucastel 2020" },
-      { type: "Dessert", name: "Meyer Lemon Posset with Lavender Shortbread", wine: "Moscato d'Asti, Vietti 2023" }
+      {
+        type: "Amuse-Bouche",
+        name: "Chive Blossoms with Lemon Crème Fraîche on Potato Crisp",
+        wine: buildWineTiers(
+          "Champagne, Ruinart Blanc de Blancs NV",
+          "Sparkling Wine, Schramsberg Blanc de Blancs 2021",
+          "Cava, Raventos i Blanc 2021",
+          "Champagne, Bollinger Special Cuvee NV"
+        )
+      },
+      {
+        type: "First Course",
+        name: "Chilled English Pea Soup with Mint Oil and Crème Fraîche",
+        wine: buildWineTiers(
+          "Sancerre, Domaine Vacheron 2023",
+          "Finger Lakes Riesling, Dr. Frank 2022",
+          "Loire Sauvignon Blanc, Domaine des Baumard 2022",
+          "Champagne, Krug Grande Cuvee NV"
+        )
+      },
+      {
+        type: "Second Course",
+        name: "Butter Lettuce Salad with Shaved Radish, Herbs & Champagne Vinaigrette",
+        wine: buildWineTiers(
+          "Chablis, William Fevre 2021",
+          "Sonoma Chardonnay, Ramey 2021",
+          "Muscadet Sevre et Maine, Domaine de la Pepiere 2022",
+          "Champagne, Pol Roger Brut Reserve NV"
+        )
+      },
+      {
+        type: "Main Course",
+        name: "Herb-Crusted Rack of Lamb with Spring Vegetables and Mint Gremolata",
+        wine: buildWineTiers(
+          "Chateauneuf-du-Pape, Chateau de Beaucastel 2020",
+          "Napa Cabernet, Stag's Leap SLV 2019",
+          "Cotes du Rhone, Guigal 2022",
+          "Bordeaux, Chateau Margaux 2015"
+        )
+      },
+      {
+        type: "Dessert",
+        name: "Meyer Lemon Posset with Lavender Shortbread",
+        wine: buildWineTiers(
+          "Moscato d'Asti, Vietti 2023",
+          "Late Harvest Riesling, Navarro 2022",
+          "Moscato d'Asti, Saracco 2023",
+          "Sauternes, Chateau d'Yquem 2016"
+        )
+      }
     ]
   },
   {
@@ -378,11 +491,56 @@ const DEMO_MENUS = [
     foodCost: "$50-60/person",
     wineCost: "$140 total",
     courses: [
-      { type: "Amuse-Bouche", name: "Burrata with San Marzano Tomato Confit & Basil Oil", wine: null },
-      { type: "First Course", name: "Wild Mushroom Risotto with Shaved Black Truffle", wine: "Vernaccia di San Gimignano, Panizzi 2022" },
-      { type: "Second Course", name: "Arugula & Shaved Parmigiano with 25-Year Balsamic", wine: null },
-      { type: "Main Course", name: "Bistecca alla Fiorentina with Roasted Fingerlings and Salsa Verde", wine: "Brunello di Montalcino, Biondi-Santi 2018" },
-      { type: "Dessert", name: "Panna Cotta with Macerated Berries and Aged Balsamic", wine: "Vin Santo, Avignonesi 2015" }
+      {
+        type: "Amuse-Bouche",
+        name: "Burrata with San Marzano Tomato Confit & Basil Oil",
+        wine: buildWineTiers(
+          "Prosecco, Bisol Crede 2022",
+          "California Sparkling, Domaine Carneros 2021",
+          "Prosecco, La Marca 2022",
+          "Franciacorta, Ca del Bosco 2018"
+        )
+      },
+      {
+        type: "First Course",
+        name: "Wild Mushroom Risotto with Shaved Black Truffle",
+        wine: buildWineTiers(
+          "Vernaccia di San Gimignano, Panizzi 2022",
+          "Oregon Pinot Gris, King Estate 2022",
+          "Soave Classico, Pieropan 2022",
+          "Barolo, Gaja 2017"
+        )
+      },
+      {
+        type: "Second Course",
+        name: "Arugula & Shaved Parmigiano with 25-Year Balsamic",
+        wine: buildWineTiers(
+          "Vermentino di Sardegna, Argiolas 2022",
+          "Santa Barbara Sauvignon Blanc, Dragonette 2022",
+          "Pinot Grigio, Alois Lageder 2022",
+          "Champagne, Bollinger Special Cuvee NV"
+        )
+      },
+      {
+        type: "Main Course",
+        name: "Bistecca alla Fiorentina with Roasted Fingerlings and Salsa Verde",
+        wine: buildWineTiers(
+          "Brunello di Montalcino, Biondi-Santi 2018",
+          "Napa Cabernet, Opus One 2018",
+          "Chianti Classico, Castello di Ama 2021",
+          "Super Tuscan, Sassicaia 2016"
+        )
+      },
+      {
+        type: "Dessert",
+        name: "Panna Cotta with Macerated Berries and Aged Balsamic",
+        wine: buildWineTiers(
+          "Vin Santo, Avignonesi 2015",
+          "Late Harvest Zinfandel, Ridge 2021",
+          "Moscato d'Asti, Vietti 2023",
+          "Madeira, Blandy's 20 Year"
+        )
+      }
     ]
   },
   {
@@ -392,11 +550,56 @@ const DEMO_MENUS = [
     foodCost: "$55-65/person",
     wineCost: "$150 total",
     courses: [
-      { type: "Amuse-Bouche", name: "Gougères (Warm Gruyère Cheese Puffs)", wine: null },
-      { type: "First Course", name: "French Onion Soup Gratinée with Gruyère Crouton", wine: "Côtes du Rhône Blanc, E. Guigal 2022" },
-      { type: "Second Course", name: "Salade Lyonnaise with Frisée, Lardons & Poached Egg", wine: null },
-      { type: "Main Course", name: "Coq au Vin with Pearl Onions, Mushrooms & Pommes Purée", wine: "Burgundy, Louis Jadot Gevrey-Chambertin 2020" },
-      { type: "Dessert", name: "Tarte Tatin with Calvados Crème Fraîche", wine: "Sauternes, Château Suduiraut 2019" }
+      {
+        type: "Amuse-Bouche",
+        name: "Gougères (Warm Gruyère Cheese Puffs)",
+        wine: buildWineTiers(
+          "Champagne, Taittinger Brut Reserve NV",
+          "California Sparkling, Roederer Estate 2021",
+          "Cremant de Loire, Bouvet 2022",
+          "Champagne, Bollinger Special Cuvee NV"
+        )
+      },
+      {
+        type: "First Course",
+        name: "French Onion Soup Gratinée with Gruyère Crouton",
+        wine: buildWineTiers(
+          "Cotes du Rhone Blanc, E. Guigal 2022",
+          "California Chardonnay, Kistler 2021",
+          "Bourgogne Blanc, Louis Jadot 2021",
+          "Bordeaux Blanc, Chateau Smith Haut Lafitte 2020"
+        )
+      },
+      {
+        type: "Second Course",
+        name: "Salade Lyonnaise with Frisée, Lardons & Poached Egg",
+        wine: buildWineTiers(
+          "Beaujolais, Marcel Lapierre 2022",
+          "Willamette Pinot Noir, Cristom 2021",
+          "Beaujolais-Villages, Jean Foillard 2022",
+          "Burgundy, Domaine de la Romanee-Conti 2016"
+        )
+      },
+      {
+        type: "Main Course",
+        name: "Coq au Vin with Pearl Onions, Mushrooms & Pommes Purée",
+        wine: buildWineTiers(
+          "Burgundy, Louis Jadot Gevrey-Chambertin 2020",
+          "Oregon Pinot Noir, Domaine Serene 2019",
+          "Cotes du Rhone, Guigal 2022",
+          "Bordeaux, Chateau Lafite Rothschild 2015"
+        )
+      },
+      {
+        type: "Dessert",
+        name: "Tarte Tatin with Calvados Crème Fraîche",
+        wine: buildWineTiers(
+          "Sauternes, Chateau Suduiraut 2019",
+          "Late Harvest Riesling, Hermann J. Wiemer 2021",
+          "Coteaux du Layon, Chateau de Fesles 2020",
+          "Sauternes, Chateau d'Yquem 2016"
+        )
+      }
     ]
   },
   {
@@ -406,11 +609,56 @@ const DEMO_MENUS = [
     foodCost: "$60-75/person",
     wineCost: "$150 total",
     courses: [
-      { type: "Amuse-Bouche", name: "Oysters on the Half Shell with Champagne Mignonette", wine: null },
-      { type: "First Course", name: "Maine Lobster Bisque with Cognac Cream and Chive Oil", wine: "Chablis Premier Cru, William Fèvre 2021" },
-      { type: "Second Course", name: "Baby Spinach with Warm Bacon Vinaigrette and Shaved Apple", wine: null },
-      { type: "Main Course", name: "Pan-Seared Chilean Sea Bass with Herb Beurre Blanc and Haricots Verts", wine: "Meursault, Domaine Roulot 2021" },
-      { type: "Dessert", name: "Maine Blueberry Buckle with Vanilla Bean Ice Cream", wine: "Late Harvest Riesling, Dr. Loosen 2020" }
+      {
+        type: "Amuse-Bouche",
+        name: "Oysters on the Half Shell with Champagne Mignonette",
+        wine: buildWineTiers(
+          "Champagne, Ruinart Blanc de Blancs NV",
+          "Sparkling Wine, Schramsberg Blanc de Blancs 2021",
+          "Muscadet Sevre et Maine, Domaine de la Pepiere 2022",
+          "Champagne, Bollinger Special Cuvee NV"
+        )
+      },
+      {
+        type: "First Course",
+        name: "Maine Lobster Bisque with Cognac Cream and Chive Oil",
+        wine: buildWineTiers(
+          "Chablis Premier Cru, William Fevre 2021",
+          "Sonoma Chardonnay, Ramey 2021",
+          "Bourgogne Blanc, Louis Jadot 2021",
+          "White Bordeaux, Chateau Pape Clement 2019"
+        )
+      },
+      {
+        type: "Second Course",
+        name: "Baby Spinach with Warm Bacon Vinaigrette and Shaved Apple",
+        wine: buildWineTiers(
+          "Sancerre, Domaine Vacheron 2023",
+          "Santa Barbara Sauvignon Blanc, Dragonette 2022",
+          "Loire Sauvignon Blanc, Domaine des Baumard 2022",
+          "Champagne, Pol Roger Brut Reserve NV"
+        )
+      },
+      {
+        type: "Main Course",
+        name: "Pan-Seared Chilean Sea Bass with Herb Beurre Blanc and Haricots Verts",
+        wine: buildWineTiers(
+          "Meursault, Domaine Roulot 2021",
+          "Napa Chardonnay, Chateau Montelena 2021",
+          "Pouilly-Fuisse, Louis Jadot 2022",
+          "Burgundy, Domaine Leflaive 2019"
+        )
+      },
+      {
+        type: "Dessert",
+        name: "Maine Blueberry Buckle with Vanilla Bean Ice Cream",
+        wine: buildWineTiers(
+          "Late Harvest Riesling, Dr. Loosen 2020",
+          "Finger Lakes Ice Wine, Dr. Frank 2021",
+          "Moscato d'Asti, Saracco 2023",
+          "Tokaji Aszu 6 Puttonyos, Royal Tokaji 2016"
+        )
+      }
     ]
   },
   {
@@ -420,11 +668,56 @@ const DEMO_MENUS = [
     foodCost: "$70-85/person",
     wineCost: "$180 total",
     courses: [
-      { type: "Amuse-Bouche", name: "Beef Tartare on Black Pepper Crostini with Quail Egg", wine: null },
-      { type: "First Course", name: "Classic Wedge Salad with Point Reyes Blue Cheese & Applewood Bacon", wine: "Grüner Veltliner, Hirsch 2022" },
-      { type: "Second Course", name: "Jumbo Shrimp Cocktail with House Cocktail Sauce", wine: null },
-      { type: "Main Course", name: "45-Day Dry-Aged Ribeye with Truffle Butter and Roasted Bone Marrow", wine: "Napa Cabernet, Caymus Special Selection 2019" },
-      { type: "Dessert", name: "New York Cheesecake with Seasonal Berry Compote", wine: "Tawny Port, Graham's 20 Year" }
+      {
+        type: "Amuse-Bouche",
+        name: "Beef Tartare on Black Pepper Crostini with Quail Egg",
+        wine: buildWineTiers(
+          "Champagne, Bollinger Special Cuvee NV",
+          "Sparkling Wine, Schramsberg Blanc de Noirs 2021",
+          "Cremant de Bourgogne, Louis Bouillot 2022",
+          "Champagne, Dom Perignon 2013"
+        )
+      },
+      {
+        type: "First Course",
+        name: "Classic Wedge Salad with Point Reyes Blue Cheese & Applewood Bacon",
+        wine: buildWineTiers(
+          "Gruner Veltliner, Hirsch 2022",
+          "Santa Barbara Chardonnay, Au Bon Climat 2021",
+          "Austrian Gruner Veltliner, Schloss Gobelsburg 2022",
+          "Champagne, Krug Grande Cuvee NV"
+        )
+      },
+      {
+        type: "Second Course",
+        name: "Jumbo Shrimp Cocktail with House Cocktail Sauce",
+        wine: buildWineTiers(
+          "Chablis, William Fevre 2021",
+          "Sonoma Chardonnay, Kistler 2021",
+          "Muscadet Sevre et Maine, Domaine de la Pepiere 2022",
+          "Champagne, Bollinger Special Cuvee NV"
+        )
+      },
+      {
+        type: "Main Course",
+        name: "45-Day Dry-Aged Ribeye with Truffle Butter and Roasted Bone Marrow",
+        wine: buildWineTiers(
+          "Napa Cabernet, Caymus Special Selection 2019",
+          "Napa Cabernet, Opus One 2018",
+          "Ribera del Duero, Emilio Moro 2021",
+          "Bordeaux, Chateau Latour 2015"
+        )
+      },
+      {
+        type: "Dessert",
+        name: "New York Cheesecake with Seasonal Berry Compote",
+        wine: buildWineTiers(
+          "Tawny Port, Grahams 20 Year",
+          "Late Harvest Zinfandel, Ridge 2021",
+          "Ruby Port, Fonseca NV",
+          "Port, Taylor Fladgate 30 Year"
+        )
+      }
     ]
   }
 ];

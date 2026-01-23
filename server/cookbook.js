@@ -17,6 +17,43 @@ const COLORS = {
   textLight: '6b7c85'
 };
 
+function normalizeWineTiers(wine) {
+  if (!wine) {
+    return {
+      worldwideTopRated: null,
+      domesticTopRated: null,
+      budgetTopRated: null,
+      bondPick: null
+    };
+  }
+
+  if (typeof wine === 'string') {
+    return {
+      worldwideTopRated: wine,
+      domesticTopRated: null,
+      budgetTopRated: null,
+      bondPick: null
+    };
+  }
+
+  return {
+    worldwideTopRated: wine.worldwideTopRated || wine.worldwide || null,
+    domesticTopRated: wine.domesticTopRated || wine.domestic || null,
+    budgetTopRated: wine.budgetTopRated || wine.budget || null,
+    bondPick: wine.bondPick || wine.bond || null
+  };
+}
+
+function getWineTierEntries(wine) {
+  const normalized = normalizeWineTiers(wine);
+  return [
+    { label: 'Worldwide top rated', value: normalized.worldwideTopRated },
+    { label: 'Domestic top rated', value: normalized.domesticTopRated },
+    { label: 'Budget top rated', value: normalized.budgetTopRated },
+    { label: 'Bond pick', value: normalized.bondPick }
+  ];
+}
+
 // Build complete cookbook document
 async function buildCookbook(menu, context, staffing, recipes) {
   const staffingInfo = STAFFING.find(s => s.id === staffing) || STAFFING[0];
@@ -214,13 +251,16 @@ function buildMenuOverview(menu) {
         children: [new TextRun({ text: course.name, size: 28, font: 'Georgia', color: COLORS.navy })]
       })
     );
-    if (course.wine) {
+    const tierEntries = getWineTierEntries(course.wine);
+    const bondPick = tierEntries.find(entry => entry.label === 'Bond pick' && entry.value);
+    const highlight = bondPick || tierEntries.find(entry => entry.value);
+    if (highlight?.value) {
       children.push(
         new Paragraph({
           spacing: { before: 50 },
           children: [
-            new TextRun({ text: 'Paired with: ', size: 22, italics: true, color: COLORS.textLight }),
-            new TextRun({ text: course.wine, size: 22, italics: true, color: COLORS.gold })
+            new TextRun({ text: 'Wine pairing highlight: ', size: 22, italics: true, color: COLORS.textLight }),
+            new TextRun({ text: `${highlight.label} — ${highlight.value}`, size: 22, italics: true, color: COLORS.gold })
           ]
         })
       );
@@ -232,7 +272,6 @@ function buildMenuOverview(menu) {
 }
 
 function buildWineProgram(menu, context) {
-  const wines = menu.courses.filter(c => c.wine);
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -244,17 +283,38 @@ function buildWineProgram(menu, context) {
     })
   ];
   
-  wines.forEach(course => {
+  menu.courses.forEach(course => {
+    const tierEntries = getWineTierEntries(course.wine);
+    const hasTiers = tierEntries.some(entry => entry.value);
+    if (!hasTiers) {
+      return;
+    }
+
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
         children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
       }),
       new Paragraph({
-        children: [new TextRun({ text: course.wine, size: 26, bold: true, color: COLORS.navy })]
-      }),
+        children: [new TextRun({ text: course.name, size: 24, bold: true, color: COLORS.navy })]
+      })
+    );
+
+    tierEntries.forEach(entry => {
+      if (!entry.value) {
+        return;
+      }
+      children.push(
+        new Paragraph({
+          numbering: { reference: 'bullets', level: 0 },
+          children: [new TextRun(`${entry.label}: ${entry.value}`)]
+        })
+      );
+    });
+
+    children.push(
       new Paragraph({
-        spacing: { before: 100 },
+        spacing: { before: 100, after: 200 },
         children: [new TextRun({ text: `Pairs with: ${course.name}`, size: 22, italics: true, color: COLORS.textLight })]
       }),
       new Paragraph({
@@ -345,6 +405,19 @@ function buildRecipes(menu, recipes) {
       } else {
         children.push(
           new Paragraph({ numbering: { reference: 'numbers', level: 0 }, children: [new TextRun('Step-by-step instructions will be generated')] })
+        );
+      }
+
+      // Why It Works
+      if (recipe.whyItWorks) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Why It Works', size: 26, bold: true, color: COLORS.gold })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: recipe.whyItWorks, color: COLORS.text })]
+          })
         );
       }
       
