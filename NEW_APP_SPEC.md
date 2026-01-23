@@ -334,13 +334,183 @@ All endpoints return JSON unless otherwise noted.
 - Save progress in session (local storage) to avoid data loss.
 - Elegant, premium visual style consistent with a high-end dining experience.
 
-## 11. Success Metrics
+### 10.1 Step-by-step Flow and Validation
+**Step 1: Access Code**
+- Input is required, trimmed, uppercased before validation.
+- Show remaining generations and beta expiry on success.
+- Errors: invalid code, expired beta, usage limit reached.
+
+**Step 2: Event Details**
+- Event title: 3-80 characters.
+- Event date: today or future date.
+- Guest count: integer 1-30 (configurable max).
+- Service time: HH:MM format or time picker.
+- Budgets: freeform but must contain a number.
+- Skill level: beginner, intermediate, advanced.
+- Guest list: optional; names 1-40 chars, remove duplicates.
+
+**Step 3: Preferences**
+- Inspiration: required (one of 12).
+- Style: required (one of 8).
+- Cuisine: optional; if chosen, sub-cuisine required.
+- Likes/dislikes/restrictions: optional, up to 15 items each.
+
+**Step 4: Expert Consultation**
+- Persona selection required before chat.
+- Message length: 1-500 characters.
+- Persist chat history for menu generation.
+- Show AI typing indicator and retry on failure.
+
+**Step 5: Menu Selection**
+- Generate exactly 5 menus per request.
+- Require a selected menu to proceed.
+- Regeneration requires feedback (10-250 chars).
+- Each generation consumes one usage credit.
+
+**Step 6: Staffing Selection**
+- Required selection.
+- Immediately updates timeline intensity labels.
+
+**Step 7: Cookbook Download**
+- Show summary of selected menu, staffing, and counts.
+- Generate on demand with progress indicator.
+- Allow retry if DOCX generation fails.
+
+### 10.2 Navigation and State
+- Back navigation preserves inputs without revalidation.
+- Autosave step data to local storage on each change.
+- Clear warning on tab close if unsaved changes.
+
+### 10.3 Visual and Content Requirements
+- Use design tokens for colors and typography.
+- Primary CTA style and consistent spacing scale.
+- All course names and wine picks are sentence case.
+
+## 11. AI Prompting and Response Requirements
+### 11.1 Input Payloads
+- `context` includes event details, preferences, and staffing.
+- `chatHistory` includes expert messages (role, content).
+- `rejectionHistory` contains user feedback after menu rejection.
+
+### 11.2 Response Formatting Rules
+- Responses must be strict JSON only (no markdown, no prose).
+- Keys must match schema exactly; unknown keys are ignored.
+- All string values must be plain text (no HTML).
+
+### 11.3 Menu Response Schema (Informal)
+Each menu:
+- `id`: integer 1-5
+- `title`: string, 3-60 chars
+- `personality`: string, 1 sentence
+- `foodCost`: string (e.g., "$45-55/person")
+- `wineCost`: string (e.g., "$120 total")
+- `courses`: array length 5, types fixed order
+- `courses[].wine`: required object with 4 tiers
+
+Wine tiers object:
+```
+{
+  "worldwideTopRated": "Wine name",
+  "domesticTopRated": "Wine name",
+  "budgetTopRated": "Wine name",
+  "bondPick": "Wine name"
+}
+```
+
+If a course should not have a pairing, set each tier value to null.
+
+### 11.4 Detail Response Schema (Informal)
+Response includes:
+- `recipes`: one per course
+- `winePairings`: array aligned to courses
+
+Recipe detail must include:
+- `whyItWorks`: 1-3 sentences explaining flavor/technique balance.
+
+### 11.5 Tier Definitions
+- **Worldwide top rated:** highest rated global pick for the pairing.
+- **Domestic top rated:** highest rated in user locale; default to US.
+- **Budget top rated:** best value under configured budget.
+- **Bond pick:** luxury, iconic, and recognizable.
+
+## 12. Data Persistence and Storage
+- Client state stored in local storage:
+  - `dinnerPlanner.state` (wizard data)
+  - `dinnerPlanner.chat` (consultation history)
+- Autosave on every change, restore on load.
+- Server storage for generated cookbooks:
+  - `cookbookId` maps to DOCX buffer.
+  - Default retention: 24 hours.
+  - Cleanup job runs at startup and hourly.
+
+## 13. Security and Privacy
+- Access codes and admin code provided via environment variables.
+- Do not expose admin code or access lists to the client.
+- Rate limit AI endpoints (default 10 requests per minute per IP).
+- Sanitize all user inputs and enforce size limits.
+- Do not log secrets or full chat contents; redact PII.
+
+## 14. Cookbook Template and Layout
+- Page size: US Letter, 1-inch margins.
+- Fonts: headings in serif, body in readable serif or sans-serif.
+- Each recipe includes:
+  - Ingredients list
+  - Steps
+  - Notes
+  - Make-ahead notes
+  - Why it works paragraph
+- Wine program includes a 4-tier table per course.
+- Timeline sections show staffing-adjusted schedules.
+
+## 15. Error Handling and Fallbacks
+- Standard error shape:
+  `{ "error": "Message", "code": "ERROR_CODE", "detail": "Optional" }`
+- Use 400 for validation errors, 429 for rate limits, 502 for AI errors.
+- Demo fallback is allowed when AI is unavailable if enabled.
+
+## 16. Acceptance Criteria and Test Plan
+**E2E Acceptance Criteria**
+- Users can complete all 7 steps and download a DOCX.
+- Menu regeneration works and includes feedback context.
+- Wine pairings always include 4 tiers per course.
+- Recipe details always include a why-it-works paragraph.
+
+**API Tests**
+- Validate-code rejects expired or over-limit codes.
+- Generate-menus returns exactly 5 menus.
+- Generate-details returns recipes and winePairings.
+- Download-cookbook returns a valid DOCX.
+
+**UI Tests**
+- Field validations and error states.
+- Back/forward navigation preserves data.
+- Local storage restore works after refresh.
+
+## 17. Observability and Logging
+- Log request IDs and durations for AI endpoints.
+- Track success vs failure counts for menu and detail generation.
+- Log DOCX generation time and file size.
+
+## 18. Deployment and Configuration
+Environment variables:
+- `ANTHROPIC_API_KEY` (required for AI)
+- `ACCESS_CODES` (comma-separated)
+- `ADMIN_CODE`
+- `BETA_EXPIRY`
+- `MAX_GENERATIONS_PER_CODE`
+- `ALLOW_DEMO_FALLBACK`
+
+Defaults:
+- Port 3000
+- AI timeouts: chat 15s, menus 25s, details 20s
+
+## 19. Success Metrics
 - 70 percent of users complete the wizard.
 - Median time to cookbook download under 8 minutes.
 - 50 percent of users regenerate menus at least once (engagement).
 - Fewer than 2 percent of AI responses require manual fallback.
 
-## 12. Tech Stack (Preferred)
+## 20. Tech Stack (Preferred)
 - Node.js 18+
 - Express.js
 - Anthropic SDK for AI responses
