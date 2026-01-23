@@ -117,6 +117,7 @@ function saveState() {
       wineBudget: $("#wineBudget")?.value || "",
       skillLevel: $("#skillLevel")?.value || "intermediate",
       guestList: $("#guestList")?.value || "",
+      diningSpace: $("#diningSpace")?.value || "",
     },
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -160,6 +161,7 @@ function loadState() {
       $("#wineBudget").value = payload.event.wineBudget || "";
       $("#skillLevel").value = payload.event.skillLevel || "intermediate";
       $("#guestList").value = payload.event.guestList || "";
+      $("#diningSpace").value = payload.event.diningSpace || "";
     }
 
     $("#accessCode").value = accessCode;
@@ -599,6 +601,7 @@ function buildContext() {
     dislikes,
     restrictions,
     guestList: parseGuestList($("#guestList").value),
+    diningSpace: $("#diningSpace").value || "",
   };
 }
 
@@ -1114,6 +1117,46 @@ async function downloadCookbook() {
   }
 }
 
+async function downloadPrintProduct(type, sku) {
+  if (!type || !sku) return;
+  updateCookbookStatus("Preparing print-ready PDF...");
+  const menu = selectedMenuIndex !== null ? menus[selectedMenuIndex] : null;
+
+  try {
+    const res = await fetchWithTimeout(
+      "/api/print-product",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          sku,
+          context: buildContext(),
+          menu,
+        }),
+      },
+      FETCH_TIMEOUTS_MS.cookbook
+    );
+
+    if (!res.ok) {
+      updateCookbookStatus("Unable to generate print PDF.");
+      return;
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${type}-${sku}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+    updateCookbookStatus("Print PDF downloaded.");
+  } catch (err) {
+    updateCookbookStatus("Unable to generate print PDF.");
+  }
+}
+
 function updateCookbookStatus(message) {
   const status = $("#cookbookStatus");
   if (!status) return;
@@ -1153,13 +1196,23 @@ function renderPrintProducts() {
           )}</div>
             <div class="menu-personality">${escapeHtml(item.size)} | ${escapeHtml(String(item.perSheet))} per sheet</div>
           </div>
-          <button class="btn btn-ghost">Format</button>
+          <button class="btn btn-ghost print-download" data-type="${escapeHtml(group.key)}" data-sku="${escapeHtml(
+            item.sku
+          )}">Download PDF</button>
         </div>
       `
         )
         .join("");
     })
     .join("");
+
+  container.querySelectorAll(".print-download").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const type = button.dataset.type;
+      const sku = button.dataset.sku;
+      await downloadPrintProduct(type, sku);
+    });
+  });
 }
 
 function updateAccessStatus(valid, message) {
@@ -1300,11 +1353,19 @@ function setupInputs() {
     window.location.reload();
   });
 
-  ["eventTitle", "eventDate", "serviceTime", "guestCount", "foodBudget", "wineBudget", "skillLevel", "guestList"].forEach(
-    (id) => {
-      document.getElementById(id).addEventListener("change", saveState);
-    }
-  );
+  [
+    "eventTitle",
+    "eventDate",
+    "serviceTime",
+    "guestCount",
+    "foodBudget",
+    "wineBudget",
+    "skillLevel",
+    "guestList",
+    "diningSpace",
+  ].forEach((id) => {
+    document.getElementById(id).addEventListener("change", saveState);
+  });
 }
 
 async function init() {

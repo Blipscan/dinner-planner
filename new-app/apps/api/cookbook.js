@@ -784,8 +784,9 @@ function buildImagePrompts(menu, context) {
     })
   ];
   
+  const diningSpace = context?.diningSpace ? ` in the host's dining space (${context.diningSpace})` : '';
   menu.courses.forEach(course => {
-    const prompt = `Professional food photography of ${course.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
+    const prompt = `Professional food photography of ${course.name}${diningSpace}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
     
     children.push(
       new Paragraph({

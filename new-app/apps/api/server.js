@@ -6,6 +6,7 @@ const express = require("express");
 const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
 const { jsonrepair } = require("jsonrepair");
+const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 
 const {
   CUISINES,
@@ -202,6 +203,169 @@ function mergeMenuWinePairings(menu, winePairings) {
   };
 }
 
+function parseFraction(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+  if (trimmed.includes("-")) {
+    const [whole, fraction] = trimmed.split("-");
+    return parseFraction(whole) + parseFraction(fraction);
+  }
+  if (trimmed.includes("/")) {
+    const [numerator, denominator] = trimmed.split("/");
+    const num = parseFloat(numerator);
+    const den = parseFloat(denominator);
+    if (!Number.isFinite(num) || !Number.isFinite(den) || den === 0) return 0;
+    return num / den;
+  }
+  const num = parseFloat(trimmed);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function parseSizeInches(size) {
+  if (!size) return { width: 0, height: 0 };
+  const cleaned = size.replace(/"/g, "").replace(/\s+/g, "");
+  const parts = cleaned.toLowerCase().split("x");
+  if (parts.length !== 2) return { width: 0, height: 0 };
+  return {
+    width: parseFraction(parts[0]),
+    height: parseFraction(parts[1]),
+  };
+}
+
+function gridForPerSheet(count) {
+  switch (count) {
+    case 6:
+      return { rows: 3, cols: 2 };
+    case 4:
+      return { rows: 2, cols: 2 };
+    case 2:
+      return { rows: 2, cols: 1 };
+    case 1:
+      return { rows: 1, cols: 1 };
+    default:
+      return { rows: 1, cols: 1 };
+  }
+}
+
+function buildPrintItems(type, context, menu, totalSlots) {
+  const items = [];
+  const eventTitle = context?.eventTitle || "Dinner Party";
+  const eventDate = context?.eventDate || "";
+  const serviceTime = context?.serviceTime || "";
+  const guestList = Array.isArray(context?.guestList)
+    ? context.guestList
+    : typeof context?.guestList === "string"
+      ? context.guestList.split("\n").map((name) => name.trim()).filter(Boolean)
+      : [];
+
+  if (type === "placeCards") {
+    const names = guestList.length ? guestList : Array.from({ length: totalSlots }, (_, i) => `Guest ${i + 1}`);
+    names.slice(0, totalSlots).forEach((name) => items.push([name]));
+    return items;
+  }
+
+  if (type === "tableNumbers") {
+    for (let i = 1; i <= totalSlots; i += 1) {
+      items.push([`Table ${i}`]);
+    }
+    return items;
+  }
+
+  if (type === "invitations") {
+    const lines = [
+      "You're Invited",
+      eventTitle,
+      eventDate || "Date TBD",
+      serviceTime ? `Service: ${serviceTime}` : "Details to follow",
+    ].filter(Boolean);
+    for (let i = 0; i < totalSlots; i += 1) {
+      items.push(lines);
+    }
+    return items;
+  }
+
+  const menuTitle = menu?.title || "Menu";
+  const courseLines = (menu?.courses || []).map((course) => `${course.type}: ${course.name}`);
+  const lines = [eventTitle, menuTitle, ...courseLines];
+  for (let i = 0; i < totalSlots; i += 1) {
+    items.push(lines);
+  }
+  return items;
+}
+
+function truncateLine(text, maxLength) {
+  if (!text) return "";
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1)}…`;
+}
+
+async function buildPrintProductPdf({ type, product, context, menu }) {
+  const { width, height } = parseSizeInches(product.size);
+  if (!width || !height) {
+    throw new Error("Unable to parse product size.");
+  }
+
+  const { rows, cols } = gridForPerSheet(product.perSheet);
+  const pageWidth = 8.5 * 72;
+  const pageHeight = 11 * 72;
+  const cardWidth = width * 72;
+  const cardHeight = height * 72;
+  const gutterX = cols > 1 ? Math.max(0, (pageWidth - cols * cardWidth) / (cols - 1)) : 0;
+  const gutterY = rows > 1 ? Math.max(0, (pageHeight - rows * cardHeight) / (rows - 1)) : 0;
+  const totalWidth = cols * cardWidth + (cols - 1) * gutterX;
+  const totalHeight = rows * cardHeight + (rows - 1) * gutterY;
+  const startX = (pageWidth - totalWidth) / 2;
+  const startY = (pageHeight - totalHeight) / 2;
+
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([pageWidth, pageHeight]);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const items = buildPrintItems(type, context, menu, rows * cols);
+  items.forEach((lines, index) => {
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    const x = startX + col * (cardWidth + gutterX);
+    const y = pageHeight - startY - (row + 1) * cardHeight - row * gutterY;
+
+    page.drawRectangle({
+      x,
+      y,
+      width: cardWidth,
+      height: cardHeight,
+      borderColor: rgb(0.83, 0.83, 0.83),
+      borderWidth: 1,
+      color: rgb(1, 1, 1),
+    });
+
+    const maxLength = type === "menuCards" ? 42 : 28;
+    const processed = lines.map((line) => truncateLine(line, maxLength));
+    const fontSize = type === "menuCards" ? 9 : type === "invitations" ? 12 : 16;
+    const lineHeight = fontSize + 4;
+    const totalTextHeight = processed.length * lineHeight;
+    let textY = y + (cardHeight - totalTextHeight) / 2 + totalTextHeight - lineHeight;
+
+    processed.forEach((line, lineIndex) => {
+      const useBold = lineIndex === 0 || type === "tableNumbers" || type === "placeCards";
+      const currentFont = useBold ? fontBold : font;
+      const currentSize = type === "menuCards" && lineIndex === 1 ? fontSize + 1 : fontSize;
+      const textWidth = currentFont.widthOfTextAtSize(line, currentSize);
+      const textX = x + (cardWidth - textWidth) / 2;
+      page.drawText(line, {
+        x: textX,
+        y: textY,
+        size: currentSize,
+        font: currentFont,
+        color: rgb(0.15, 0.2, 0.3),
+      });
+      textY -= lineHeight;
+    });
+  });
+
+  return pdfDoc.save();
+}
+
 function buildDemoRecipes(menu, context) {
   const guestCount = parseInt(context?.guestCount || "6", 10);
   const timeByCourse = {
@@ -355,6 +519,9 @@ app.post("/api/chat", rateLimit, async (req, res) => {
       sommelier: "Great question! For your menu style, I'd recommend starting with something crisp and refreshing, then building to fuller-bodied wines as the meal progresses. What's your comfort level with wine - do your guests tend toward adventure or familiar favorites?",
       instructor: "Let's make sure you're set up for success. The key is doing as much as possible the day before. What's your biggest concern about the timing?",
       all: "Chef: That sounds delicious!\n\nSommelier: I have some perfect pairing ideas.\n\nInstructor: And I can help you time everything perfectly.",
+      photographer: "Would you like me to create prompts based on your dining room, or propose an ideal setting? Tell me about your table, lighting, and any special decor.",
+      tablescaper: "Tell me about your table shape, linens, and lighting. I can stage a design that makes your guests feel celebrated.",
+      plating: "Describe the dishes you want to serve and your plateware. I'll translate them into elegant plating guidance.",
     };
     return res.json({ response: demoResponses[persona] || demoResponses.chef });
   }
@@ -380,6 +547,7 @@ Current event context:
 - Likes: ${context?.likes?.join(", ") || "none specified"}
 - Dislikes: ${context?.dislikes?.join(", ") || "none specified"}
 - Restrictions: ${context?.restrictions?.join(", ") || "none"}
+- Dining Space Notes: ${context?.diningSpace || "none"}
 
 Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.`;
 
@@ -650,6 +818,35 @@ app.post("/api/download-cookbook", async (req, res) => {
   } catch (err) {
     console.error("DOCX generation error:", err);
     res.status(500).json({ error: "Error generating cookbook" });
+  }
+});
+
+// Print-ready PDF for Avery products
+app.post("/api/print-product", async (req, res) => {
+  const { type, sku, context, menu } = req.body || {};
+  const productList = AVERY_PRODUCTS?.[type];
+  if (!productList) {
+    return res.status(400).json({ error: "Invalid product type." });
+  }
+  const product = productList.find((item) => item.sku === sku);
+  if (!product) {
+    return res.status(400).json({ error: "Invalid product SKU." });
+  }
+
+  try {
+    const pdfBytes = await buildPrintProductPdf({
+      type,
+      product,
+      context: context || {},
+      menu: menu || null,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${type}-${sku}.pdf"`);
+    res.send(Buffer.from(pdfBytes));
+  } catch (err) {
+    console.error("Print product error:", err);
+    res.status(500).json({ error: "Error generating print product." });
   }
 });
 
