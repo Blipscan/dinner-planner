@@ -8,3 +8,15 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
+  - type: web
+    name: dinner-planner-new-app-api
+    env: node
+    rootDir: new-app/apps/api
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ALLOW_DEMO_FALLBACK
+        sync: false
