@@ -7,6 +7,7 @@ const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
 const { jsonrepair } = require("jsonrepair");
 const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+require("dotenv").config();
 
 const {
   CUISINES,
