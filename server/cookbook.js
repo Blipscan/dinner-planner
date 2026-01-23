@@ -17,10 +17,51 @@ const COLORS = {
   textLight: '6b7c85'
 };
 
+function toText(value, fallback = '') {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+  return typeof value === 'string' ? value : String(value);
+}
+
+function normalizeMenu(menu) {
+  const courses = Array.isArray(menu?.courses) ? menu.courses : [];
+  return {
+    title: toText(menu?.title, 'Dinner Party Menu'),
+    personality: toText(menu?.personality, ''),
+    foodCost: toText(menu?.foodCost, ''),
+    wineCost: toText(menu?.wineCost, ''),
+    courses: courses.map((course, idx) => ({
+      type: toText(course?.type, `Course ${idx + 1}`),
+      name: toText(course?.name, 'Course details pending'),
+      wine: toText(course?.wine, '')
+    }))
+  };
+}
+
+function normalizeContext(context) {
+  return {
+    eventTitle: toText(context?.eventTitle, 'Dinner Party'),
+    eventDate: toText(context?.eventDate, 'Date TBD'),
+    guestCount: toText(context?.guestCount, '6'),
+    guestList: toText(context?.guestList, ''),
+    serviceTime: toText(context?.serviceTime, '7:00 PM'),
+    foodBudget: toText(context?.foodBudget, '$45-60'),
+    wineBudget: toText(context?.wineBudget, '$80-120'),
+    skillLevel: toText(context?.skillLevel, 'intermediate'),
+    inspiration: toText(context?.inspiration, 'chefs-tasting'),
+    cuisine: toText(context?.cuisine, 'any'),
+    subCuisine: toText(context?.subCuisine, '')
+  };
+}
+
 // Build complete cookbook document
 async function buildCookbook(menu, context, staffing, recipes) {
+  const safeMenu = normalizeMenu(menu);
+  const safeContext = normalizeContext(context);
+  const safeRecipes = Array.isArray(recipes) ? recipes : [];
   const staffingInfo = STAFFING.find(s => s.id === staffing) || STAFFING[0];
-  const guestNames = context.guestList ? context.guestList.split('\n').filter(n => n.trim()) : [];
+  const guestNames = safeContext.guestList ? safeContext.guestList.split('\n').filter(n => n.trim()) : [];
   
   const doc = new Document({
     styles: {
@@ -99,49 +140,49 @@ async function buildCookbook(menu, context, staffing, recipes) {
       },
       children: [
         // ========== COVER PAGE ==========
-        ...buildCoverPage(menu, context),
+        ...buildCoverPage(safeMenu, safeContext),
         
         // ========== MENU OVERVIEW ==========
-        ...buildMenuOverview(menu),
+        ...buildMenuOverview(safeMenu),
         
         // ========== WINE PROGRAM ==========
-        ...buildWineProgram(menu, context),
+        ...buildWineProgram(safeMenu, safeContext),
         
         // ========== RECIPES ==========
-        ...buildRecipes(menu, recipes),
+        ...buildRecipes(safeMenu, safeRecipes),
         
         // ========== SHOPPING LIST ==========
-        ...buildShoppingList(menu, context, recipes),
+        ...buildShoppingList(safeMenu, safeContext, safeRecipes),
         
         // ========== DAY BEFORE PREP ==========
-        ...buildDayBeforePrep(menu, staffingInfo),
+        ...buildDayBeforePrep(safeMenu, staffingInfo),
         
         // ========== DAY OF TIMELINE ==========
-        ...buildDayOfTimeline(menu, context, staffingInfo),
+        ...buildDayOfTimeline(safeMenu, safeContext, staffingInfo),
         
         // ========== PLATING GUIDES ==========
-        ...buildPlatingGuides(menu),
+        ...buildPlatingGuides(safeMenu),
         
         // ========== TABLE SETTING ==========
-        ...buildTableSetting(menu, context, guestNames),
+        ...buildTableSetting(safeMenu, safeContext, guestNames),
         
         // ========== SERVICE NOTES ==========
-        ...buildServiceNotes(menu, staffingInfo),
+        ...buildServiceNotes(safeMenu, staffingInfo),
         
         // ========== AMBIANCE & MUSIC ==========
-        ...buildAmbianceGuide(menu, context),
+        ...buildAmbianceGuide(safeMenu, safeContext),
         
         // ========== FINAL CHECKLIST ==========
-        ...buildFinalChecklist(menu, context),
+        ...buildFinalChecklist(safeMenu, safeContext),
         
         // ========== AI IMAGE PROMPTS ==========
-        ...buildImagePrompts(menu, context),
+        ...buildImagePrompts(safeMenu, safeContext),
         
         // ========== NOTES PAGES ==========
         ...buildNotesPages(),
         
         // ========== COPYRIGHT ==========
-        ...buildCopyright(context)
+        ...buildCopyright(safeContext)
       ]
     }]
   });
@@ -298,13 +339,24 @@ function buildRecipes(menu, recipes) {
     
     // If we have AI-generated recipes, use them; otherwise placeholder
     if (recipes && recipes[idx]) {
-      const recipe = recipes[idx];
+      const recipe = recipes[idx] || {};
+      const serves = recipe.serves || 6;
+      const activeTime = toText(recipe.activeTime, '30 min');
+      const totalTime = toText(recipe.totalTime, '1 hour');
+      const ingredients = Array.isArray(recipe.ingredients)
+        ? recipe.ingredients.map((ing) => toText(ing)).filter(Boolean)
+        : [];
+      const steps = Array.isArray(recipe.steps)
+        ? recipe.steps.map((step) => toText(step)).filter(Boolean)
+        : [];
+      const notes = toText(recipe.notes, '');
+      const makeAhead = toText(recipe.makeAhead, '');
       
       // Yield and timing
       children.push(
         new Paragraph({
           spacing: { before: 100 },
-          children: [new TextRun({ text: `Serves: ${recipe.serves || 6} | Active: ${recipe.activeTime || '30 min'} | Total: ${recipe.totalTime || '1 hour'}`, size: 20, italics: true, color: COLORS.textLight })]
+          children: [new TextRun({ text: `Serves: ${serves} | Active: ${activeTime} | Total: ${totalTime}`, size: 20, italics: true, color: COLORS.textLight })]
         })
       );
       
@@ -316,8 +368,8 @@ function buildRecipes(menu, recipes) {
         })
       );
       
-      if (recipe.ingredients && recipe.ingredients.length) {
-        recipe.ingredients.forEach(ing => {
+      if (ingredients.length) {
+        ingredients.forEach(ing => {
           children.push(
             new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(ing)] })
           );
@@ -336,8 +388,8 @@ function buildRecipes(menu, recipes) {
         })
       );
       
-      if (recipe.steps && recipe.steps.length) {
-        recipe.steps.forEach((step, i) => {
+      if (steps.length) {
+        steps.forEach((step, i) => {
           children.push(
             new Paragraph({ numbering: { reference: 'numbers', level: 0 }, children: [new TextRun(step)] })
           );
@@ -349,27 +401,27 @@ function buildRecipes(menu, recipes) {
       }
       
       // Chef's Notes
-      if (recipe.notes) {
+      if (notes) {
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
             children: [new TextRun({ text: "Chef's Notes", size: 26, bold: true, color: COLORS.gold })]
           }),
           new Paragraph({
-            children: [new TextRun({ text: recipe.notes, italics: true, color: COLORS.textLight })]
+            children: [new TextRun({ text: notes, italics: true, color: COLORS.textLight })]
           })
         );
       }
       
       // Make Ahead
-      if (recipe.makeAhead) {
+      if (makeAhead) {
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
             children: [new TextRun({ text: 'Make Ahead', size: 26, bold: true, color: COLORS.gold })]
           }),
           new Paragraph({
-            children: [new TextRun({ text: recipe.makeAhead, color: COLORS.text })]
+            children: [new TextRun({ text: makeAhead, color: COLORS.text })]
           })
         );
       }
