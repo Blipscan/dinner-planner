@@ -963,7 +963,6 @@ function buildFallbackRecipes(menu) {
     steps: ["Prep ingredients.", "Cook and season.", "Plate and serve."],
     notes: "Season to taste before serving.",
     makeAhead: "Prep key components earlier in the day.",
-    whyItWorks: "Balanced flavors and clear steps make this approachable and elegant.",
   }));
 }
 

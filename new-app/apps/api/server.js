@@ -399,7 +399,6 @@ function buildDemoRecipes(menu, context) {
       ],
       notes: "Taste and adjust seasoning right before serving.",
       makeAhead: "Most prep can be completed earlier in the day.",
-      whyItWorks: "Balanced textures and clean flavors keep the course elegant and easy to execute.",
     };
   });
 }
@@ -764,12 +763,7 @@ Rules:
     } catch (parseErr) {
       details = JSON.parse(jsonrepair(jsonText));
     }
-    const normalizedRecipes = Array.isArray(details.recipes)
-      ? details.recipes.map((recipe) => ({
-          ...recipe,
-          whyItWorks: recipe.whyItWorks || "Balanced flavors and thoughtful technique make this course shine.",
-        }))
-      : [];
+    const normalizedRecipes = Array.isArray(details.recipes) ? details.recipes : [];
     const normalizedPairings = normalizeWinePairings(normalizedMenu, details.winePairings);
     res.json({ ...details, recipes: normalizedRecipes, winePairings: normalizedPairings });
   } catch (err) {
