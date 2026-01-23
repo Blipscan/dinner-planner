@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  dinner-planner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ACCESS_CODES: ${ACCESS_CODES:-BETA001,BETA002,BETA003}
+      ADMIN_CODE: ${ADMIN_CODE:-ADMIN2024}
+      BETA_EXPIRY: ${BETA_EXPIRY:-2026-03-01}
+      MAX_GENERATIONS_PER_CODE: ${MAX_GENERATIONS_PER_CODE:-50}
+      ALLOW_DEMO_FALLBACK: ${ALLOW_DEMO_FALLBACK:-true}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-10}
+      COOKBOOK_TTL_MS: ${COOKBOOK_TTL_MS:-86400000}
