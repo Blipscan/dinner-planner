@@ -1063,6 +1063,29 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // INIT HELPERS
     // ============================================================
+    async function ensureDataLoaded() {
+      if (DATA && Object.keys(DATA).length > 0) {
+        return true;
+      }
+      try {
+        const res = await fetch('/api/data');
+        DATA = await res.json();
+      } catch (err) {
+        console.error('Failed to reload data:', err);
+        return false;
+      }
+
+      initStyleGrid();
+      initInspirationGrid();
+      initCuisineChips();
+      initPreferenceChips();
+      initExpertGrid();
+      initStaffingOptions();
+      initAveryProducts();
+      initCookbookSections();
+      return true;
+    }
+
     function initStyleGrid() {
       const grid = document.getElementById('styleGrid');
       if (!DATA.MENU_STYLES) return;
@@ -1993,9 +2016,21 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
     function openExpertConsultation() {
       goToStep(5);
-      if (!selectedExpert && DATA?.personas?.chef) {
-        selectExpert('chef');
+      const grid = document.getElementById('expertGrid');
+      if (grid && (!DATA || !DATA.personas)) {
+        grid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading experts...</p></div>';
       }
+      ensureDataLoaded().then((ok) => {
+        if (!ok) {
+          if (grid) {
+            grid.innerHTML = '<div class="error-msg">Unable to load experts. Please refresh and try again.</div>';
+          }
+          return;
+        }
+        if (!selectedExpert && DATA?.personas?.chef) {
+          selectExpert('chef');
+        }
+      });
     }
     
     async function proceedToMenus() {
