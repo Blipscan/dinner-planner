@@ -632,6 +632,18 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     .hidden { display: none !important; }
     .text-center { text-align: center; }
     .mt-2 { margin-top: 2rem; }
+    .build-stamp {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(30, 58, 95, 0.85);
+      color: #f8fafc;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 8px;
+      letter-spacing: 0.02em;
+      z-index: 999;
+    }
     
     /* ===== RESPONSIVE ===== */
     @media (max-width: 700px) {
@@ -1001,6 +1013,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <p style="font-size:0.75rem;margin-top:0.35rem;opacity:0.7">AI-assisted recipe development. Recipes are original adaptations inspired by classic techniques.</p>
     </footer>
   </div>
+  <div class="build-stamp" aria-label="Build version">Build: 2026-01-22.1</div>
   
   <script>
     // ============================================================
