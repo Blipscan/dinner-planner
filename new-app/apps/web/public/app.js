@@ -80,7 +80,7 @@ function fetchWithTimeout(url, options, timeoutMs) {
 }
 
 function allowDemoFallback() {
-  return DATA.apiConfigured === false || DATA.allowDemoFallback === true;
+  return false;
 }
 
 function saveState() {
@@ -569,6 +569,13 @@ async function sendChat() {
       FETCH_TIMEOUTS_MS.chat
     );
     const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      const message = data.detail || data.error || "Chat is unavailable. Please try again.";
+      chatHistory[chatHistory.length - 1] = { role: "assistant", content: message };
+      renderChat();
+      saveState();
+      return;
+    }
     chatHistory[chatHistory.length - 1] = {
       role: "assistant",
       content: data.response || "I am here to help. Tell me more about your guests.",
@@ -751,6 +758,14 @@ async function sendRejection() {
       FETCH_TIMEOUTS_MS.chat
     );
     const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      rejectionHistory[rejectionHistory.length - 1] = {
+        role: "assistant",
+        content: data.detail || data.error || "Chat is unavailable. Please try again.",
+      };
+      renderRejectionChat();
+      return;
+    }
     rejectionHistory[rejectionHistory.length - 1] = {
       role: "assistant",
       content: data.response || "Understood. Tell me more about the experience you want to create.",

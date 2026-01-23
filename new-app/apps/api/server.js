@@ -53,7 +53,7 @@ const ACCESS_CODES = (process.env.ACCESS_CODES || process.env.BETA_ACCESS_CODE |
 
 const BETA_EXPIRY = process.env.BETA_EXPIRY || "2026-03-01";
 const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 10);
-const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "").toLowerCase() === "true";
+const ALLOW_DEMO_FALLBACK = false;
 const COOKBOOK_EXPERIENCE_MAX_TOKENS = parseInt(
   process.env.COOKBOOK_EXPERIENCE_MAX_TOKENS || "4096",
   10
@@ -465,7 +465,7 @@ app.get("/api/data", (req, res) => {
     AVERY_PRODUCTS,
     COOKBOOK_SECTIONS,
     apiConfigured: !!ANTHROPIC_API_KEY,
-    allowDemoFallback: ALLOW_DEMO_FALLBACK,
+    allowDemoFallback: false,
     personas: Object.fromEntries(
       Object.entries(PERSONAS).map(([key, value]) => [
         key,
@@ -523,16 +523,7 @@ app.post("/api/chat", rateLimit, async (req, res) => {
   const { persona, messages, context } = req.body || {};
 
   if (!ANTHROPIC_API_KEY) {
-    const demoResponses = {
-      chef: "I love the direction you're thinking! For a dinner party this size, I'd suggest building around one show-stopping protein. What ingredients are you most excited about right now?",
-      sommelier: "Great question! For your menu style, I'd recommend starting with something crisp and refreshing, then building to fuller-bodied wines as the meal progresses. What's your comfort level with wine - do your guests tend toward adventure or familiar favorites?",
-      instructor: "Let's make sure you're set up for success. The key is doing as much as possible the day before. What's your biggest concern about the timing?",
-      all: "Chef: That sounds delicious!\n\nSommelier: I have some perfect pairing ideas.\n\nInstructor: And I can help you time everything perfectly.",
-      photographer: "Would you like me to create prompts based on your dining room, or propose an ideal setting? Tell me about your table, lighting, and any special decor.",
-      tablescaper: "Tell me about your table shape, linens, and lighting. I can stage a design that makes your guests feel celebrated.",
-      plating: "Describe the dishes you want to serve and your plateware. I'll translate them into elegant plating guidance.",
-    };
-    return res.json({ response: demoResponses[persona] || demoResponses.chef });
+    return res.status(400).json({ error: "Anthropic API key is required for chat." });
   }
 
   try {
@@ -593,7 +584,7 @@ app.post("/api/generate-menus", rateLimit, async (req, res) => {
   }
 
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ menus: DEMO_MENUS, demo: true });
+    return res.status(400).json({ error: "Anthropic API key is required to generate menus." });
   }
 
   try {
@@ -667,18 +658,12 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content[0].text);
-      if (ALLOW_DEMO_FALLBACK) {
-        return res.json({ menus: DEMO_MENUS, demo: true, warning: "AI response parsing failed." });
-      }
       return res.status(502).json({ error: "Menu generation failed.", detail: "AI returned invalid JSON." });
     }
 
     res.json({ menus });
   } catch (err) {
     console.error("Menu generation error:", err);
-    if (ALLOW_DEMO_FALLBACK) {
-      return res.json({ menus: DEMO_MENUS, demo: true, warning: "AI request failed." });
-    }
     return res.status(502).json({ error: "Menu generation failed.", detail: err.message });
   }
 });
@@ -694,7 +679,7 @@ app.post("/api/generate-details", rateLimit, async (req, res) => {
   const normalizedMenu = normalizeMenuWinePairings(menu);
 
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ ...buildDemoDetails(normalizedMenu, context), demo: true });
+    return res.status(400).json({ error: "Anthropic API key is required to generate menu details." });
   }
 
   try {
@@ -777,9 +762,6 @@ Rules:
     res.json({ ...details, recipes: normalizedRecipes, winePairings: normalizedPairings });
   } catch (err) {
     console.error("Details generation error:", err);
-    if (ALLOW_DEMO_FALLBACK) {
-      return res.json({ ...buildDemoDetails(normalizedMenu, context), demo: true, warning: "AI request failed." });
-    }
     return res.status(502).json({ error: "Details generation failed.", detail: err.message });
   }
 });
