@@ -23,6 +23,8 @@ services:
         sync: false
       - key: COOKBOOK_EXPERIENCE_MAX_TOKENS
         sync: false
+      - key: MENUS_TIMEOUT_MS
+        sync: false
       - key: RATE_LIMIT_WINDOW_MS
         sync: false
       - key: RATE_LIMIT_MAX

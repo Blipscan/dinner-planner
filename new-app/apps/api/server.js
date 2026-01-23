@@ -56,7 +56,7 @@ const COOKBOOK_EXPERIENCE_MAX_TOKENS = parseInt(
 );
 const REQUEST_TIMEOUTS_MS = {
   chat: 15000,
-  menus: 25000,
+  menus: parseInt(process.env.MENUS_TIMEOUT_MS || "60000", 10),
   details: 20000,
 };
 
