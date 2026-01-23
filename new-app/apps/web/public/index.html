@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dinner Party Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div class="hero-inner">
+          <div class="hero-pill">Cadillac Edition</div>
+          <h1>Dinner Party Planner</h1>
+          <p class="hero-subtitle">
+            Plan a world class dinner party in seven steps. Curate menus, wine pairings, staffing,
+            and a complete cookbook with concierge-level polish.
+          </p>
+          <div class="hero-meta">
+            <div>
+              <span class="hero-meta-label">Delivery</span>
+              <span class="hero-meta-value">15-section cookbook</span>
+            </div>
+            <div>
+              <span class="hero-meta-label">Experts</span>
+              <span class="hero-meta-value">Chef, Sommelier, Instructor</span>
+            </div>
+            <div>
+              <span class="hero-meta-label">Output</span>
+              <span class="hero-meta-value">4-tier wine program</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <nav class="progress">
+        <button class="progress-step" data-step="1">
+          <span class="progress-number">1</span>
+          <span class="progress-label">Access</span>
+        </button>
+        <div class="progress-line" data-line="1"></div>
+        <button class="progress-step" data-step="2">
+          <span class="progress-number">2</span>
+          <span class="progress-label">Event</span>
+        </button>
+        <div class="progress-line" data-line="2"></div>
+        <button class="progress-step" data-step="3">
+          <span class="progress-number">3</span>
+          <span class="progress-label">Preferences</span>
+        </button>
+        <div class="progress-line" data-line="3"></div>
+        <button class="progress-step" data-step="4">
+          <span class="progress-number">4</span>
+          <span class="progress-label">Consultation</span>
+        </button>
+        <div class="progress-line" data-line="4"></div>
+        <button class="progress-step" data-step="5">
+          <span class="progress-number">5</span>
+          <span class="progress-label">Menus</span>
+        </button>
+        <div class="progress-line" data-line="5"></div>
+        <button class="progress-step" data-step="6">
+          <span class="progress-number">6</span>
+          <span class="progress-label">Details</span>
+        </button>
+        <div class="progress-line" data-line="6"></div>
+        <button class="progress-step" data-step="7">
+          <span class="progress-number">7</span>
+          <span class="progress-label">Cookbook</span>
+        </button>
+      </nav>
+
+      <main class="wizard">
+        <!-- Step 1: Access -->
+        <section class="step" id="step-1">
+          <div class="card">
+            <h2>Access Code</h2>
+            <p class="card-subtitle">Enter your access code to begin planning.</p>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="accessCode">Access code</label>
+                <input id="accessCode" type="text" placeholder="BETA001" />
+              </div>
+            </div>
+            <div class="form-row">
+              <button class="btn btn-primary" id="validateAccess">Validate access</button>
+              <div class="status-pill" id="accessStatus">Awaiting code</div>
+            </div>
+            <div class="inline-message" id="accessMessage"></div>
+          </div>
+        </section>
+
+        <!-- Step 2: Event -->
+        <section class="step hidden" id="step-2">
+          <div class="card">
+            <h2>Event Details</h2>
+            <p class="card-subtitle">Define the moment so the experience can be tailored.</p>
+            <div class="form-grid">
+              <div class="form-field">
+                <label for="eventTitle">Event title</label>
+                <input id="eventTitle" type="text" placeholder="Anniversary Dinner" />
+              </div>
+              <div class="form-field">
+                <label for="eventDate">Event date</label>
+                <input id="eventDate" type="date" />
+              </div>
+              <div class="form-field">
+                <label for="serviceTime">Service time</label>
+                <input id="serviceTime" type="time" value="19:00" />
+              </div>
+              <div class="form-field">
+                <label for="guestCount">Guest count</label>
+                <input id="guestCount" type="number" min="1" max="30" value="6" />
+              </div>
+              <div class="form-field">
+                <label for="foodBudget">Food budget per person</label>
+                <input id="foodBudget" type="text" placeholder="$45-60/person" />
+              </div>
+              <div class="form-field">
+                <label for="wineBudget">Wine budget total</label>
+                <input id="wineBudget" type="text" placeholder="$120 total" />
+              </div>
+              <div class="form-field">
+                <label for="skillLevel">Skill level</label>
+                <select id="skillLevel">
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate" selected>Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+              <div class="form-field form-field-wide">
+                <label for="guestList">Guest list (one per line)</label>
+                <textarea id="guestList" rows="4" placeholder="Avery N&#10;Sam R"></textarea>
+              </div>
+            </div>
+            <div class="inline-message" id="eventMessage"></div>
+            <div class="actions">
+              <button class="btn btn-ghost" data-nav="1">Back</button>
+              <button class="btn btn-primary" data-nav="3">Continue</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Step 3: Preferences -->
+        <section class="step hidden" id="step-3">
+          <div class="card">
+            <h2>Preferences</h2>
+            <p class="card-subtitle">Select an inspiration, style, and cuisine direction.</p>
+            <div class="section-block">
+              <h3>Menu inspiration</h3>
+              <div class="choice-grid" id="inspirationGrid"></div>
+            </div>
+            <div class="section-block">
+              <h3>Menu style</h3>
+              <div class="choice-grid" id="styleGrid"></div>
+            </div>
+            <div class="section-block">
+              <h3>Cuisine direction</h3>
+              <div class="chip-row" id="cuisineChips"></div>
+              <div class="subchoice" id="cuisineSubchoices"></div>
+            </div>
+            <div class="section-block">
+              <h3>Likes</h3>
+              <div class="chip-input">
+                <input id="likesInput" type="text" placeholder="Add a like and press enter" />
+                <div class="chip-row" id="likesList"></div>
+              </div>
+            </div>
+            <div class="section-block">
+              <h3>Dislikes</h3>
+              <div class="chip-input">
+                <input id="dislikesInput" type="text" placeholder="Add a dislike and press enter" />
+                <div class="chip-row" id="dislikesList"></div>
+              </div>
+            </div>
+            <div class="section-block">
+              <h3>Dietary restrictions</h3>
+              <div class="chip-input">
+                <input id="restrictionsInput" type="text" placeholder="Add a restriction and press enter" />
+                <div class="chip-row" id="restrictionsList"></div>
+              </div>
+            </div>
+            <div class="inline-message" id="preferenceMessage"></div>
+            <div class="actions">
+              <button class="btn btn-ghost" data-nav="2">Back</button>
+              <button class="btn btn-primary" data-nav="4">Continue</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Step 4: Consultation -->
+        <section class="step hidden" id="step-4">
+          <div class="card">
+            <h2>Expert Consultation</h2>
+            <p class="card-subtitle">Choose your expert and refine the vision together.</p>
+            <div class="expert-grid" id="expertGrid"></div>
+          </div>
+          <div class="card">
+            <div class="chat-header">
+              <div>
+                <div class="chat-title" id="chatTitle">Select an expert to begin</div>
+                <div class="chat-subtitle" id="chatSubtitle">Your conversation will guide menu creation.</div>
+              </div>
+              <div class="status-pill" id="chatStatus">Offline</div>
+            </div>
+            <div class="chat-body" id="chatMessages"></div>
+            <div class="chat-input">
+              <input id="chatInput" type="text" placeholder="Ask a question or share your vision" />
+              <button class="btn btn-primary" id="sendChat">Send</button>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost" data-nav="3">Back</button>
+            <button class="btn btn-primary" data-nav="5">Continue to menus</button>
+          </div>
+        </section>
+
+        <!-- Step 5: Menus -->
+        <section class="step hidden" id="step-5">
+          <div class="card">
+            <h2>Menu Selection</h2>
+            <p class="card-subtitle">Generate five menus, then select the one that fits the moment.</p>
+            <div class="menu-actions">
+              <button class="btn btn-primary" id="generateMenus">Generate menus</button>
+              <button class="btn btn-ghost" id="rejectMenus">Reject and refine</button>
+            </div>
+            <div class="inline-message" id="menuMessage"></div>
+            <div class="menu-grid" id="menuList"></div>
+          </div>
+          <div class="card hidden" id="rejectionPanel">
+            <h3>Refine the vision</h3>
+            <p class="card-subtitle">Share what was missing so the next set feels perfect.</p>
+            <div class="chat-body" id="rejectionChat"></div>
+            <div class="chat-input">
+              <input id="rejectionInput" type="text" placeholder="Tell the chef what you want next" />
+              <button class="btn btn-primary" id="sendRejection">Send</button>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost" data-nav="4">Back</button>
+            <button class="btn btn-primary" id="selectMenu">Continue to details</button>
+          </div>
+        </section>
+
+        <!-- Step 6: Details -->
+        <section class="step hidden" id="step-6">
+          <div class="card">
+            <h2>Staffing and Details</h2>
+            <p class="card-subtitle">Choose staffing and review recipes, wine, and timing.</p>
+            <div class="staffing-grid" id="staffingOptions"></div>
+          </div>
+          <div class="card">
+            <h3>Selected menu</h3>
+            <div id="menuSummary"></div>
+          </div>
+          <div class="card">
+            <h3>Wine pairings (4 tiers)</h3>
+            <div class="wine-list" id="winePairings"></div>
+          </div>
+          <div class="card">
+            <h3>Recipe previews</h3>
+            <div id="recipePreview"></div>
+          </div>
+          <div class="card">
+            <h3>Day-of timeline</h3>
+            <div id="timelinePreview"></div>
+          </div>
+          <div class="inline-message" id="detailsMessage"></div>
+          <div class="actions">
+            <button class="btn btn-ghost" data-nav="5">Back</button>
+            <button class="btn btn-primary" id="generateCookbook">Generate cookbook</button>
+          </div>
+        </section>
+
+        <!-- Step 7: Cookbook -->
+        <section class="step hidden" id="step-7">
+          <div class="card">
+            <h2>Cookbook Delivery</h2>
+            <p class="card-subtitle">Download the complete 15-section cookbook and printables.</p>
+            <div class="cookbook-status" id="cookbookStatus">Ready to generate.</div>
+            <div class="actions">
+              <button class="btn btn-primary" id="downloadCookbook">Download DOCX</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Included sections</h3>
+            <div class="section-grid" id="cookbookSections"></div>
+          </div>
+          <div class="card">
+            <h3>Print products</h3>
+            <div class="print-grid" id="printProducts"></div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost" data-nav="6">Back</button>
+            <button class="btn btn-secondary" id="startOver">Plan another dinner</button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>Dinner Party Planner - Cadillac Edition</p>
+        <p class="footer-note">AI assisted recipe development with original adaptations.</p>
+      </footer>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
