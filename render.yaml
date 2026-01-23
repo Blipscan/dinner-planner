@@ -2,7 +2,7 @@ services:
   - type: web
     name: dinner-planner-cadillac
     env: node
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: npm start
     autoDeploy: true
     envVars:
