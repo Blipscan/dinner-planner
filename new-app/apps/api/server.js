@@ -54,6 +54,7 @@ const COOKBOOK_EXPERIENCE_MAX_TOKENS = parseInt(
   process.env.COOKBOOK_EXPERIENCE_MAX_TOKENS || "3072",
   10
 );
+const DETAIL_COMPACT_MODE = COOKBOOK_EXPERIENCE_MAX_TOKENS <= 1200;
 const REQUEST_TIMEOUTS_MS = {
   chat: 15000,
   menus: parseInt(process.env.MENUS_TIMEOUT_MS || "60000", 10),
@@ -516,6 +517,17 @@ app.post("/api/generate-details", rateLimit, async (req, res) => {
 
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const compactGuidance = DETAIL_COMPACT_MODE
+      ? `
+
+Output constraints:
+- Keep each recipe concise: max 4 ingredients, max 4 steps.
+- Each step must be 12 words or fewer.
+- notes and makeAhead must be 12 words or fewer.
+- whyItWorks must be 1 sentence, 16 words or fewer.
+- Use short wine names (producer + wine only).`
+      : "";
+
     const systemPrompt = `You are an expert culinary team creating detailed recipe previews and wine pairings.
 
 Return ONLY valid JSON with this exact shape:
@@ -552,7 +564,7 @@ Rules:
 - Each recipe includes whyItWorks (1-3 sentences explaining flavor/technique balance).
 - Provide exactly 5 winePairings, in the same order as the menu courses.
 - Pairings should be specific bottles with producer + vintage when possible.
-- Keep steps concise and practical for a skilled home cook.`;
+- Keep steps concise and practical for a skilled home cook.${compactGuidance}`;
 
     const response = await withTimeout(
       client.messages.create({
