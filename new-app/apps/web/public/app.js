@@ -78,6 +78,40 @@ function parseGuestList(value) {
     .filter(Boolean);
 }
 
+function isGuestPlaceholder(value) {
+  return /^guest-\d+$/i.test(value.trim());
+}
+
+function buildGuestListFromCount(count, currentText) {
+  if (!count || count <= 0) return currentText || "";
+  const existing = (currentText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const result = [];
+  for (let i = 1; i <= count; i += 1) {
+    const existingLine = existing[i - 1];
+    if (existingLine) {
+      result.push(isGuestPlaceholder(existingLine) ? `Guest-${i}` : existingLine);
+    } else {
+      result.push(`Guest-${i}`);
+    }
+  }
+  return result.join("\n");
+}
+
+function updateGuestListPlaceholders() {
+  const input = $("#guestList");
+  if (!input) return;
+  const count = parseInt($("#guestCount").value || "0", 10);
+  if (!count) return;
+  const updated = buildGuestListFromCount(count, input.value);
+  if (updated && updated !== input.value) {
+    input.value = updated;
+    saveState();
+  }
+}
+
 function fetchWithTimeout(url, options, timeoutMs) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -1783,6 +1817,9 @@ function setupInputs() {
     el.addEventListener("input", updateEventRequiredFields);
   });
 
+  $("#guestCount")?.addEventListener("change", updateGuestListPlaceholders);
+  $("#guestCount")?.addEventListener("input", updateGuestListPlaceholders);
+
   $("#confirmInspiration")?.addEventListener("click", () => {
     if (!selectedInspiration) {
       showInlineMessage("preferenceMessage", "Select an inspiration to continue.", true);
@@ -1875,6 +1912,7 @@ async function init() {
   renderShoppingListPreview();
   updateChatHeader();
   updateEventRequiredFields();
+  updateGuestListPlaceholders();
   checkOnlineStatus();
   window.addEventListener("online", checkOnlineStatus);
   window.addEventListener("offline", () => setOnlineStatus(false));
