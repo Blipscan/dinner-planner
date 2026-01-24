@@ -959,7 +959,7 @@ function renderRecipePreview() {
 }
 
 function parseServiceTime() {
-  const value = $("#serviceTime").value;
+  const value = $("#serviceTime").value || "19:00";
   if (!value) return null;
   const [hours, minutes] = value.split(":").map((part) => parseInt(part, 10));
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
@@ -1120,9 +1120,18 @@ async function loadMenuDetails() {
 }
 
 async function generateCookbook() {
-  if (!selectedMenuDetails || selectedMenuIndex === null) {
+  if (selectedMenuIndex === null) {
     showInlineMessage("detailsMessage", "Select a menu first.", true);
     return;
+  }
+
+  if (!selectedMenuDetails) {
+    showInlineMessage("detailsMessage", "Loading details first...", false);
+    await loadMenuDetails();
+    if (!selectedMenuDetails) {
+      showInlineMessage("detailsMessage", "Details are required before generating the cookbook.", true);
+      return;
+    }
   }
 
   const menu = menus[selectedMenuIndex];
