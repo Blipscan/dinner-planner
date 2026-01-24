@@ -40,6 +40,7 @@ let menuDetailsCache = {};
 let selectedMenuDetails = null;
 
 let cookbookId = null;
+let appOnline = navigator.onLine;
 
 function $(selector) {
   return document.querySelector(selector);
@@ -514,14 +515,42 @@ function updateChatHeader() {
   if (!selectedExpert) {
     title.textContent = "Select an expert to begin";
     subtitle.textContent = "Your conversation will guide menu creation.";
-    status.textContent = "Offline";
+    setOnlineStatus(appOnline);
     return;
   }
 
   const persona = DATA.personas?.[selectedExpert];
   title.textContent = persona?.name || "Expert";
   subtitle.textContent = persona?.philosophy || "Ask for guidance on menu and timing.";
-  status.textContent = "Ready";
+  setOnlineStatus(appOnline);
+}
+
+function setOnlineStatus(online) {
+  appOnline = Boolean(online);
+  const label = appOnline ? "Online" : "Offline";
+  const chatStatus = $("#chatStatus");
+  const appStatus = $("#appStatus");
+  if (chatStatus) {
+    chatStatus.textContent = label;
+    chatStatus.classList.toggle("status-online", appOnline);
+    chatStatus.classList.toggle("status-offline", !appOnline);
+  }
+  if (appStatus) {
+    appStatus.textContent = label;
+  }
+}
+
+async function checkOnlineStatus() {
+  if (!navigator.onLine) {
+    setOnlineStatus(false);
+    return;
+  }
+  try {
+    const res = await fetchWithTimeout("/api/health", {}, 5000);
+    setOnlineStatus(res.ok);
+  } catch (err) {
+    setOnlineStatus(false);
+  }
 }
 
 function renderChat() {
@@ -1409,6 +1438,7 @@ function setupInputs() {
 
 async function init() {
   localStorage.removeItem(STORAGE_KEY);
+  setOnlineStatus(navigator.onLine);
   attachNavigationHandlers();
   setupInputs();
   setupChipInput("likesInput", "likesList", likes, "likesAdd");
@@ -1453,6 +1483,9 @@ async function init() {
   renderCookbookSections();
   renderPrintProducts();
   updateChatHeader();
+  checkOnlineStatus();
+  window.addEventListener("online", checkOnlineStatus);
+  window.addEventListener("offline", () => setOnlineStatus(false));
 
   goToStep(Math.min(currentStep, 7));
 }

@@ -260,6 +260,16 @@ textarea:focus {
   color: var(--text-light);
 }
 
+.status-pill.status-online {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-pill.status-offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .actions {
   display: flex;
   gap: 0.8rem;
