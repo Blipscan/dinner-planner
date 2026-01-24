@@ -839,7 +839,6 @@ function getWineHighlight(wine) {
 }
 
 async function generateMenus() {
-  showInlineMessage("menuMessage", "Generating menus...");
   const menuStatus = [
     "Menu 1/5: Shaping the opener and overall mood...",
     "Menu 2/5: Balancing the mid-courses and flavor arc...",
@@ -848,12 +847,11 @@ async function generateMenus() {
     "Menu 5/5: Finalizing dessert and wine cohesion..."
   ];
   let statusIndex = 0;
-  showLoading(
-    "menuLoading",
-    menuStatus[statusIndex]
-  );
+  showInlineMessage("menuMessage", menuStatus[statusIndex]);
+  showLoading("menuLoading", menuStatus[statusIndex]);
   const menuStatusTimer = setInterval(() => {
     statusIndex = (statusIndex + 1) % menuStatus.length;
+    showInlineMessage("menuMessage", menuStatus[statusIndex]);
     showLoading("menuLoading", menuStatus[statusIndex]);
   }, 6000);
   try {
@@ -880,19 +878,20 @@ async function generateMenus() {
       showInlineMessage("menuMessage", "Menus are in demo mode. Enable the API key.", true);
       return;
     }
+    clearInterval(menuStatusTimer);
     menus = data.menus || [];
     selectedMenuIndex = null;
     renderMenus();
     showInlineMessage("menuMessage", data.demo ? "Demo menus loaded." : "Menus ready. Select one to continue.");
     saveState();
   } catch (err) {
+    clearInterval(menuStatusTimer);
     const message =
       err?.name === "AbortError"
         ? "Menu generation timed out. Please try again."
         : "Unable to generate menus. Check your connection and try again.";
     showInlineMessage("menuMessage", message, true);
   } finally {
-    clearInterval(menuStatusTimer);
     hideLoading("menuLoading");
   }
 }
