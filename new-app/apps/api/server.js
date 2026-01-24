@@ -248,6 +248,28 @@ function normalizeTimeline(timeline) {
     : null;
 }
 
+function pickWineHighlight(wine) {
+  if (!wine) return null;
+  return wine.bondPick || wine.worldwideTopRated || wine.domesticTopRated || wine.budgetTopRated || null;
+}
+
+function buildWineShoppingItems(winePairings) {
+  if (!Array.isArray(winePairings)) return [];
+  return winePairings
+    .map((course) => {
+      const wine = pickWineHighlight(course?.wine);
+      if (!wine) return null;
+      const isDessert = String(course?.type || "").toLowerCase().includes("dessert");
+      return {
+        item: wine,
+        quantityUS: isDessert ? "1 half-bottle (12.7 fl oz)" : "1 bottle (25.4 fl oz)",
+        quantityMetric: isDessert ? "375 ml" : "750 ml",
+        notes: course?.type ? `${course.type} pairing` : "",
+      };
+    })
+    .filter(Boolean);
+}
+
 function pruneCookbooks() {
   const now = Date.now();
   Object.entries(global.cookbooks).forEach(([id, payload]) => {
@@ -999,6 +1021,7 @@ Rules:
 - Build a quantity-based shopping list aggregated across all recipes.
 - Include pantry staples (salt, oil, pepper, butter) and wine.
 - Use the categories exactly: Proteins, Produce, Dairy, Pantry, Wine, Misc.
+- Wine items must be specific bottles from winePairings; omit Wine if unavailable.
 - Each shopping list item must include US + metric quantities.
 - Provide a minute-by-minute day-of timeline derived from recipe steps and times.
 - Timeline must include shopping, make-ahead tasks, and table setting.
@@ -1050,12 +1073,21 @@ Rules:
       : [];
     const normalizedPairings = normalizeWinePairings(normalizedMenu, details.winePairings);
     const normalizedShoppingList = normalizeShoppingList(details.shoppingList);
+    const wineShoppingItems = buildWineShoppingItems(normalizedPairings);
+    const mergedShoppingList = normalizedShoppingList
+      ? {
+          categories: [
+            ...normalizedShoppingList.categories.filter((category) => category.name !== "Wine"),
+            ...(wineShoppingItems.length ? [{ name: "Wine", items: wineShoppingItems }] : []),
+          ],
+        }
+      : null;
     const normalizedTimeline = normalizeTimeline(details.timeline);
     res.json({
       ...details,
       recipes: normalizedRecipes,
       winePairings: normalizedPairings,
-      shoppingList: normalizedShoppingList,
+      shoppingList: mergedShoppingList,
       timeline: normalizedTimeline,
     });
   } catch (err) {
