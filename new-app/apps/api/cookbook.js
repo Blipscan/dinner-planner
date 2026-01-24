@@ -694,7 +694,7 @@ function buildDayOfTimeline(menu, context, staffingInfo, timeline) {
   }
   
   // Work backwards from service time
-  const timeline = [
+  const fallbackTimeline = [
     { time: '-6 hours', task: 'Final shopping for any last-minute items' },
     { time: '-5 hours', task: 'Begin slow-cooking items (braises, stocks)' },
     { time: '-4 hours', task: 'Prep remaining vegetables and garnishes' },
@@ -714,7 +714,7 @@ function buildDayOfTimeline(menu, context, staffingInfo, timeline) {
     { time: '+130 min', task: 'Serve dessert and dessert wine' }
   ];
   
-  timeline.forEach(item => {
+  fallbackTimeline.forEach(item => {
     children.push(
       new Paragraph({
         spacing: { before: 100 },
