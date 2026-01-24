@@ -4,7 +4,7 @@ const STORAGE_KEY = "dinnerPlanner.newApp.state";
 
 const FETCH_TIMEOUTS_MS = {
   chat: 15000,
-  menus: 25000,
+  menus: 60000,
   details: 20000,
   cookbook: 20000,
 };
@@ -731,7 +731,11 @@ async function generateMenus() {
     showInlineMessage("menuMessage", data.demo ? "Demo menus loaded." : "Menus ready. Select one to continue.");
     saveState();
   } catch (err) {
-    showInlineMessage("menuMessage", "Unable to generate menus. Please try again.", true);
+    const message =
+      err?.name === "AbortError"
+        ? "Menu generation timed out. Please try again."
+        : "Unable to generate menus. Check your connection and try again.";
+    showInlineMessage("menuMessage", message, true);
   }
 }
 
