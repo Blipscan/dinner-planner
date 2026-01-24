@@ -95,19 +95,22 @@ function normalizeCourseType(value) {
 
 function parseCustomMenu(text) {
   if (!text || typeof text !== "string") {
-    return { error: "Provide your five courses in the custom menu field." };
+    return { error: "Provide at least one featured dish in the custom menu field." };
   }
   const lines = text
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  if (lines.length !== 5) {
-    return { error: "Custom menus must include exactly five courses (one per line)." };
+  if (lines.length < 1) {
+    return { error: "Provide at least one featured dish in the custom menu field." };
+  }
+  if (lines.length > 5) {
+    return { error: "Custom menus can include up to five lines (one per line)." };
   }
 
   const courses = lines.map((line, index) => {
     const parts = line.split(":");
-    let type = COURSE_TYPES[index];
+    let type = null;
     let name = line;
     if (parts.length > 1) {
       const candidateType = normalizeCourseType(parts[0].trim());
@@ -119,7 +122,7 @@ function parseCustomMenu(text) {
       }
     }
     return {
-      type,
+      type: type || null,
       name: name || `Course ${index + 1}`,
       wine: normalizeWineTiers(null),
     };
@@ -128,33 +131,67 @@ function parseCustomMenu(text) {
   return { courses };
 }
 
+function mergeAnchorName(existingName, requiredName) {
+  if (!requiredName) return existingName || requiredName;
+  if (!existingName) return requiredName;
+  const existingLower = existingName.toLowerCase();
+  const requiredLower = requiredName.toLowerCase();
+  if (existingLower.includes(requiredLower)) return existingName;
+  if (requiredLower.includes(existingLower)) return requiredName;
+  return `${requiredName} — ${existingName}`;
+}
+
 function applyCustomMenuAnchors(menus, requiredCourses) {
   if (!Array.isArray(menus) || !requiredCourses?.length) {
     return menus;
   }
   return menus.map((menu) => {
     const menuCourses = Array.isArray(menu?.courses) ? menu.courses : [];
-    const anchoredCourses = requiredCourses.map((required) => {
-      const match = menuCourses.find(
-        (course) => normalizeCourseType(course?.type) === required.type
-      );
-      const requiredName = required.name || "";
-      const existingName = match?.name || "";
-      let name = existingName || requiredName;
-      if (
-        requiredName &&
-        existingName &&
-        !existingName.toLowerCase().includes(requiredName.toLowerCase())
-      ) {
-        name = `${requiredName} — ${existingName}`;
-      }
-      return {
-        ...match,
-        type: required.type,
-        name,
-        wine: match?.wine ?? normalizeWineTiers(null),
-      };
+    const anchoredCourses = menuCourses.length ? [...menuCourses] : [];
+    const usedIndices = new Set();
+    const typeIndexMap = new Map();
+    anchoredCourses.forEach((course, idx) => {
+      typeIndexMap.set(normalizeCourseType(course?.type), idx);
     });
+
+    requiredCourses.forEach((required, requiredIndex) => {
+      const requiredName = required.name || "";
+      if (required.type) {
+        const targetIdx = typeIndexMap.get(required.type);
+        const idxToUse =
+          Number.isFinite(targetIdx) && targetIdx !== undefined
+            ? targetIdx
+            : Math.min(requiredIndex, anchoredCourses.length - 1);
+        const existing = anchoredCourses[idxToUse] || {};
+        anchoredCourses[idxToUse] = {
+          ...existing,
+          type: required.type,
+          name: mergeAnchorName(existing.name, requiredName),
+          wine: existing.wine ?? normalizeWineTiers(null),
+        };
+        usedIndices.add(idxToUse);
+        return;
+      }
+
+      const requiredLower = requiredName.toLowerCase();
+      let matchIdx = anchoredCourses.findIndex((course) =>
+        (course?.name || "").toLowerCase().includes(requiredLower)
+      );
+      if (matchIdx === -1) {
+        matchIdx = anchoredCourses.findIndex((_, idx) => !usedIndices.has(idx));
+        if (matchIdx === -1) {
+          matchIdx = 0;
+        }
+      }
+      const existing = anchoredCourses[matchIdx] || {};
+      anchoredCourses[matchIdx] = {
+        ...existing,
+        name: mergeAnchorName(existing.name, requiredName),
+        wine: existing.wine ?? normalizeWineTiers(null),
+      };
+      usedIndices.add(matchIdx);
+    });
+
     return { ...menu, courses: anchoredCourses };
   });
 }
@@ -666,6 +703,15 @@ app.post("/api/chat", rateLimit, async (req, res) => {
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const personaData = PERSONAS?.[persona] || PERSONAS.chef;
+    const cuisineList = Array.isArray(context?.cuisine)
+      ? context.cuisine.join(", ")
+      : context?.cuisine || "any";
+    const subCuisineList = Array.isArray(context?.subCuisine)
+      ? context.subCuisine.join(", ")
+      : context?.subCuisine || "";
+    const cuisineCountries = Array.isArray(context?.cuisineCountries)
+      ? context.cuisineCountries.join(", ")
+      : context?.cuisineCountries || "";
 
     const customMenuSummary = context?.customMenu
       ? `\nCustom menu provided by user:\n${context.customMenu}`
@@ -683,7 +729,7 @@ Current event context:
 - Wine Budget: ${context?.wineBudget || "$80-120"} total
 - Skill Level: ${context?.skillLevel || "intermediate"}
 - Inspiration: ${context?.inspiration || "chefs-tasting"}
-- Cuisine: ${context?.cuisine || "any"} ${context?.subCuisine ? `(${context.subCuisine})` : ""}
+- Cuisine: ${cuisineList}${cuisineCountries ? ` (${cuisineCountries})` : ""}${subCuisineList ? ` (${subCuisineList})` : ""}
 - Likes: ${context?.likes?.join(", ") || "none specified"}
 - Dislikes: ${context?.dislikes?.join(", ") || "none specified"}
 - Restrictions: ${context?.restrictions?.join(", ") || "none"}
@@ -695,7 +741,7 @@ Be conversational, warm, and helpful. Ask clarifying questions when needed. Shar
 Conversation requirements:
 - If the user hasn't specified what dishes are already set, ask: "What are you already set on serving?"
 - If inspiration is "restaurant", ask which restaurants or specific dishes to recreate.
-- If inspiration is "custom", ask for the exact five courses and dish names, one per line.
+- If inspiration is "custom", ask for the featured dishes and which course each belongs to (up to five).
 - Ask one focused question at a time and avoid repeating questions already answered.`;
 
     const apiMessages = (messages || []).map((message) => ({
@@ -759,9 +805,22 @@ app.post("/api/generate-menus", rateLimit, async (req, res) => {
       ? `
 
 Custom menu anchors (must appear in every menu):
-${customMenuParsed.courses.map((course) => `- ${course.type}: ${course.name}`).join("\n")}
+${customMenuParsed.courses
+  .map((course) => `- ${course.type ? `${course.type}: ` : ""}${course.name}`)
+  .join("\n")}
+If a course type is missing, assign the anchor to the most suitable course.
 You may add supporting components, but keep each anchor dish in the course name.`
       : "";
+
+    const cuisineList = Array.isArray(context?.cuisine)
+      ? context.cuisine.join(", ")
+      : context?.cuisine || "any";
+    const subCuisineList = Array.isArray(context?.subCuisine)
+      ? context.subCuisine.join(", ")
+      : context?.subCuisine || "";
+    const cuisineCountries = Array.isArray(context?.cuisineCountries)
+      ? context.cuisineCountries.join(", ")
+      : context?.cuisineCountries || "";
 
     const systemPrompt = `You are an expert culinary team creating dinner party menus.
 
@@ -772,7 +831,7 @@ Event Context:
 - Wine Budget: ${context?.wineBudget || "$80-120"} total
 - Skill Level: ${context?.skillLevel || "intermediate"}
 - Inspiration: ${context?.inspiration || "chefs-tasting"}
-- Cuisine Direction: ${context?.cuisine || "any"} ${context?.subCuisine ? `(${context.subCuisine})` : ""}
+- Cuisine Direction: ${cuisineList}${cuisineCountries ? ` (${cuisineCountries})` : ""}${subCuisineList ? ` (${subCuisineList})` : ""}
 - Guest Preferences: Likes ${context?.likes?.join(", ") || "various"}, Avoids ${context?.dislikes?.join(", ") || "nothing specific"}
 - Dietary Restrictions: ${context?.restrictions?.join(", ") || "none"}
 ${chatContext}

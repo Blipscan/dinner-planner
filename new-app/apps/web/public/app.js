@@ -20,9 +20,9 @@ let remainingGenerations = null;
 
 let selectedInspiration = null;
 let selectedStyle = null;
-let selectedCuisine = null;
-let selectedCuisineCountry = null;
-let selectedSubCuisine = null;
+let selectedCuisine = [];
+let selectedCuisineCountry = {};
+let selectedSubCuisine = {};
 
 let likes = [];
 let dislikes = [];
@@ -179,9 +179,9 @@ function loadState() {
     remainingGenerations = payload.remainingGenerations || null;
     selectedInspiration = payload.selectedInspiration || null;
     selectedStyle = payload.selectedStyle || null;
-    selectedCuisine = payload.selectedCuisine || null;
-    selectedCuisineCountry = payload.selectedCuisineCountry || null;
-    selectedSubCuisine = payload.selectedSubCuisine || null;
+    selectedCuisine = Array.isArray(payload.selectedCuisine) ? payload.selectedCuisine : [];
+    selectedCuisineCountry = payload.selectedCuisineCountry || {};
+    selectedSubCuisine = payload.selectedSubCuisine || {};
     likes = payload.likes || [];
     dislikes = payload.dislikes || [];
     restrictions = payload.restrictions || [];
@@ -414,7 +414,7 @@ function renderCuisineChips() {
   const entries = Object.entries(DATA.CUISINES || {});
   container.innerHTML = entries
     .map(([key, cuisine]) => {
-      const selectedClass = selectedCuisine === key ? "selected" : "";
+      const selectedClass = selectedCuisine.includes(key) ? "selected" : "";
       return `<button class="chip ${selectedClass}" data-cuisine="${escapeHtml(key)}">${escapeHtml(
         cuisine.label
       )}</button>`;
@@ -424,14 +424,12 @@ function renderCuisineChips() {
   container.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => {
       const key = chip.dataset.cuisine;
-      if (selectedCuisine === key) {
-        selectedCuisine = null;
-        selectedCuisineCountry = null;
-        selectedSubCuisine = null;
+      if (selectedCuisine.includes(key)) {
+        selectedCuisine = selectedCuisine.filter((item) => item !== key);
+        delete selectedCuisineCountry[key];
+        delete selectedSubCuisine[key];
       } else {
-        selectedCuisine = key;
-        selectedCuisineCountry = null;
-        selectedSubCuisine = null;
+        selectedCuisine = [...selectedCuisine, key];
       }
       cuisineConfirmed = false;
       renderCuisineChips();
@@ -445,87 +443,99 @@ function renderCuisineChips() {
 function renderCuisineSubchoices() {
   const container = $("#cuisineSubchoices");
   if (!container) return;
-  if (!selectedCuisine) {
-    container.innerHTML = "";
-    return;
-  }
-
-  const cuisine = DATA.CUISINES?.[selectedCuisine];
-  if (!cuisine) {
+  if (!selectedCuisine.length) {
     container.innerHTML = "";
     return;
   }
 
   let html = "";
-  if (cuisine.countries) {
-    html += `<div class="chip-row">`;
-    html += Object.entries(cuisine.countries)
-      .map(([key, country]) => {
-        const selectedClass = selectedCuisineCountry === key ? "selected" : "";
-        return `<button class="chip ${selectedClass}" data-country="${escapeHtml(key)}">${escapeHtml(
-          country.label
-        )}</button>`;
-      })
-      .join("");
-    html += `</div>`;
+  selectedCuisine.forEach((cuisineKey) => {
+    const cuisine = DATA.CUISINES?.[cuisineKey];
+    if (!cuisine) return;
+    const subList = Array.isArray(selectedSubCuisine[cuisineKey])
+      ? selectedSubCuisine[cuisineKey]
+      : [];
+    const countryKey = selectedCuisineCountry[cuisineKey];
 
-    if (selectedCuisineCountry) {
-      const country = cuisine.countries[selectedCuisineCountry];
-      if (country?.regions?.length) {
-        html += `<div class="chip-row">`;
-        html += country.regions
-          .map((region) => {
-            const value = `${country.label} - ${region}`;
-            const selectedClass = selectedSubCuisine === value ? "selected" : "";
-            return `<button class="chip ${selectedClass}" data-subcuisine="${escapeHtml(value)}">${escapeHtml(
-              region
-            )}</button>`;
-          })
-          .join("");
-        html += `</div>`;
+    html += `<div class="subchoice-section">`;
+    html += `<div class="subchoice-title">${escapeHtml(cuisine.label)}</div>`;
+
+    if (cuisine.countries) {
+      html += `<div class="chip-row">`;
+      html += Object.entries(cuisine.countries)
+        .map(([key, country]) => {
+          const selectedClass = countryKey === key ? "selected" : "";
+          return `<button class="chip ${selectedClass}" data-country="${escapeHtml(
+            key
+          )}" data-cuisine-key="${escapeHtml(cuisineKey)}">${escapeHtml(country.label)}</button>`;
+        })
+        .join("");
+      html += `</div>`;
+
+      if (countryKey) {
+        const country = cuisine.countries[countryKey];
+        if (country?.regions?.length) {
+          html += `<div class="chip-row">`;
+          html += country.regions
+            .map((region) => {
+              const value = `${country.label} - ${region}`;
+              const selectedClass = subList.includes(value) ? "selected" : "";
+              return `<button class="chip ${selectedClass}" data-subcuisine="${escapeHtml(
+                value
+              )}" data-cuisine-key="${escapeHtml(cuisineKey)}">${escapeHtml(region)}</button>`;
+            })
+            .join("");
+          html += `</div>`;
+        }
       }
     }
-  }
 
-  if (cuisine.regions) {
-    html += `<div class="chip-row">`;
-    html += cuisine.regions
-      .map((region) => {
-        const selectedClass = selectedSubCuisine === region ? "selected" : "";
-        return `<button class="chip ${selectedClass}" data-subcuisine="${escapeHtml(region)}">${escapeHtml(
-          region
-        )}</button>`;
-      })
-      .join("");
-    html += `</div>`;
-  }
+    if (cuisine.regions) {
+      html += `<div class="chip-row">`;
+      html += cuisine.regions
+        .map((region) => {
+          const selectedClass = subList.includes(region) ? "selected" : "";
+          return `<button class="chip ${selectedClass}" data-subcuisine="${escapeHtml(
+            region
+          )}" data-cuisine-key="${escapeHtml(cuisineKey)}">${escapeHtml(region)}</button>`;
+        })
+        .join("");
+      html += `</div>`;
+    }
 
-  if (cuisine.styles) {
-    html += `<div class="chip-row">`;
-    html += cuisine.styles
-      .map((style) => {
-        const selectedClass = selectedSubCuisine === style ? "selected" : "";
-        return `<button class="chip ${selectedClass}" data-subcuisine="${escapeHtml(style)}">${escapeHtml(
-          style
-        )}</button>`;
-      })
-      .join("");
+    if (cuisine.styles) {
+      html += `<div class="chip-row">`;
+      html += cuisine.styles
+        .map((style) => {
+          const selectedClass = subList.includes(style) ? "selected" : "";
+          return `<button class="chip ${selectedClass}" data-subcuisine="${escapeHtml(
+            style
+          )}" data-cuisine-key="${escapeHtml(cuisineKey)}">${escapeHtml(style)}</button>`;
+        })
+        .join("");
+      html += `</div>`;
+    }
+
     html += `</div>`;
-  }
+  });
 
   container.innerHTML = html;
 
   container.querySelectorAll("[data-country]").forEach((chip) => {
     chip.addEventListener("click", () => {
       const key = chip.dataset.country;
-      if (selectedCuisineCountry === key) {
-        selectedCuisineCountry = null;
-        selectedSubCuisine = null;
+      const cuisineKey = chip.dataset.cuisineKey;
+      if (!cuisineKey) return;
+      if (selectedCuisineCountry[cuisineKey] === key) {
+        delete selectedCuisineCountry[cuisineKey];
+        selectedSubCuisine[cuisineKey] = [];
       } else {
-        selectedCuisineCountry = key;
-        selectedSubCuisine = null;
+        selectedCuisineCountry[cuisineKey] = key;
+        selectedSubCuisine[cuisineKey] = [];
       }
+      cuisineConfirmed = false;
       renderCuisineSubchoices();
+      updatePreferenceFlow();
       saveState();
     });
   });
@@ -533,7 +543,16 @@ function renderCuisineSubchoices() {
   container.querySelectorAll("[data-subcuisine]").forEach((chip) => {
     chip.addEventListener("click", () => {
       const value = chip.dataset.subcuisine;
-      selectedSubCuisine = selectedSubCuisine === value ? null : value;
+      const cuisineKey = chip.dataset.cuisineKey;
+      if (!cuisineKey) return;
+      const list = Array.isArray(selectedSubCuisine[cuisineKey])
+        ? selectedSubCuisine[cuisineKey]
+        : [];
+      if (list.includes(value)) {
+        selectedSubCuisine[cuisineKey] = list.filter((item) => item !== value);
+      } else {
+        selectedSubCuisine[cuisineKey] = [...list, value];
+      }
       cuisineConfirmed = false;
       renderCuisineSubchoices();
       updatePreferenceFlow();
@@ -736,6 +755,18 @@ async function sendChat() {
 }
 
 function buildContext() {
+  const cuisineLabels = selectedCuisine
+    .map((key) => DATA.CUISINES?.[key]?.label || key)
+    .filter(Boolean);
+  const subCuisineSelections = Object.values(selectedSubCuisine || {}).flat();
+  const cuisineCountrySelections = Object.entries(selectedCuisineCountry || {})
+    .map(([cuisineKey, countryKey]) => {
+      const cuisine = DATA.CUISINES?.[cuisineKey];
+      if (!countryKey || !cuisine?.countries) return null;
+      return cuisine.countries[countryKey]?.label || countryKey;
+    })
+    .filter(Boolean);
+
   return {
     eventTitle: $("#eventTitle").value || "Dinner Party",
     eventDate: formatDateValue($("#eventDate").value),
@@ -746,8 +777,9 @@ function buildContext() {
     skillLevel: $("#skillLevel").value || "intermediate",
     inspiration: selectedInspiration,
     style: selectedStyle,
-    cuisine: selectedCuisine,
-    subCuisine: selectedSubCuisine,
+    cuisine: cuisineLabels,
+    cuisineCountries: cuisineCountrySelections,
+    subCuisine: subCuisineSelections,
     likes,
     dislikes,
     restrictions,
@@ -1705,7 +1737,12 @@ function validatePreferences() {
   if (selectedInspiration === "custom") {
     const text = ($("#customMenuInput")?.value || "").trim();
     if (!text) {
-      showInlineMessage("preferenceMessage", "Enter the five courses you want served.", true);
+      showInlineMessage("preferenceMessage", "Enter at least one featured dish.", true);
+      return false;
+    }
+    const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (lines.length > 5) {
+      showInlineMessage("preferenceMessage", "Limit the custom menu to five lines.", true);
       return false;
     }
   }
@@ -1719,10 +1756,6 @@ function validatePreferences() {
   }
   if (!styleConfirmed) {
     showInlineMessage("preferenceMessage", "Confirm the style to continue.", true);
-    return false;
-  }
-  if (selectedCuisine && !selectedSubCuisine) {
-    showInlineMessage("preferenceMessage", "Select a sub cuisine for the chosen region.", true);
     return false;
   }
   if (!cuisineConfirmed) {
@@ -1866,10 +1899,6 @@ function setupInputs() {
   });
 
   $("#confirmCuisine")?.addEventListener("click", () => {
-    if (selectedCuisine && !selectedSubCuisine) {
-      showInlineMessage("preferenceMessage", "Select a sub cuisine for the chosen region.", true);
-      return;
-    }
     cuisineConfirmed = true;
     showInlineMessage("preferenceMessage", "");
     updatePreferenceFlow();
