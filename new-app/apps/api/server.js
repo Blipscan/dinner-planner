@@ -691,7 +691,7 @@ Output constraints:
 - Keep each recipe concise: max 4 ingredients, max 4 steps.
 - Each step must be 12 words or fewer.
 - notes and makeAhead must be 12 words or fewer.
-- whyItWorks must be 1 sentence, 16 words or fewer.
+- whyItWorks must be 1 sentence, 20 words or fewer, covering chef choice + meal fit.
 - Use short wine names (producer + wine only).`
       : "";
 
@@ -728,7 +728,7 @@ Return ONLY valid JSON with this exact shape:
 
 Rules:
 - Provide exactly 5 recipes, in the same order as the menu courses.
-- Each recipe includes whyItWorks (1-3 sentences explaining flavor/technique balance).
+- Each recipe includes whyItWorks (1 sentence preferred; 1-2 sentences explaining why the chef chose it and how it fits the meal).
 - Provide exactly 5 winePairings, in the same order as the menu courses.
 - Pairings should be specific bottles with producer + vintage when possible.
 - Keep steps concise and practical for a skilled home cook.${compactGuidance}`;

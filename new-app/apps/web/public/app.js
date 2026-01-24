@@ -885,7 +885,7 @@ function renderRecipePreview() {
           </ol>
           ${
             recipe.whyItWorks
-              ? `<div class="recipe-why"><strong>Why it works:</strong> ${escapeHtml(recipe.whyItWorks)}</div>`
+              ? `<div class="recipe-why"><strong>Why the chef chose it and how it works in the meal:</strong> ${escapeHtml(recipe.whyItWorks)}</div>`
               : ""
           }
           ${recipe.notes ? `<div class="recipe-meta">Notes: ${escapeHtml(recipe.notes)}</div>` : ""}

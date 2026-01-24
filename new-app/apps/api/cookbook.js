@@ -408,12 +408,14 @@ function buildRecipes(menu, recipes) {
         );
       }
 
-      // Why It Works
+      // Why the chef chose it + meal fit
       if (recipe.whyItWorks) {
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
-            children: [new TextRun({ text: 'Why It Works', size: 26, bold: true, color: COLORS.gold })]
+            children: [
+              new TextRun({ text: "Why the chef chose it and how it works in the meal", size: 26, bold: true, color: COLORS.gold })
+            ]
           }),
           new Paragraph({
             children: [new TextRun({ text: recipe.whyItWorks, color: COLORS.text })]
