@@ -1191,11 +1191,17 @@ function buildTimelineItems() {
 
 function renderTimelinePreview() {
   const container = $("#timelinePreview");
+  const card = $("#timelineCard");
   if (!container) return;
   const items = buildTimelineItems();
   if (!items.length) {
-    container.innerHTML = `<div class="inline-message">Day-of timeline will appear once details are ready.</div>`;
+    if (card) {
+      card.classList.add("hidden");
+    }
     return;
+  }
+  if (card) {
+    card.classList.remove("hidden");
   }
   const cadence = selectedMenuDetails?.timeline?.cadenceMinutes;
   const cadenceHtml =
