@@ -1268,11 +1268,21 @@ async function loadMenuDetails() {
     return;
   }
 
-  showInlineMessage("detailsMessage", "Preparing recipes and wine pairings...");
-  showLoading(
-    "detailsLoading",
-    "Building recipes, equipment, techniques, and wine pairings (this can take a couple minutes)..."
-  );
+  const detailStatus = [
+    "Gathering menu context and constraints...",
+    "Drafting recipes with measurements, equipment, and techniques...",
+    "Building wine pairings and harmonizing the meal arc...",
+    "Aggregating the shopping list by category...",
+    "Constructing the minute-by-minute day-of timeline..."
+  ];
+  let detailIndex = 0;
+  showInlineMessage("detailsMessage", detailStatus[detailIndex]);
+  showLoading("detailsLoading", detailStatus[detailIndex]);
+  const detailTimer = setInterval(() => {
+    detailIndex = (detailIndex + 1) % detailStatus.length;
+    showInlineMessage("detailsMessage", detailStatus[detailIndex]);
+    showLoading("detailsLoading", detailStatus[detailIndex]);
+  }, 6000);
 
   try {
     const res = await fetchWithTimeout(
@@ -1305,6 +1315,7 @@ async function loadMenuDetails() {
       selectedMenuDetails = data;
     }
 
+    clearInterval(detailTimer);
     menuDetailsCache[cacheKey] = selectedMenuDetails;
     renderWinePairings();
     renderRecipePreview();
@@ -1324,12 +1335,14 @@ async function loadMenuDetails() {
     renderShoppingListPreview();
       return;
     }
+    clearInterval(detailTimer);
     const message =
       err?.name === "AbortError"
         ? "Details generation timed out. Please try again."
         : "Unable to load details. Check your connection and try again.";
     showInlineMessage("detailsMessage", message, true);
   } finally {
+    clearInterval(detailTimer);
     hideLoading("detailsLoading");
   }
 }
