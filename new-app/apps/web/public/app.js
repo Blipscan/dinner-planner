@@ -237,6 +237,22 @@ function showInlineMessage(id, message, isError = false) {
   el.style.color = isError ? "var(--error)" : "var(--text-light)";
 }
 
+function showLoading(id, message) {
+  const row = document.getElementById(id);
+  if (!row) return;
+  row.classList.remove("hidden");
+  const text = row.querySelector(".loading-text");
+  if (text && message) {
+    text.textContent = message;
+  }
+}
+
+function hideLoading(id) {
+  const row = document.getElementById(id);
+  if (!row) return;
+  row.classList.add("hidden");
+}
+
 function normalizeWineTiers(wine) {
   if (!wine) {
     return {
@@ -757,6 +773,7 @@ function getWineHighlight(wine) {
 
 async function generateMenus() {
   showInlineMessage("menuMessage", "Generating menus...");
+  showLoading("menuLoading", "Crafting five menus based on your inspiration, style, and cuisine...");
   try {
     const res = await fetchWithTimeout(
       "/api/generate-menus",
@@ -792,6 +809,8 @@ async function generateMenus() {
         ? "Menu generation timed out. Please try again."
         : "Unable to generate menus. Check your connection and try again.";
     showInlineMessage("menuMessage", message, true);
+  } finally {
+    hideLoading("menuLoading");
   }
 }
 
@@ -1118,6 +1137,7 @@ async function loadMenuDetails() {
   }
 
   showInlineMessage("detailsMessage", "Preparing recipes and wine pairings...");
+  showLoading("detailsLoading", "Building recipes, equipment, techniques, and wine pairings...");
 
   try {
     const res = await fetchWithTimeout(
@@ -1172,6 +1192,8 @@ async function loadMenuDetails() {
         ? "Details generation timed out. Please try again."
         : "Unable to load details. Check your connection and try again.";
     showInlineMessage("detailsMessage", message, true);
+  } finally {
+    hideLoading("detailsLoading");
   }
 }
 
@@ -1192,6 +1214,7 @@ async function generateCookbook() {
 
   const menu = menus[selectedMenuIndex];
   showInlineMessage("detailsMessage", "Creating cookbook...");
+  showLoading("cookbookLoading", "Generating cookbook sections and formatting the document...");
 
   try {
     const res = await fetchWithTimeout(
@@ -1219,6 +1242,8 @@ async function generateCookbook() {
     goToStep(7);
   } catch (err) {
     showInlineMessage("detailsMessage", "Cookbook generation failed. Please try again.", true);
+  } finally {
+    hideLoading("cookbookLoading");
   }
 }
 
@@ -1229,6 +1254,7 @@ async function downloadCookbook() {
   }
 
   updateCookbookStatus("Preparing download...");
+  showLoading("cookbookLoading", "Building DOCX file for download...");
   try {
     const res = await fetchWithTimeout(
       "/api/download-cookbook",
@@ -1255,12 +1281,15 @@ async function downloadCookbook() {
     updateCookbookStatus("Download complete.");
   } catch (err) {
     updateCookbookStatus("Download failed. Please try again.");
+  } finally {
+    hideLoading("cookbookLoading");
   }
 }
 
 async function downloadPrintProduct(type, sku) {
   if (!type || !sku) return;
   updateCookbookStatus("Preparing print-ready PDF...");
+  showLoading("cookbookLoading", "Generating print-ready PDF...");
   const menu = selectedMenuIndex !== null ? menus[selectedMenuIndex] : null;
 
   try {
@@ -1295,6 +1324,8 @@ async function downloadPrintProduct(type, sku) {
     updateCookbookStatus("Print PDF downloaded.");
   } catch (err) {
     updateCookbookStatus("Unable to generate print PDF.");
+  } finally {
+    hideLoading("cookbookLoading");
   }
 }
 

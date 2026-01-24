@@ -250,6 +250,30 @@ textarea:focus {
   margin-top: 0.75rem;
 }
 
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+  color: var(--text-light);
+  font-size: 0.9rem;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid var(--cream-dark);
+  border-top-color: var(--navy);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .inline-actions {
   display: flex;
   justify-content: flex-start;
