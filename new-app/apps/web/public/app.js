@@ -1346,8 +1346,9 @@ async function loadMenuDetails() {
     renderRecipePreview();
     renderTimelinePreview();
     renderShoppingListPreview();
-    showInlineMessage("detailsMessage", "Details ready. Click Generate cookbook to continue.");
+    showInlineMessage("detailsMessage", "Details ready. Starting cookbook generation...");
     hideLoading("detailsLoading");
+    await generateCookbook();
     return;
   }
 
@@ -1411,8 +1412,9 @@ async function loadMenuDetails() {
     renderRecipePreview();
     renderTimelinePreview();
     renderShoppingListPreview();
-    showInlineMessage("detailsMessage", "Details ready. Click Generate cookbook to continue.");
+    showInlineMessage("detailsMessage", "Details ready. Starting cookbook generation...");
     saveState();
+    await generateCookbook();
   } catch (err) {
     if (allowDemoFallback()) {
       selectedMenuDetails = {
@@ -1456,6 +1458,12 @@ async function generateCookbook() {
       showInlineMessage("detailsMessage", "Details are required before generating the cookbook.", true);
       return;
     }
+  }
+
+  if (cookbookId) {
+    updateCookbookStatus("Cookbook ready.");
+    goToStep(7);
+    return;
   }
 
   const menu = menus[selectedMenuIndex];
