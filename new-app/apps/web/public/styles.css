@@ -703,6 +703,28 @@ textarea:focus {
   gap: 1rem;
 }
 
+.cookbook-preview-section {
+  margin-bottom: 1.5rem;
+}
+
+.cookbook-preview-section h4 {
+  margin: 0 0 0.4rem;
+  color: var(--navy);
+}
+
+.cookbook-preview-section ul,
+.cookbook-preview-section ol {
+  margin: 0.4rem 0 0.8rem;
+  padding-left: 1.2rem;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.cookbook-preview-section p {
+  margin: 0.4rem 0 0.8rem;
+  color: var(--text-light);
+}
+
 .footer {
   text-align: center;
   color: var(--text-light);

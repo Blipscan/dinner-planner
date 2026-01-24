@@ -225,6 +225,7 @@ function goToStep(step) {
     renderCookbookSections();
     renderPrintProducts();
     updateCookbookStatus();
+    renderCookbookPreview();
   }
 
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1414,6 +1415,132 @@ function updateCookbookStatus(message) {
   status.textContent = message || (cookbookId ? "Cookbook ready." : "Ready to generate.");
 }
 
+function renderCookbookPreview() {
+  const card = $("#cookbookPreviewCard");
+  const container = $("#cookbookPreview");
+  if (!card || !container) return;
+  if (selectedMenuIndex === null || !selectedMenuDetails) {
+    card.classList.add("hidden");
+    return;
+  }
+
+  const menu = menus[selectedMenuIndex];
+  const context = buildContext();
+  const staffing = DATA.STAFFING?.find((item) => item.id === selectedStaffing);
+  const recipes = selectedMenuDetails.recipes || [];
+  const shopping = selectedMenuDetails.shoppingList?.categories || [];
+  const timeline = selectedMenuDetails.timeline?.items || [];
+
+  container.innerHTML = `
+    <div class="cookbook-preview-section">
+      <h4>Menu Overview</h4>
+      <p>${escapeHtml(menu.title || "Menu")}</p>
+      <p>${escapeHtml(menu.personality || "")}</p>
+      <p>Food: ${escapeHtml(menu.foodCost || "TBD")} | Wine: ${escapeHtml(menu.wineCost || "TBD")}</p>
+      ${menu.courses
+        .map(
+          (course) => `
+            <p><strong>${escapeHtml(course.type)}:</strong> ${escapeHtml(course.name)}</p>
+          `
+        )
+        .join("")}
+    </div>
+    <div class="cookbook-preview-section">
+      <h4>Event Details</h4>
+      <p>${escapeHtml(context.eventTitle || "Dinner Party")} • ${escapeHtml(context.eventDate || "")} • ${
+    escapeHtml(context.serviceTime || "")
+  }</p>
+      <p>Guests: ${escapeHtml(String(context.guestCount || 0))} • Staffing: ${
+    escapeHtml(staffing?.name || "TBD")
+  }</p>
+    </div>
+    <div class="cookbook-preview-section">
+      <h4>Recipes</h4>
+      ${recipes
+        .map(
+          (recipe) => `
+            <div>
+              <p><strong>${escapeHtml(recipe.title || "Recipe")}</strong></p>
+              <p>Serves ${escapeHtml(String(recipe.serves || ""))} • Active ${
+            escapeHtml(recipe.activeTime || "")
+          } • Total ${escapeHtml(recipe.totalTime || "")}</p>
+              <p><strong>Ingredients</strong></p>
+              <ul>${(recipe.ingredients || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+              ${
+                recipe.equipment?.length
+                  ? `<p><strong>Equipment</strong></p><ul>${recipe.equipment
+                      .map((item) => `<li>${escapeHtml(item)}</li>`)
+                      .join("")}</ul>`
+                  : ""
+              }
+              ${
+                recipe.techniques?.length
+                  ? `<p><strong>Techniques</strong></p><ul>${recipe.techniques
+                      .map((item) => `<li>${escapeHtml(item)}</li>`)
+                      .join("")}</ul>`
+                  : ""
+              }
+              <p><strong>Method</strong></p>
+              <ol>${(recipe.steps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
+              ${
+                recipe.whyItWorks
+                  ? `<p><strong>Why the chef chose it and how it works in the meal:</strong> ${escapeHtml(
+                      recipe.whyItWorks
+                    )}</p>`
+                  : ""
+              }
+              ${recipe.notes ? `<p><strong>Notes:</strong> ${escapeHtml(recipe.notes)}</p>` : ""}
+              ${recipe.makeAhead ? `<p><strong>Make ahead:</strong> ${escapeHtml(recipe.makeAhead)}</p>` : ""}
+            </div>
+          `
+        )
+        .join("")}
+    </div>
+    <div class="cookbook-preview-section">
+      <h4>Shopping List</h4>
+      ${
+        shopping.length
+          ? shopping
+              .map(
+                (category) => `
+                <p><strong>${escapeHtml(category.name)}</strong></p>
+                <ul>
+                  ${(category.items || [])
+                    .map((item) => {
+                      const quantity = [item.quantityUS, item.quantityMetric].filter(Boolean).join(" / ");
+                      const notes = item.notes ? ` (${escapeHtml(item.notes)})` : "";
+                      return `<li>${escapeHtml(item.item)}${quantity ? ` — ${escapeHtml(quantity)}` : ""}${notes}</li>`;
+                    })
+                    .join("")}
+                </ul>
+              `
+              )
+              .join("")
+          : `<p>Shopping list will appear once details are ready.</p>`
+      }
+    </div>
+    <div class="cookbook-preview-section">
+      <h4>Timeline</h4>
+      ${
+        timeline.length
+          ? `<ul>
+              ${timeline
+                .slice()
+                .sort((a, b) => a.offsetMinutes - b.offsetMinutes)
+                .map((item) => {
+                  const relative = formatOffsetLabel(item.offsetMinutes);
+                  return `<li>${escapeHtml(relative)} — ${escapeHtml(item.label)}${
+                    item.durationMinutes ? ` (${item.durationMinutes} min)` : ""
+                  }</li>`;
+                })
+                .join("")}
+            </ul>`
+          : `<p>Timeline will appear once details are ready.</p>`
+      }
+    </div>
+  `;
+}
+
 function renderCookbookSections() {
   const container = $("#cookbookSections");
   if (!container) return;
@@ -1606,6 +1733,16 @@ function setupInputs() {
 
   $("#generateCookbook").addEventListener("click", generateCookbook);
   $("#downloadCookbook").addEventListener("click", downloadCookbook);
+  $("#toggleCookbookPreview")?.addEventListener("click", () => {
+    const card = $("#cookbookPreviewCard");
+    if (!card) return;
+    if (card.classList.contains("hidden")) {
+      renderCookbookPreview();
+      card.classList.remove("hidden");
+    } else {
+      card.classList.add("hidden");
+    }
+  });
   $("#startOver").addEventListener("click", () => {
     localStorage.removeItem(STORAGE_KEY);
     window.location.reload();
