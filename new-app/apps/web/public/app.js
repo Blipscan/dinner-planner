@@ -47,6 +47,8 @@ let selectedWineTier = null;
 let cookbookId = null;
 let appOnline = navigator.onLine;
 let detailsStatusTimer = null;
+let detailsWatchdogTimer = null;
+let detailsWatchdogTriggered = false;
 
 function $(selector) {
   return document.querySelector(selector);
@@ -857,13 +859,26 @@ async function generateMenus() {
     "Menu 5/5: Finalizing dessert and wine cohesion..."
   ];
   let statusIndex = 0;
+  let menuWatchdogTriggered = false;
   showInlineMessage("menuMessage", menuStatus[statusIndex]);
   showLoading("menuLoading", menuStatus[statusIndex]);
   const menuStatusTimer = setInterval(() => {
+    if (menuWatchdogTriggered) {
+      const slowMessage = "Still working... menus can take a few minutes at peak load.";
+      showInlineMessage("menuMessage", slowMessage);
+      showLoading("menuLoading", slowMessage);
+      return;
+    }
     statusIndex = (statusIndex + 1) % menuStatus.length;
     showInlineMessage("menuMessage", menuStatus[statusIndex]);
     showLoading("menuLoading", menuStatus[statusIndex]);
   }, 6000);
+  const menuWatchdogTimer = setTimeout(() => {
+    menuWatchdogTriggered = true;
+    const slowMessage = "Still working... menus can take a few minutes at peak load.";
+    showInlineMessage("menuMessage", slowMessage);
+    showLoading("menuLoading", slowMessage);
+  }, 90000);
   try {
     const res = await fetchWithTimeout(
       "/api/generate-menus",
@@ -889,6 +904,7 @@ async function generateMenus() {
       return;
     }
     clearInterval(menuStatusTimer);
+    clearTimeout(menuWatchdogTimer);
     menus = data.menus || [];
     selectedMenuIndex = null;
     renderMenus();
@@ -896,6 +912,7 @@ async function generateMenus() {
     saveState();
   } catch (err) {
     clearInterval(menuStatusTimer);
+    clearTimeout(menuWatchdogTimer);
     const message =
       err?.name === "AbortError"
         ? "Menu generation timed out. Please try again."
@@ -1360,17 +1377,34 @@ async function loadMenuDetails() {
     "Constructing the minute-by-minute day-of timeline..."
   ];
   let detailIndex = 0;
+  detailsWatchdogTriggered = false;
   if (detailsStatusTimer) {
     clearInterval(detailsStatusTimer);
     detailsStatusTimer = null;
   }
+  if (detailsWatchdogTimer) {
+    clearTimeout(detailsWatchdogTimer);
+    detailsWatchdogTimer = null;
+  }
   showInlineMessage("detailsMessage", detailStatus[detailIndex]);
   showLoading("detailsLoading", detailStatus[detailIndex]);
   detailsStatusTimer = setInterval(() => {
+    if (detailsWatchdogTriggered) {
+      const slowMessage = "Still working... detailed recipes can take several minutes.";
+      showInlineMessage("detailsMessage", slowMessage);
+      showLoading("detailsLoading", slowMessage);
+      return;
+    }
     detailIndex = (detailIndex + 1) % detailStatus.length;
     showInlineMessage("detailsMessage", detailStatus[detailIndex]);
     showLoading("detailsLoading", detailStatus[detailIndex]);
   }, 6000);
+  detailsWatchdogTimer = setTimeout(() => {
+    detailsWatchdogTriggered = true;
+    const slowMessage = "Still working... detailed recipes can take several minutes.";
+    showInlineMessage("detailsMessage", slowMessage);
+    showLoading("detailsLoading", slowMessage);
+  }, 120000);
 
   try {
     const res = await fetchWithTimeout(
@@ -1407,6 +1441,10 @@ async function loadMenuDetails() {
       clearInterval(detailsStatusTimer);
       detailsStatusTimer = null;
     }
+    if (detailsWatchdogTimer) {
+      clearTimeout(detailsWatchdogTimer);
+      detailsWatchdogTimer = null;
+    }
     menuDetailsCache[cacheKey] = selectedMenuDetails;
     renderWinePairings();
     renderRecipePreview();
@@ -1431,6 +1469,10 @@ async function loadMenuDetails() {
       clearInterval(detailsStatusTimer);
       detailsStatusTimer = null;
     }
+    if (detailsWatchdogTimer) {
+      clearTimeout(detailsWatchdogTimer);
+      detailsWatchdogTimer = null;
+    }
     const message =
       err?.name === "AbortError"
         ? "Details generation timed out. Please try again."
@@ -1440,6 +1482,10 @@ async function loadMenuDetails() {
     if (detailsStatusTimer) {
       clearInterval(detailsStatusTimer);
       detailsStatusTimer = null;
+    }
+    if (detailsWatchdogTimer) {
+      clearTimeout(detailsWatchdogTimer);
+      detailsWatchdogTimer = null;
     }
     hideLoading("detailsLoading");
   }
@@ -1476,11 +1522,22 @@ async function generateCookbook() {
     "Formatting tables, sections, and layout..."
   ];
   let cookbookIndex = 0;
+  let cookbookWatchdogTriggered = false;
   showLoading("cookbookLoading", cookbookStatus[cookbookIndex]);
   const cookbookTimer = setInterval(() => {
+    if (cookbookWatchdogTriggered) {
+      const slowMessage = "Still working... cookbook generation can take several minutes.";
+      showLoading("cookbookLoading", slowMessage);
+      return;
+    }
     cookbookIndex = (cookbookIndex + 1) % cookbookStatus.length;
     showLoading("cookbookLoading", cookbookStatus[cookbookIndex]);
   }, 6000);
+  const cookbookWatchdogTimer = setTimeout(() => {
+    cookbookWatchdogTriggered = true;
+    const slowMessage = "Still working... cookbook generation can take several minutes.";
+    showLoading("cookbookLoading", slowMessage);
+  }, 120000);
 
   try {
     const shoppingList = getShoppingListWithWineSelection();
@@ -1513,6 +1570,7 @@ async function generateCookbook() {
     showInlineMessage("detailsMessage", "Cookbook generation failed. Please try again.", true);
   } finally {
     clearInterval(cookbookTimer);
+    clearTimeout(cookbookWatchdogTimer);
     hideLoading("cookbookLoading");
   }
 }
