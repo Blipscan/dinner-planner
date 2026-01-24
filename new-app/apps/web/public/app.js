@@ -5,7 +5,7 @@ const STORAGE_KEY = "dinnerPlanner.newApp.state";
 const FETCH_TIMEOUTS_MS = {
   chat: 15000,
   menus: 60000,
-  details: 20000,
+  details: 60000,
   cookbook: 20000,
 };
 
@@ -1111,7 +1111,11 @@ async function loadMenuDetails() {
       renderTimelinePreview();
       return;
     }
-    showInlineMessage("detailsMessage", "Unable to load details. Try again.", true);
+    const message =
+      err?.name === "AbortError"
+        ? "Details generation timed out. Please try again."
+        : "Unable to load details. Check your connection and try again.";
+    showInlineMessage("detailsMessage", message, true);
   }
 }
 
