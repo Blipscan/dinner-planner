@@ -879,6 +879,22 @@ function renderRecipePreview() {
           <ul>
             ${(recipe.ingredients || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
           </ul>
+          ${
+            (recipe.equipment || []).length
+              ? `<strong>Equipment</strong>
+          <ul>
+            ${(recipe.equipment || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+          </ul>`
+              : ""
+          }
+          ${
+            (recipe.techniques || []).length
+              ? `<strong>Techniques</strong>
+          <ul>
+            ${(recipe.techniques || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+          </ul>`
+              : ""
+          }
           <strong>Method</strong>
           <ol>
             ${(recipe.steps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}

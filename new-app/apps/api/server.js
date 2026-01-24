@@ -688,10 +688,10 @@ app.post("/api/generate-details", rateLimit, async (req, res) => {
       ? `
 
 Output constraints:
-- Keep each recipe concise: max 4 ingredients, max 4 steps.
-- Each step must be 12 words or fewer.
-- notes and makeAhead must be 12 words or fewer.
-- whyItWorks must be 2 sentences, each 12 words or fewer, following the required format.
+- Use 6-8 ingredients and 5-6 steps per recipe.
+- Each step must be 16 words or fewer.
+- notes and makeAhead must be 18 words or fewer.
+- whyItWorks must be exactly 2 short sentences in the required format.
 - Use short wine names (producer + wine only).`
       : "";
 
@@ -706,6 +706,8 @@ Return ONLY valid JSON with this exact shape:
       "activeTime": "string",
       "totalTime": "string",
       "ingredients": ["string", "..."],
+      "equipment": ["string", "..."],
+      "techniques": ["string", "..."],
       "steps": ["string", "..."],
       "notes": "string",
       "makeAhead": "string",
@@ -731,9 +733,12 @@ Rules:
 - Each recipe includes whyItWorks with exactly 2 sentences:
   - "Chef chose it because <reason>."
   - "It fits by <how it supports the meal arc>."
+- Ingredients must include exact measurements in US and metric (e.g., "2 tbsp (30 ml) olive oil").
+- Provide an equipment list with sizes where applicable.
+- Provide a techniques list of the key methods used (e.g., sear, deglaze, emulsify).
 - Provide exactly 5 winePairings, in the same order as the menu courses.
 - Pairings should be specific bottles with producer + vintage when possible.
-- Keep steps concise and practical for a skilled home cook.${compactGuidance}`;
+- Steps must mention technique where applicable and remain practical for a skilled home cook.${compactGuidance}`;
 
     const response = await withTimeout(
       client.messages.create({
@@ -759,7 +764,21 @@ Rules:
     } catch (parseErr) {
       details = JSON.parse(jsonrepair(jsonText));
     }
-    const normalizedRecipes = Array.isArray(details.recipes) ? details.recipes : [];
+    const normalizedRecipes = Array.isArray(details.recipes)
+      ? details.recipes.map((recipe) => ({
+          ...recipe,
+          equipment: Array.isArray(recipe?.equipment)
+            ? recipe.equipment
+            : recipe?.equipment
+              ? [recipe.equipment]
+              : [],
+          techniques: Array.isArray(recipe?.techniques)
+            ? recipe.techniques
+            : recipe?.techniques
+              ? [recipe.techniques]
+              : [],
+        }))
+      : [];
     const normalizedPairings = normalizeWinePairings(normalizedMenu, details.winePairings);
     res.json({ ...details, recipes: normalizedRecipes, winePairings: normalizedPairings });
   } catch (err) {

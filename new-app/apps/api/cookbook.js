@@ -387,6 +387,36 @@ function buildRecipes(menu, recipes) {
           new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Ingredients will be generated based on your selections')] })
         );
       }
+
+      // Equipment
+      if (recipe.equipment && recipe.equipment.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Equipment', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.equipment.forEach(item => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(item)] })
+          );
+        });
+      }
+
+      // Techniques
+      if (recipe.techniques && recipe.techniques.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Techniques', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.techniques.forEach(item => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(item)] })
+          );
+        });
+      }
       
       // Method
       children.push(
