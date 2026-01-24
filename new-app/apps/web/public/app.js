@@ -46,6 +46,7 @@ let selectedWineTier = null;
 
 let cookbookId = null;
 let appOnline = navigator.onLine;
+let detailsStatusTimer = null;
 
 function $(selector) {
   return document.querySelector(selector);
@@ -1344,6 +1345,9 @@ async function loadMenuDetails() {
     renderWinePairings();
     renderRecipePreview();
     renderTimelinePreview();
+    renderShoppingListPreview();
+    showInlineMessage("detailsMessage", "Details ready. Click Generate cookbook to continue.");
+    hideLoading("detailsLoading");
     return;
   }
 
@@ -1355,9 +1359,13 @@ async function loadMenuDetails() {
     "Constructing the minute-by-minute day-of timeline..."
   ];
   let detailIndex = 0;
+  if (detailsStatusTimer) {
+    clearInterval(detailsStatusTimer);
+    detailsStatusTimer = null;
+  }
   showInlineMessage("detailsMessage", detailStatus[detailIndex]);
   showLoading("detailsLoading", detailStatus[detailIndex]);
-  const detailTimer = setInterval(() => {
+  detailsStatusTimer = setInterval(() => {
     detailIndex = (detailIndex + 1) % detailStatus.length;
     showInlineMessage("detailsMessage", detailStatus[detailIndex]);
     showLoading("detailsLoading", detailStatus[detailIndex]);
@@ -1394,13 +1402,16 @@ async function loadMenuDetails() {
       selectedMenuDetails = data;
     }
 
-    clearInterval(detailTimer);
+    if (detailsStatusTimer) {
+      clearInterval(detailsStatusTimer);
+      detailsStatusTimer = null;
+    }
     menuDetailsCache[cacheKey] = selectedMenuDetails;
     renderWinePairings();
     renderRecipePreview();
     renderTimelinePreview();
     renderShoppingListPreview();
-    showInlineMessage("detailsMessage", "Details ready.");
+    showInlineMessage("detailsMessage", "Details ready. Click Generate cookbook to continue.");
     saveState();
   } catch (err) {
     if (allowDemoFallback()) {
@@ -1411,17 +1422,23 @@ async function loadMenuDetails() {
       renderWinePairings();
       renderRecipePreview();
       renderTimelinePreview();
-    renderShoppingListPreview();
+      renderShoppingListPreview();
       return;
     }
-    clearInterval(detailTimer);
+    if (detailsStatusTimer) {
+      clearInterval(detailsStatusTimer);
+      detailsStatusTimer = null;
+    }
     const message =
       err?.name === "AbortError"
         ? "Details generation timed out. Please try again."
         : "Unable to load details. Check your connection and try again.";
     showInlineMessage("detailsMessage", message, true);
   } finally {
-    clearInterval(detailTimer);
+    if (detailsStatusTimer) {
+      clearInterval(detailsStatusTimer);
+      detailsStatusTimer = null;
+    }
     hideLoading("detailsLoading");
   }
 }
