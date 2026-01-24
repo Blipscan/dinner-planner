@@ -1698,8 +1698,8 @@ function updateEventRequiredFields() {
 }
 
 function validatePreferences() {
-  if (!selectedInspiration || !selectedStyle) {
-    showInlineMessage("preferenceMessage", "Select an inspiration and style.", true);
+  if (!selectedInspiration) {
+    showInlineMessage("preferenceMessage", "Select an inspiration to continue.", true);
     return false;
   }
   if (selectedInspiration === "custom") {
@@ -1709,8 +1709,24 @@ function validatePreferences() {
       return false;
     }
   }
+  if (!inspirationConfirmed) {
+    showInlineMessage("preferenceMessage", "Confirm the inspiration to continue.", true);
+    return false;
+  }
+  if (!selectedStyle) {
+    showInlineMessage("preferenceMessage", "Select a style to continue.", true);
+    return false;
+  }
+  if (!styleConfirmed) {
+    showInlineMessage("preferenceMessage", "Confirm the style to continue.", true);
+    return false;
+  }
   if (selectedCuisine && !selectedSubCuisine) {
     showInlineMessage("preferenceMessage", "Select a sub cuisine for the chosen region.", true);
+    return false;
+  }
+  if (!cuisineConfirmed) {
+    showInlineMessage("preferenceMessage", "Confirm the cuisine direction to continue.", true);
     return false;
   }
   showInlineMessage("preferenceMessage", "");
