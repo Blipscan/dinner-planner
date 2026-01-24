@@ -276,8 +276,8 @@
             <h2>Menu Selection</h2>
             <p class="card-subtitle">Generate five menus, then select the one that fits the moment.</p>
             <div class="menu-actions">
-              <button class="btn btn-primary" id="generateMenus">Generate menus</button>
-              <button class="btn btn-ghost" id="rejectMenus">Reject and refine</button>
+              <button class="btn btn-primary" id="generateMenus" type="button" onclick="generateMenus()">Generate menus</button>
+              <button class="btn btn-ghost" id="rejectMenus" type="button" onclick="startRejection()">Reject and refine</button>
             </div>
             <div class="inline-message" id="menuMessage"></div>
             <div class="loading-row hidden" id="menuLoading">
