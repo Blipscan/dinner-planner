@@ -57,7 +57,12 @@ function getWineTierEntries(wine) {
 // Build complete cookbook document
 async function buildCookbook(menu, context, staffing, recipes) {
   const staffingInfo = STAFFING.find(s => s.id === staffing) || STAFFING[0];
-  const guestNames = context.guestList ? context.guestList.split('\n').filter(n => n.trim()) : [];
+  const rawGuestList = context?.guestList;
+  const guestNames = Array.isArray(rawGuestList)
+    ? rawGuestList.map((name) => String(name).trim()).filter(Boolean)
+    : typeof rawGuestList === 'string'
+      ? rawGuestList.split('\n').map((name) => name.trim()).filter(Boolean)
+      : [];
   
   const doc = new Document({
     styles: {
