@@ -838,6 +838,11 @@ function getWineHighlight(wine) {
   return tiers.bondPick || tiers.worldwideTopRated || tiers.domesticTopRated || tiers.budgetTopRated || null;
 }
 
+function continueToMenus() {
+  goToStep(5);
+  generateMenus();
+}
+
 async function generateMenus() {
   const menuStatus = [
     "Menu 1/5: Shaping the opener and overall mood...",
@@ -1846,6 +1851,7 @@ function setupInputs() {
   });
 
   $("#generateMenus").addEventListener("click", generateMenus);
+  $("#continueToMenus")?.addEventListener("click", continueToMenus);
   $("#rejectMenus").addEventListener("click", startRejection);
   $("#sendRejection").addEventListener("click", sendRejection);
   $("#rejectionInput").addEventListener("keydown", (event) => {
