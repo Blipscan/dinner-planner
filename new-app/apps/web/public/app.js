@@ -1055,7 +1055,7 @@ function renderWinePairings() {
             <div class="wine-tier">Worldwide: ${escapeHtml(tiers.worldwideTopRated || "TBD")}</div>
             <div class="wine-tier">Domestic: ${escapeHtml(tiers.domesticTopRated || "TBD")}</div>
             <div class="wine-tier">Budget: ${escapeHtml(tiers.budgetTopRated || "TBD")}</div>
-            <div class="wine-tier">Bond: ${escapeHtml(tiers.bondPick || "TBD")}</div>
+            <div class="wine-tier">James Bond would order: ${escapeHtml(tiers.bondPick || "TBD")}</div>
           </div>
         </div>
       `;
