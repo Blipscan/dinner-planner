@@ -42,6 +42,7 @@ let customMenuText = "";
 let inspirationConfirmed = false;
 let styleConfirmed = false;
 let cuisineConfirmed = false;
+let selectedWineTier = null;
 
 let cookbookId = null;
 let appOnline = navigator.onLine;
@@ -151,6 +152,7 @@ function saveState() {
     inspirationConfirmed,
     styleConfirmed,
     cuisineConfirmed,
+    selectedWineTier,
     event: {
       eventTitle: $("#eventTitle")?.value || "",
       eventDate: $("#eventDate")?.value || "",
@@ -198,6 +200,7 @@ function loadState() {
     inspirationConfirmed = payload.inspirationConfirmed || false;
     styleConfirmed = payload.styleConfirmed || false;
     cuisineConfirmed = payload.cuisineConfirmed || false;
+    selectedWineTier = payload.selectedWineTier || null;
 
     if (payload.event) {
       $("#eventTitle").value = payload.event.eventTitle || "";
@@ -827,6 +830,7 @@ function renderMenus() {
   container.querySelectorAll(".menu-card").forEach((card) => {
     card.addEventListener("click", () => {
       selectedMenuIndex = parseInt(card.dataset.index, 10);
+      selectedWineTier = null;
       renderMenus();
       saveState();
     });
@@ -1041,6 +1045,7 @@ function renderWinePairings() {
   const menu = menus[selectedMenuIndex];
   if (!menu || !selectedMenuDetails?.winePairings) {
     container.innerHTML = `<div class="inline-message">Wine pairings will appear once details are ready.</div>`;
+    renderWineTierSelector();
     return;
   }
 
@@ -1061,6 +1066,74 @@ function renderWinePairings() {
       `;
     })
     .join("");
+  renderWineTierSelector();
+}
+
+function renderWineTierSelector() {
+  const container = $("#wineTierSelect");
+  const message = $("#wineTierMessage");
+  if (!container || !message) return;
+  if (!selectedMenuDetails?.winePairings?.length) {
+    container.innerHTML = "";
+    message.textContent = "Wine tier selection will appear once pairings are ready.";
+    return;
+  }
+  const tiers = [
+    { id: "worldwideTopRated", label: "Worldwide" },
+    { id: "domesticTopRated", label: "Domestic" },
+    { id: "budgetTopRated", label: "Budget" },
+    { id: "bondPick", label: "James Bond" },
+    { id: "none", label: "Skip wine for now" },
+  ];
+  container.innerHTML = tiers
+    .map((tier) => {
+      const selectedClass = selectedWineTier === tier.id ? "selected" : "";
+      return `<button class="chip ${selectedClass}" data-wine-tier="${tier.id}">${escapeHtml(
+        tier.label
+      )}</button>`;
+    })
+    .join("");
+  message.textContent =
+    selectedWineTier && selectedWineTier !== "none"
+      ? "Selected wine tier will populate the shopping list."
+      : "Select a wine tier to add to the shopping list.";
+  container.querySelectorAll("[data-wine-tier]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const tier = chip.dataset.wineTier;
+      selectedWineTier = tier === "none" ? null : tier;
+      renderWineTierSelector();
+      renderShoppingListPreview();
+      renderCookbookPreview();
+      saveState();
+    });
+  });
+}
+
+function buildWineShoppingItemsForTier() {
+  if (!selectedWineTier || !selectedMenuDetails?.winePairings?.length) return [];
+  return selectedMenuDetails.winePairings
+    .map((course) => {
+      const wine = course?.wine?.[selectedWineTier];
+      if (!wine) return null;
+      const isDessert = String(course?.type || "").toLowerCase().includes("dessert");
+      return {
+        item: wine,
+        quantityUS: isDessert ? "1 half-bottle (12.7 fl oz)" : "1 bottle (25.4 fl oz)",
+        quantityMetric: isDessert ? "375 ml" : "750 ml",
+        notes: course?.type ? `${course.type} pairing` : "",
+      };
+    })
+    .filter(Boolean);
+}
+
+function getShoppingListWithWineSelection() {
+  const list = selectedMenuDetails?.shoppingList?.categories;
+  if (!list) return null;
+  const withoutWine = list.filter((category) => category.name !== "Wine");
+  const wineItems = buildWineShoppingItemsForTier();
+  return {
+    categories: [...withoutWine, ...(wineItems.length ? [{ name: "Wine", items: wineItems }] : [])],
+  };
 }
 
 function renderRecipePreview() {
@@ -1123,7 +1196,7 @@ function renderRecipePreview() {
 function renderShoppingListPreview() {
   const container = $("#shoppingList");
   if (!container) return;
-  const list = selectedMenuDetails?.shoppingList?.categories;
+  const list = getShoppingListWithWineSelection()?.categories;
   if (!list || !list.length) {
     container.innerHTML = `<div class="inline-message">Shopping list will appear once details are ready.</div>`;
     return;
@@ -1385,6 +1458,7 @@ async function generateCookbook() {
   }, 6000);
 
   try {
+    const shoppingList = getShoppingListWithWineSelection();
     const res = await fetchWithTimeout(
       "/api/generate-cookbook",
       {
@@ -1396,7 +1470,7 @@ async function generateCookbook() {
           staffing: selectedStaffing,
           recipes: selectedMenuDetails.recipes,
           winePairings: selectedMenuDetails.winePairings,
-          shoppingList: selectedMenuDetails.shoppingList,
+          shoppingList,
           timeline: selectedMenuDetails.timeline,
         }),
       },
@@ -1530,7 +1604,7 @@ function renderCookbookPreview() {
   const context = buildContext();
   const staffing = DATA.STAFFING?.find((item) => item.id === selectedStaffing);
   const recipes = selectedMenuDetails.recipes || [];
-  const shopping = selectedMenuDetails.shoppingList?.categories || [];
+  const shopping = getShoppingListWithWineSelection()?.categories || [];
   const timeline = selectedMenuDetails.timeline?.items || [];
 
   container.innerHTML = `
