@@ -1399,6 +1399,7 @@ function setupInputs() {
 }
 
 async function init() {
+  localStorage.removeItem(STORAGE_KEY);
   attachNavigationHandlers();
   setupInputs();
   setupChipInput("likesInput", "likesList", likes);
