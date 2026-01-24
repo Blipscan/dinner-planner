@@ -343,6 +343,26 @@ textarea:focus {
   margin-top: 0.6rem;
 }
 
+.chip-input {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.chip-input input {
+  flex: 1 1 220px;
+}
+
+.chip-input .chip-row {
+  flex-basis: 100%;
+}
+
+.btn-inline {
+  padding: 0.55rem 1.1rem;
+  font-size: 0.85rem;
+}
+
 .chip {
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--cream-dark);

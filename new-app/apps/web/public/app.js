@@ -454,20 +454,29 @@ function renderChipList(containerId, items) {
   });
 }
 
-function setupChipInput(inputId, listId, items) {
+function addChipFromInput(input, listId, items) {
+  const value = input.value.trim();
+  if (!value) return;
+  items.push(value);
+  input.value = "";
+  renderChipList(listId, items);
+  saveState();
+}
+
+function setupChipInput(inputId, listId, items, buttonId) {
   const input = document.getElementById(inputId);
   if (!input) return;
 
+  const button = buttonId ? document.getElementById(buttonId) : null;
   input.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
-    const value = input.value.trim();
-    if (!value) return;
-    items.push(value);
-    input.value = "";
-    renderChipList(listId, items);
-    saveState();
+    addChipFromInput(input, listId, items);
   });
+
+  if (button) {
+    button.addEventListener("click", () => addChipFromInput(input, listId, items));
+  }
 }
 
 function renderExperts() {
@@ -1402,9 +1411,9 @@ async function init() {
   localStorage.removeItem(STORAGE_KEY);
   attachNavigationHandlers();
   setupInputs();
-  setupChipInput("likesInput", "likesList", likes);
-  setupChipInput("dislikesInput", "dislikesList", dislikes);
-  setupChipInput("restrictionsInput", "restrictionsList", restrictions);
+  setupChipInput("likesInput", "likesList", likes, "likesAdd");
+  setupChipInput("dislikesInput", "dislikesList", dislikes, "dislikesAdd");
+  setupChipInput("restrictionsInput", "restrictionsList", restrictions, "restrictionsAdd");
 
   try {
     const res = await fetchWithTimeout("/api/data", {}, 8000);
