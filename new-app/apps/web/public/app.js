@@ -39,6 +39,9 @@ let selectedStaffing = null;
 let menuDetailsCache = {};
 let selectedMenuDetails = null;
 let customMenuText = "";
+let inspirationConfirmed = false;
+let styleConfirmed = false;
+let cuisineConfirmed = false;
 
 let cookbookId = null;
 let appOnline = navigator.onLine;
@@ -111,6 +114,9 @@ function saveState() {
     selectedMenuDetails,
     cookbookId,
     customMenuText: $("#customMenuInput")?.value || customMenuText || "",
+    inspirationConfirmed,
+    styleConfirmed,
+    cuisineConfirmed,
     event: {
       eventTitle: $("#eventTitle")?.value || "",
       eventDate: $("#eventDate")?.value || "",
@@ -155,6 +161,9 @@ function loadState() {
     selectedMenuDetails = payload.selectedMenuDetails || null;
     cookbookId = payload.cookbookId || null;
     customMenuText = payload.customMenuText || "";
+    inspirationConfirmed = payload.inspirationConfirmed || false;
+    styleConfirmed = payload.styleConfirmed || false;
+    cuisineConfirmed = payload.cuisineConfirmed || false;
 
     if (payload.event) {
       $("#eventTitle").value = payload.event.eventTitle || "";
@@ -282,9 +291,16 @@ function renderInspirations() {
 
   grid.querySelectorAll(".choice-card").forEach((card) => {
     card.addEventListener("click", () => {
-      selectedInspiration = card.dataset.inspiration;
+      const next = card.dataset.inspiration;
+      if (selectedInspiration !== next) {
+        inspirationConfirmed = false;
+        styleConfirmed = false;
+        cuisineConfirmed = false;
+      }
+      selectedInspiration = next;
       renderInspirations();
       updateCustomMenuVisibility();
+      updatePreferenceFlow();
       saveState();
     });
   });
@@ -294,6 +310,21 @@ function updateCustomMenuVisibility() {
   const block = $("#customMenuBlock");
   if (!block) return;
   block.classList.toggle("hidden", selectedInspiration !== "custom");
+}
+
+function updatePreferenceFlow() {
+  const styleBlock = $("#styleBlock");
+  const cuisineBlock = $("#cuisineBlock");
+  const preferenceBlock = $("#preferenceDetailsBlock");
+  if (styleBlock) {
+    styleBlock.classList.toggle("hidden", !inspirationConfirmed);
+  }
+  if (cuisineBlock) {
+    cuisineBlock.classList.toggle("hidden", !styleConfirmed);
+  }
+  if (preferenceBlock) {
+    preferenceBlock.classList.toggle("hidden", !cuisineConfirmed);
+  }
 }
 
 function renderStyles() {
@@ -313,8 +344,14 @@ function renderStyles() {
 
   grid.querySelectorAll(".choice-card").forEach((card) => {
     card.addEventListener("click", () => {
-      selectedStyle = card.dataset.style;
+      const next = card.dataset.style;
+      if (selectedStyle !== next) {
+        styleConfirmed = false;
+        cuisineConfirmed = false;
+      }
+      selectedStyle = next;
       renderStyles();
+      updatePreferenceFlow();
       saveState();
     });
   });
@@ -345,8 +382,10 @@ function renderCuisineChips() {
         selectedCuisineCountry = null;
         selectedSubCuisine = null;
       }
+      cuisineConfirmed = false;
       renderCuisineChips();
       renderCuisineSubchoices();
+      updatePreferenceFlow();
       saveState();
     });
   });
@@ -444,7 +483,9 @@ function renderCuisineSubchoices() {
     chip.addEventListener("click", () => {
       const value = chip.dataset.subcuisine;
       selectedSubCuisine = selectedSubCuisine === value ? null : value;
+      cuisineConfirmed = false;
       renderCuisineSubchoices();
+      updatePreferenceFlow();
       saveState();
     });
   });
@@ -1476,6 +1517,46 @@ function setupInputs() {
     if (!el) return;
     el.addEventListener("change", saveState);
   });
+
+  $("#confirmInspiration")?.addEventListener("click", () => {
+    if (!selectedInspiration) {
+      showInlineMessage("preferenceMessage", "Select an inspiration to continue.", true);
+      return;
+    }
+    if (selectedInspiration === "custom") {
+      const text = ($("#customMenuInput")?.value || "").trim();
+      if (!text) {
+        showInlineMessage("preferenceMessage", "Enter the five courses you want served.", true);
+        return;
+      }
+    }
+    inspirationConfirmed = true;
+    showInlineMessage("preferenceMessage", "");
+    updatePreferenceFlow();
+    saveState();
+  });
+
+  $("#confirmStyle")?.addEventListener("click", () => {
+    if (!selectedStyle) {
+      showInlineMessage("preferenceMessage", "Select a style to continue.", true);
+      return;
+    }
+    styleConfirmed = true;
+    showInlineMessage("preferenceMessage", "");
+    updatePreferenceFlow();
+    saveState();
+  });
+
+  $("#confirmCuisine")?.addEventListener("click", () => {
+    if (selectedCuisine && !selectedSubCuisine) {
+      showInlineMessage("preferenceMessage", "Select a sub cuisine for the chosen region.", true);
+      return;
+    }
+    cuisineConfirmed = true;
+    showInlineMessage("preferenceMessage", "");
+    updatePreferenceFlow();
+    saveState();
+  });
 }
 
 async function init() {
@@ -1508,6 +1589,7 @@ async function init() {
   updateAccessStatus(accessValidated, accessValidated ? "Access ready." : "");
   renderInspirations();
   updateCustomMenuVisibility();
+  updatePreferenceFlow();
   renderStyles();
   renderCuisineChips();
   renderCuisineSubchoices();

@@ -164,9 +164,12 @@
           <div class="card">
             <h2>Preferences</h2>
             <p class="card-subtitle">Select an inspiration, style, and cuisine direction.</p>
-            <div class="section-block">
+            <div class="section-block" id="inspirationBlock">
               <h3>Menu inspiration</h3>
               <div class="choice-grid" id="inspirationGrid"></div>
+              <div class="inline-actions">
+                <button class="btn btn-secondary btn-inline" id="confirmInspiration" type="button">Enter</button>
+              </div>
             </div>
             <div class="section-block hidden" id="customMenuBlock">
               <h3>Your exact menu</h3>
@@ -179,37 +182,45 @@
                 placeholder="Amuse-Bouche: Smoked trout rillette on rye crisp&#10;First Course: Citrus-fennel salad&#10;Second Course: Mushroom agnolotti&#10;Main Course: Braised short rib with polenta&#10;Dessert: Dark chocolate pot de creme"
               ></textarea>
             </div>
-            <div class="section-block">
+            <div class="section-block hidden" id="styleBlock">
               <h3>Menu style</h3>
               <div class="choice-grid" id="styleGrid"></div>
+              <div class="inline-actions">
+                <button class="btn btn-secondary btn-inline" id="confirmStyle" type="button">Enter</button>
+              </div>
             </div>
-            <div class="section-block">
+            <div class="section-block hidden" id="cuisineBlock">
               <h3>Cuisine direction</h3>
               <div class="chip-row" id="cuisineChips"></div>
               <div class="subchoice" id="cuisineSubchoices"></div>
-            </div>
-            <div class="section-block">
-              <h3>Likes</h3>
-              <div class="chip-input">
-                <input id="likesInput" type="text" placeholder="Add a like and press enter" />
-                <button class="btn btn-ghost btn-inline" id="likesAdd" type="button">Enter</button>
-                <div class="chip-row" id="likesList"></div>
+              <div class="inline-actions">
+                <button class="btn btn-secondary btn-inline" id="confirmCuisine" type="button">Enter</button>
               </div>
             </div>
-            <div class="section-block">
-              <h3>Dislikes</h3>
-              <div class="chip-input">
-                <input id="dislikesInput" type="text" placeholder="Add a dislike and press enter" />
-                <button class="btn btn-ghost btn-inline" id="dislikesAdd" type="button">Enter</button>
-                <div class="chip-row" id="dislikesList"></div>
+            <div class="hidden" id="preferenceDetailsBlock">
+              <div class="section-block">
+                <h3>Likes</h3>
+                <div class="chip-input">
+                  <input id="likesInput" type="text" placeholder="Add a like and press enter" />
+                  <button class="btn btn-ghost btn-inline" id="likesAdd" type="button">Enter</button>
+                  <div class="chip-row" id="likesList"></div>
+                </div>
               </div>
-            </div>
-            <div class="section-block">
-              <h3>Dietary restrictions</h3>
-              <div class="chip-input">
-                <input id="restrictionsInput" type="text" placeholder="Add a restriction and press enter" />
-                <button class="btn btn-ghost btn-inline" id="restrictionsAdd" type="button">Enter</button>
-                <div class="chip-row" id="restrictionsList"></div>
+              <div class="section-block">
+                <h3>Dislikes</h3>
+                <div class="chip-input">
+                  <input id="dislikesInput" type="text" placeholder="Add a dislike and press enter" />
+                  <button class="btn btn-ghost btn-inline" id="dislikesAdd" type="button">Enter</button>
+                  <div class="chip-row" id="dislikesList"></div>
+                </div>
+              </div>
+              <div class="section-block">
+                <h3>Dietary restrictions</h3>
+                <div class="chip-input">
+                  <input id="restrictionsInput" type="text" placeholder="Add a restriction and press enter" />
+                  <button class="btn btn-ghost btn-inline" id="restrictionsAdd" type="button">Enter</button>
+                  <div class="chip-row" id="restrictionsList"></div>
+                </div>
               </div>
             </div>
             <div class="inline-message" id="preferenceMessage"></div>
