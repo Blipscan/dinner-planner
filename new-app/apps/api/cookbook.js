@@ -50,7 +50,7 @@ function getWineTierEntries(wine) {
     { label: 'Worldwide top rated', value: normalized.worldwideTopRated },
     { label: 'Domestic top rated', value: normalized.domesticTopRated },
     { label: 'Budget top rated', value: normalized.budgetTopRated },
-    { label: 'Bond pick', value: normalized.bondPick }
+    { label: 'James Bond would select', value: normalized.bondPick }
   ];
 }
 
@@ -257,7 +257,7 @@ function buildMenuOverview(menu) {
       })
     );
     const tierEntries = getWineTierEntries(course.wine);
-    const bondPick = tierEntries.find(entry => entry.label === 'Bond pick' && entry.value);
+    const bondPick = tierEntries.find(entry => entry.label === 'James Bond would select' && entry.value);
     const highlight = bondPick || tierEntries.find(entry => entry.value);
     if (highlight?.value) {
       children.push(
