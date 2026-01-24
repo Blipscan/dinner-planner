@@ -636,6 +636,9 @@ app.post("/api/chat", rateLimit, async (req, res) => {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const personaData = PERSONAS?.[persona] || PERSONAS.chef;
 
+    const customMenuSummary = context?.customMenu
+      ? `\nCustom menu provided by user:\n${context.customMenu}`
+      : "";
     const systemPrompt =
       (personaData?.systemPrompt || "") +
       `
@@ -654,6 +657,7 @@ Current event context:
 - Dislikes: ${context?.dislikes?.join(", ") || "none specified"}
 - Restrictions: ${context?.restrictions?.join(", ") || "none"}
 - Dining Space Notes: ${context?.diningSpace || "none"}
+${customMenuSummary}
 
 Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.
 
