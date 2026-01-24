@@ -840,10 +840,22 @@ function getWineHighlight(wine) {
 
 async function generateMenus() {
   showInlineMessage("menuMessage", "Generating menus...");
+  const menuStatus = [
+    "Menu 1/5: Shaping the opener and overall mood...",
+    "Menu 2/5: Balancing the mid-courses and flavor arc...",
+    "Menu 3/5: Building the centerpiece main course...",
+    "Menu 4/5: Refining contrast, texture, and pacing...",
+    "Menu 5/5: Finalizing dessert and wine cohesion..."
+  ];
+  let statusIndex = 0;
   showLoading(
     "menuLoading",
-    "Crafting five menus based on your inspiration, style, and cuisine (this can take a couple minutes)..."
+    menuStatus[statusIndex]
   );
+  const menuStatusTimer = setInterval(() => {
+    statusIndex = (statusIndex + 1) % menuStatus.length;
+    showLoading("menuLoading", menuStatus[statusIndex]);
+  }, 6000);
   try {
     const res = await fetchWithTimeout(
       "/api/generate-menus",
@@ -880,6 +892,7 @@ async function generateMenus() {
         : "Unable to generate menus. Check your connection and try again.";
     showInlineMessage("menuMessage", message, true);
   } finally {
+    clearInterval(menuStatusTimer);
     hideLoading("menuLoading");
   }
 }
