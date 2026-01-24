@@ -1036,6 +1036,35 @@ function renderRecipePreview() {
     .join("");
 }
 
+function renderShoppingListPreview() {
+  const container = $("#shoppingList");
+  if (!container) return;
+  const list = selectedMenuDetails?.shoppingList?.categories;
+  if (!list || !list.length) {
+    container.innerHTML = `<div class="inline-message">Shopping list will appear once details are ready.</div>`;
+    return;
+  }
+  const order = ["Proteins", "Produce", "Dairy", "Pantry", "Wine", "Misc"];
+  const sorted = [...list].sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+  container.innerHTML = sorted
+    .map((category) => {
+      const items = (category.items || [])
+        .map((item) => {
+          const quantity = [item.quantityUS, item.quantityMetric].filter(Boolean).join(" / ");
+          const notes = item.notes ? ` (${escapeHtml(item.notes)})` : "";
+          return `<li>${escapeHtml(item.item)}${quantity ? ` — ${escapeHtml(quantity)}` : ""}${notes}</li>`;
+        })
+        .join("");
+      return `
+        <div class="shopping-category">
+          <h4>${escapeHtml(category.name)}</h4>
+          <ul>${items}</ul>
+        </div>
+      `;
+    })
+    .join("");
+}
+
 function parseServiceTime() {
   const value = $("#serviceTime").value || "19:00";
   if (!value) return null;
@@ -1056,6 +1085,23 @@ function formatTime(date) {
 
 function buildTimelineItems() {
   const baseTime = parseServiceTime();
+  const timelineItems = selectedMenuDetails?.timeline?.items;
+  if (Array.isArray(timelineItems) && timelineItems.length) {
+    return timelineItems
+      .slice()
+      .sort((a, b) => a.offsetMinutes - b.offsetMinutes)
+      .map((item) => {
+        const relative = formatOffsetLabel(item.offsetMinutes);
+        const absolute = baseTime
+          ? formatTime(new Date(baseTime.getTime() + item.offsetMinutes * 60000))
+          : "";
+        const timeLabel = absolute ? `${absolute} (${relative})` : relative;
+        const duration = item.durationMinutes ? ` • ${item.durationMinutes} min` : "";
+        const task = `${item.label}${duration}`;
+        return { time: timeLabel, task };
+      });
+  }
+
   const staffing = DATA.STAFFING?.find((item) => item.id === selectedStaffing) || { activeMin: 0 };
   const schedule = [
     { offset: -360, label: "Final shopping for any last-minute items", offsetLabel: "-6 hr" },
@@ -1091,6 +1137,11 @@ function renderTimelinePreview() {
   const container = $("#timelinePreview");
   if (!container) return;
   const items = buildTimelineItems();
+  const cadence = selectedMenuDetails?.timeline?.cadenceMinutes;
+  const cadenceHtml =
+    cadence && Number.isFinite(cadence)
+      ? `<div class="inline-message">Planned cadence: every ${cadence} minutes.</div>`
+      : "";
   container.innerHTML = items
     .map(
       (item) => `
@@ -1101,6 +1152,24 @@ function renderTimelinePreview() {
       `
     )
     .join("");
+  if (cadenceHtml) {
+    container.insertAdjacentHTML("afterbegin", cadenceHtml);
+  }
+}
+
+function formatOffsetLabel(offsetMinutes) {
+  if (!Number.isFinite(offsetMinutes)) return "";
+  if (offsetMinutes === 0) return "T0";
+  const sign = offsetMinutes < 0 ? "-" : "+";
+  const total = Math.abs(offsetMinutes);
+  const days = Math.floor(total / 1440);
+  const hours = Math.floor((total % 1440) / 60);
+  const minutes = total % 60;
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes || (!days && !hours)) parts.push(`${minutes}m`);
+  return `T${sign}${parts.join(" ")}`;
 }
 
 function buildFallbackRecipes(menu) {
@@ -1180,6 +1249,7 @@ async function loadMenuDetails() {
     renderWinePairings();
     renderRecipePreview();
     renderTimelinePreview();
+    renderShoppingListPreview();
     showInlineMessage("detailsMessage", "Details ready.");
     saveState();
   } catch (err) {
@@ -1191,6 +1261,7 @@ async function loadMenuDetails() {
       renderWinePairings();
       renderRecipePreview();
       renderTimelinePreview();
+    renderShoppingListPreview();
       return;
     }
     const message =
@@ -1234,6 +1305,8 @@ async function generateCookbook() {
           staffing: selectedStaffing,
           recipes: selectedMenuDetails.recipes,
           winePairings: selectedMenuDetails.winePairings,
+          shoppingList: selectedMenuDetails.shoppingList,
+          timeline: selectedMenuDetails.timeline,
         }),
       },
       FETCH_TIMEOUTS_MS.cookbook
@@ -1644,6 +1717,7 @@ async function init() {
   renderRejectionChat();
   renderCookbookSections();
   renderPrintProducts();
+  renderShoppingListPreview();
   updateChatHeader();
   checkOnlineStatus();
   window.addEventListener("online", checkOnlineStatus);

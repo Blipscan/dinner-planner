@@ -673,6 +673,20 @@ textarea:focus {
   font-size: 0.85rem;
 }
 
+.shopping-category h4 {
+  margin: 0 0 0.4rem;
+  color: var(--navy);
+  font-size: 0.95rem;
+}
+
+.shopping-category ul {
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+  color: var(--text-light);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .print-grid {
   display: grid;
   gap: 0.8rem;

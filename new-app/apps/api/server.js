@@ -128,6 +128,58 @@ function parseCustomMenu(text) {
   return { courses };
 }
 
+function normalizeShoppingList(list) {
+  if (!list || !Array.isArray(list.categories)) {
+    return null;
+  }
+  const categories = list.categories
+    .map((category) => {
+      const name = category?.name || category?.category || "Misc";
+      const items = Array.isArray(category?.items)
+        ? category.items
+            .map((item) => ({
+              item: item?.item || item?.name || "",
+              quantityUS: item?.quantityUS || item?.us || "",
+              quantityMetric: item?.quantityMetric || item?.metric || "",
+              notes: item?.notes || "",
+            }))
+            .filter((entry) => entry.item)
+        : [];
+      return { name, items };
+    })
+    .filter((category) => category.items.length);
+
+  return categories.length ? { categories } : null;
+}
+
+function normalizeTimeline(timeline) {
+  if (!timeline || !Array.isArray(timeline.items)) {
+    return null;
+  }
+  const items = timeline.items
+    .map((item) => {
+      const offset = Number(item?.offsetMinutes ?? item?.offset ?? item?.minuteOffset);
+      const duration = Number(item?.durationMinutes ?? item?.duration ?? item?.minutes);
+      return {
+        offsetMinutes: Number.isFinite(offset) ? offset : null,
+        durationMinutes: Number.isFinite(duration) && duration > 0 ? duration : null,
+        label: item?.label || item?.task || "",
+        type: item?.type || "",
+        course: item?.course || "",
+      };
+    })
+    .filter((item) => item.offsetMinutes !== null && item.label);
+
+  const cadence = Number(timeline?.cadenceMinutes ?? timeline?.cadence ?? null);
+
+  return items.length
+    ? {
+        items,
+        cadenceMinutes: Number.isFinite(cadence) ? cadence : null,
+      }
+    : null;
+}
+
 function pruneCookbooks() {
   const now = Date.now();
   Object.entries(global.cookbooks).forEach(([id, payload]) => {
@@ -808,6 +860,34 @@ Return ONLY valid JSON with this exact shape:
       }
     }
   ]
+  ,
+  "shoppingList": {
+    "categories": [
+      {
+        "name": "Proteins|Produce|Dairy|Pantry|Wine|Misc",
+        "items": [
+          {
+            "item": "string",
+            "quantityUS": "string",
+            "quantityMetric": "string",
+            "notes": "string (optional)"
+          }
+        ]
+      }
+    ]
+  },
+  "timeline": {
+    "items": [
+      {
+        "offsetMinutes": number,
+        "durationMinutes": number,
+        "label": "string",
+        "type": "prep|cook|rest|serve|shop|set|makeAhead",
+        "course": "string (optional)"
+      }
+    ],
+    "cadenceMinutes": number
+  }
 }
 
 Rules:
@@ -819,6 +899,15 @@ Rules:
 - Ingredients must include exact measurements in US and metric (e.g., "2 tbsp (30 ml) olive oil").
 - Provide an equipment list with sizes where applicable.
 - Provide a techniques list of the key methods used (e.g., sear, deglaze, emulsify).
+- Build a quantity-based shopping list aggregated across all recipes.
+- Include pantry staples (salt, oil, pepper, butter) and wine.
+- Use the categories exactly: Proteins, Produce, Dairy, Pantry, Wine, Misc.
+- Each shopping list item must include US + metric quantities.
+- Provide a minute-by-minute day-of timeline derived from recipe steps and times.
+- Timeline must include shopping, make-ahead tasks, and table setting.
+- Use offsetMinutes relative to service time (0 = first bite).
+- Provide durationMinutes for each timeline entry.
+- Include cadenceMinutes if you plan a steady course spacing.
 - Provide exactly 5 winePairings, in the same order as the menu courses.
 - Pairings should be specific bottles with producer + vintage when possible.
 - Steps must mention technique where applicable and remain practical for a skilled home cook.${compactGuidance}`;
@@ -863,7 +952,15 @@ Rules:
         }))
       : [];
     const normalizedPairings = normalizeWinePairings(normalizedMenu, details.winePairings);
-    res.json({ ...details, recipes: normalizedRecipes, winePairings: normalizedPairings });
+    const normalizedShoppingList = normalizeShoppingList(details.shoppingList);
+    const normalizedTimeline = normalizeTimeline(details.timeline);
+    res.json({
+      ...details,
+      recipes: normalizedRecipes,
+      winePairings: normalizedPairings,
+      shoppingList: normalizedShoppingList,
+      timeline: normalizedTimeline,
+    });
   } catch (err) {
     console.error("Details generation error:", err);
     return res.status(502).json({ error: "Details generation failed.", detail: err.message });
@@ -872,7 +969,7 @@ Rules:
 
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
-  const { menu, context, staffing, recipes, winePairings } = req.body || {};
+  const { menu, context, staffing, recipes, winePairings, shoppingList, timeline } = req.body || {};
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
 
   global.cookbooks[cookbookId] = {
@@ -881,6 +978,8 @@ app.post("/api/generate-cookbook", async (req, res) => {
     staffing,
     recipes: recipes || null,
     winePairings: winePairings || null,
+    shoppingList: shoppingList || null,
+    timeline: timeline || null,
     createdAt: Date.now(),
   };
   res.json({ success: true, cookbookId });
@@ -894,11 +993,11 @@ app.post("/api/download-cookbook", async (req, res) => {
     return res.status(404).json({ error: "Cookbook not found" });
   }
 
-  const { menu, context, staffing, recipes, winePairings } = cookbookData;
+  const { menu, context, staffing, recipes, winePairings, shoppingList, timeline } = cookbookData;
 
   try {
     const mergedMenu = mergeMenuWinePairings(menu, winePairings);
-    const buffer = await buildCookbook(mergedMenu, context, staffing, recipes);
+    const buffer = await buildCookbook(mergedMenu, context, staffing, recipes, shoppingList, timeline);
     const filename =
       (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
 
