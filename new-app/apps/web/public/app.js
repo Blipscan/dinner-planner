@@ -1643,12 +1643,24 @@ function validateEventDetails() {
   const time = $("#serviceTime").value;
   const guests = parseInt($("#guestCount").value || "0", 10);
 
+  updateEventRequiredFields();
   if (!title || !date || !time || !guests) {
     showInlineMessage("eventMessage", "Please complete all required fields.", true);
     return false;
   }
   showInlineMessage("eventMessage", "");
   return true;
+}
+
+function updateEventRequiredFields() {
+  const fields = ["eventTitle", "eventDate", "serviceTime", "guestCount"];
+  fields.forEach((id) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    const value = input.value?.trim?.() ?? "";
+    const isMissing = id === "guestCount" ? Number(value) <= 0 : !value;
+    input.classList.toggle("required-missing", isMissing);
+  });
 }
 
 function validatePreferences() {
@@ -1765,6 +1777,12 @@ function setupInputs() {
     el.addEventListener("change", saveState);
   });
 
+  ["eventTitle", "eventDate", "serviceTime", "guestCount"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", updateEventRequiredFields);
+  });
+
   $("#confirmInspiration")?.addEventListener("click", () => {
     if (!selectedInspiration) {
       showInlineMessage("preferenceMessage", "Select an inspiration to continue.", true);
@@ -1856,6 +1874,7 @@ async function init() {
   renderPrintProducts();
   renderShoppingListPreview();
   updateChatHeader();
+  updateEventRequiredFields();
   checkOnlineStatus();
   window.addEventListener("online", checkOnlineStatus);
   window.addEventListener("offline", () => setOnlineStatus(false));
