@@ -270,6 +270,12 @@ function buildWineShoppingItems(winePairings) {
     .filter(Boolean);
 }
 
+function pickWineForTier(wine, wineTier) {
+  if (!wine || !wineTier) return null;
+  if (typeof wine === "string") return wine;
+  return wine[wineTier] || null;
+}
+
 function pruneCookbooks() {
   const now = Date.now();
   Object.entries(global.cookbooks).forEach(([id, payload]) => {
@@ -445,7 +451,7 @@ function gridForPerSheet(count) {
   }
 }
 
-function buildPrintItems(type, context, menu, totalSlots) {
+function buildPrintItems(type, context, menu, totalSlots, wineTier) {
   const items = [];
   const eventTitle = context?.eventTitle || "Dinner Party";
   const eventDate = context?.eventDate || "";
@@ -483,7 +489,17 @@ function buildPrintItems(type, context, menu, totalSlots) {
   }
 
   const menuTitle = menu?.title || "Menu";
-  const courseLines = (menu?.courses || []).map((course) => `${course.type}: ${course.name}`);
+  const courseLines = (menu?.courses || []).map((course) => {
+    const baseLine = `${course.type}: ${course.name}`;
+    if (type !== "menuCards") {
+      return baseLine;
+    }
+    const wine = pickWineForTier(course?.wine, wineTier);
+    if (!wine) {
+      return baseLine;
+    }
+    return `${baseLine} — Wine: ${wine}`;
+  });
   const lines = [eventTitle, menuTitle, ...courseLines];
   for (let i = 0; i < totalSlots; i += 1) {
     items.push(lines);
@@ -497,7 +513,7 @@ function truncateLine(text, maxLength) {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
-async function buildPrintProductPdf({ type, product, context, menu }) {
+async function buildPrintProductPdf({ type, product, context, menu, wineTier }) {
   const { width, height } = parseSizeInches(product.size);
   if (!width || !height) {
     throw new Error("Unable to parse product size.");
@@ -520,7 +536,7 @@ async function buildPrintProductPdf({ type, product, context, menu }) {
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const items = buildPrintItems(type, context, menu, rows * cols);
+  const items = buildPrintItems(type, context, menu, rows * cols, wineTier);
   items.forEach((lines, index) => {
     const row = Math.floor(index / cols);
     const col = index % cols;
@@ -1141,7 +1157,7 @@ app.post("/api/download-cookbook", async (req, res) => {
 
 // Print-ready PDF for Avery products
 app.post("/api/print-product", async (req, res) => {
-  const { type, sku, context, menu } = req.body || {};
+  const { type, sku, context, menu, wineTier } = req.body || {};
   const productList = AVERY_PRODUCTS?.[type];
   if (!productList) {
     return res.status(400).json({ error: "Invalid product type." });
@@ -1157,6 +1173,7 @@ app.post("/api/print-product", async (req, res) => {
       product,
       context: context || {},
       menu: menu || null,
+      wineTier,
     });
 
     res.setHeader("Content-Type", "application/pdf");

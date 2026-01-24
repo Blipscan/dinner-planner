@@ -1559,6 +1559,7 @@ async function downloadPrintProduct(type, sku) {
           sku,
           context: buildContext(),
           menu,
+          wineTier: selectedWineTier,
         }),
       },
       FETCH_TIMEOUTS_MS.cookbook
