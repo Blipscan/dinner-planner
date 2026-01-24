@@ -128,6 +128,37 @@ function parseCustomMenu(text) {
   return { courses };
 }
 
+function applyCustomMenuAnchors(menus, requiredCourses) {
+  if (!Array.isArray(menus) || !requiredCourses?.length) {
+    return menus;
+  }
+  return menus.map((menu) => {
+    const menuCourses = Array.isArray(menu?.courses) ? menu.courses : [];
+    const anchoredCourses = requiredCourses.map((required) => {
+      const match = menuCourses.find(
+        (course) => normalizeCourseType(course?.type) === required.type
+      );
+      const requiredName = required.name || "";
+      const existingName = match?.name || "";
+      let name = existingName || requiredName;
+      if (
+        requiredName &&
+        existingName &&
+        !existingName.toLowerCase().includes(requiredName.toLowerCase())
+      ) {
+        name = `${requiredName} — ${existingName}`;
+      }
+      return {
+        ...match,
+        type: required.type,
+        name,
+        wine: match?.wine ?? normalizeWineTiers(null),
+      };
+    });
+    return { ...menu, courses: anchoredCourses };
+  });
+}
+
 function normalizeShoppingList(list) {
   if (!list || !Array.isArray(list.categories)) {
     return null;
@@ -699,20 +730,10 @@ app.post("/api/generate-menus", rateLimit, async (req, res) => {
     usageStats[upperCode].generations++;
   }
 
-  if (context?.inspiration === "custom") {
-    const parsed = parseCustomMenu(context?.customMenu);
-    if (parsed.error) {
-      return res.status(400).json({ error: "Custom menu required.", detail: parsed.error });
-    }
-    const customMenu = {
-      id: 1,
-      title: context?.eventTitle ? `${context.eventTitle} Menu` : "Custom Menu",
-      personality: "Your exact requested menu, prepared to specification.",
-      foodCost: context?.foodBudget || "TBD",
-      wineCost: context?.wineBudget || "TBD",
-      courses: parsed.courses,
-    };
-    return res.json({ menus: [customMenu] });
+  const hasCustomMenu = context?.inspiration === "custom";
+  const customMenuParsed = hasCustomMenu ? parseCustomMenu(context?.customMenu) : null;
+  if (hasCustomMenu && customMenuParsed?.error) {
+    return res.status(400).json({ error: "Custom menu required.", detail: customMenuParsed.error });
   }
 
   if (!ANTHROPIC_API_KEY) {
@@ -734,6 +755,14 @@ app.post("/api/generate-menus", rateLimit, async (req, res) => {
         rejectionHistory.map((message) => `${message.role}: ${message.content}`).join("\n");
     }
 
+    const customMenuPrompt = hasCustomMenu
+      ? `
+
+Custom menu anchors (must appear in every menu):
+${customMenuParsed.courses.map((course) => `- ${course.type}: ${course.name}`).join("\n")}
+You may add supporting components, but keep each anchor dish in the course name.`
+      : "";
+
     const systemPrompt = `You are an expert culinary team creating dinner party menus.
 
 Event Context:
@@ -747,12 +776,14 @@ Event Context:
 - Guest Preferences: Likes ${context?.likes?.join(", ") || "various"}, Avoids ${context?.dislikes?.join(", ") || "nothing specific"}
 - Dietary Restrictions: ${context?.restrictions?.join(", ") || "none"}
 ${chatContext}
+${customMenuPrompt}
 
 Inspiration rules:
 - The inspiration is the primary driver for menu selection.
 - Ensure each menu clearly reflects the inspiration in title, personality, and course choices.
 - If inspiration is "restaurant", mirror the style of the restaurant(s) discussed in chat.
 - If inspiration is "custom", do not invent dishes—use the user-provided menu exactly.
+- Each menu must feel distinct while honoring the required anchors.
 
 Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - id: number (1-5)
@@ -793,6 +824,9 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
         menus = JSON.parse(jsonrepair(jsonText));
       }
       menus = Array.isArray(menus) ? menus.map(normalizeMenuWinePairings) : [];
+      if (hasCustomMenu) {
+        menus = applyCustomMenuAnchors(menus, customMenuParsed.courses);
+      }
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content[0].text);
