@@ -74,6 +74,60 @@ const rateLimitBuckets = new Map();
 
 global.cookbooks = global.cookbooks || {};
 
+const COURSE_TYPES = ["Amuse-Bouche", "First Course", "Second Course", "Main Course", "Dessert"];
+
+function normalizeCourseType(value) {
+  if (!value) return null;
+  const key = value.toLowerCase().replace(/[^a-z]/g, "");
+  const map = {
+    amusebouche: "Amuse-Bouche",
+    amuse: "Amuse-Bouche",
+    firstcourse: "First Course",
+    first: "First Course",
+    secondcourse: "Second Course",
+    second: "Second Course",
+    maincourse: "Main Course",
+    main: "Main Course",
+    dessert: "Dessert",
+  };
+  return map[key] || null;
+}
+
+function parseCustomMenu(text) {
+  if (!text || typeof text !== "string") {
+    return { error: "Provide your five courses in the custom menu field." };
+  }
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length !== 5) {
+    return { error: "Custom menus must include exactly five courses (one per line)." };
+  }
+
+  const courses = lines.map((line, index) => {
+    const parts = line.split(":");
+    let type = COURSE_TYPES[index];
+    let name = line;
+    if (parts.length > 1) {
+      const candidateType = normalizeCourseType(parts[0].trim());
+      if (candidateType) {
+        type = candidateType;
+        name = parts.slice(1).join(":").trim();
+      } else {
+        name = parts.slice(1).join(":").trim() || line;
+      }
+    }
+    return {
+      type,
+      name: name || `Course ${index + 1}`,
+      wine: normalizeWineTiers(null),
+    };
+  });
+
+  return { courses };
+}
+
 function pruneCookbooks() {
   const now = Date.now();
   Object.entries(global.cookbooks).forEach(([id, payload]) => {
@@ -549,7 +603,13 @@ Current event context:
 - Restrictions: ${context?.restrictions?.join(", ") || "none"}
 - Dining Space Notes: ${context?.diningSpace || "none"}
 
-Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.`;
+Be conversational, warm, and helpful. Ask clarifying questions when needed. Share your expertise naturally.
+
+Conversation requirements:
+- If the user hasn't specified what dishes are already set, ask: "What are you already set on serving?"
+- If inspiration is "restaurant", ask which restaurants or specific dishes to recreate.
+- If inspiration is "custom", ask for the exact five courses and dish names, one per line.
+- Ask one focused question at a time and avoid repeating questions already answered.`;
 
     const apiMessages = (messages || []).map((message) => ({
       role: message.role === "user" ? "user" : "assistant",
@@ -581,6 +641,22 @@ app.post("/api/generate-menus", rateLimit, async (req, res) => {
   const upperCode = code?.trim?.().toUpperCase?.();
   if (upperCode && usageStats[upperCode]) {
     usageStats[upperCode].generations++;
+  }
+
+  if (context?.inspiration === "custom") {
+    const parsed = parseCustomMenu(context?.customMenu);
+    if (parsed.error) {
+      return res.status(400).json({ error: "Custom menu required.", detail: parsed.error });
+    }
+    const customMenu = {
+      id: 1,
+      title: context?.eventTitle ? `${context.eventTitle} Menu` : "Custom Menu",
+      personality: "Your exact requested menu, prepared to specification.",
+      foodCost: context?.foodBudget || "TBD",
+      wineCost: context?.wineBudget || "TBD",
+      courses: parsed.courses,
+    };
+    return res.json({ menus: [customMenu] });
   }
 
   if (!ANTHROPIC_API_KEY) {
@@ -615,6 +691,12 @@ Event Context:
 - Guest Preferences: Likes ${context?.likes?.join(", ") || "various"}, Avoids ${context?.dislikes?.join(", ") || "nothing specific"}
 - Dietary Restrictions: ${context?.restrictions?.join(", ") || "none"}
 ${chatContext}
+
+Inspiration rules:
+- The inspiration is the primary driver for menu selection.
+- Ensure each menu clearly reflects the inspiration in title, personality, and course choices.
+- If inspiration is "restaurant", mirror the style of the restaurant(s) discussed in chat.
+- If inspiration is "custom", do not invent dishes—use the user-provided menu exactly.
 
 Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - id: number (1-5)
@@ -733,6 +815,7 @@ Rules:
 - Each recipe includes whyItWorks with exactly 2 sentences:
   - "Chef chose it because <reason>."
   - "It fits by <how it supports the meal arc>."
+- Use the exact course names from the menu; do not rename dishes.
 - Ingredients must include exact measurements in US and metric (e.g., "2 tbsp (30 ml) olive oil").
 - Provide an equipment list with sizes where applicable.
 - Provide a techniques list of the key methods used (e.g., sear, deglaze, emulsify).

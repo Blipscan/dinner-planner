@@ -38,6 +38,7 @@ let rejectionHistory = [];
 let selectedStaffing = null;
 let menuDetailsCache = {};
 let selectedMenuDetails = null;
+let customMenuText = "";
 
 let cookbookId = null;
 let appOnline = navigator.onLine;
@@ -109,6 +110,7 @@ function saveState() {
     menuDetailsCache,
     selectedMenuDetails,
     cookbookId,
+    customMenuText: $("#customMenuInput")?.value || customMenuText || "",
     event: {
       eventTitle: $("#eventTitle")?.value || "",
       eventDate: $("#eventDate")?.value || "",
@@ -152,6 +154,7 @@ function loadState() {
     menuDetailsCache = payload.menuDetailsCache || {};
     selectedMenuDetails = payload.selectedMenuDetails || null;
     cookbookId = payload.cookbookId || null;
+    customMenuText = payload.customMenuText || "";
 
     if (payload.event) {
       $("#eventTitle").value = payload.event.eventTitle || "";
@@ -163,6 +166,10 @@ function loadState() {
       $("#skillLevel").value = payload.event.skillLevel || "intermediate";
       $("#guestList").value = payload.event.guestList || "";
       $("#diningSpace").value = payload.event.diningSpace || "";
+    }
+
+    if ($("#customMenuInput")) {
+      $("#customMenuInput").value = customMenuText;
     }
 
     $("#accessCode").value = accessCode;
@@ -277,9 +284,16 @@ function renderInspirations() {
     card.addEventListener("click", () => {
       selectedInspiration = card.dataset.inspiration;
       renderInspirations();
+      updateCustomMenuVisibility();
       saveState();
     });
   });
+}
+
+function updateCustomMenuVisibility() {
+  const block = $("#customMenuBlock");
+  if (!block) return;
+  block.classList.toggle("hidden", selectedInspiration !== "custom");
 }
 
 function renderStyles() {
@@ -647,6 +661,7 @@ function buildContext() {
     restrictions,
     guestList: parseGuestList($("#guestList").value),
     diningSpace: $("#diningSpace").value || "",
+    customMenu: $("#customMenuInput")?.value || "",
   };
 }
 
@@ -1363,6 +1378,13 @@ function validatePreferences() {
     showInlineMessage("preferenceMessage", "Select an inspiration and style.", true);
     return false;
   }
+  if (selectedInspiration === "custom") {
+    const text = ($("#customMenuInput")?.value || "").trim();
+    if (!text) {
+      showInlineMessage("preferenceMessage", "Enter the five courses you want served.", true);
+      return false;
+    }
+  }
   if (selectedCuisine && !selectedSubCuisine) {
     showInlineMessage("preferenceMessage", "Select a sub cuisine for the chosen region.", true);
     return false;
@@ -1448,8 +1470,11 @@ function setupInputs() {
     "skillLevel",
     "guestList",
     "diningSpace",
+    "customMenuInput",
   ].forEach((id) => {
-    document.getElementById(id).addEventListener("change", saveState);
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("change", saveState);
   });
 }
 
@@ -1482,6 +1507,7 @@ async function init() {
   }
   updateAccessStatus(accessValidated, accessValidated ? "Access ready." : "");
   renderInspirations();
+  updateCustomMenuVisibility();
   renderStyles();
   renderCuisineChips();
   renderCuisineSubchoices();
