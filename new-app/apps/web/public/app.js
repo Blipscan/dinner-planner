@@ -1096,11 +1096,14 @@ function renderWineTierSelector() {
     message.textContent = "Wine tier selection will appear once pairings are ready.";
     return;
   }
+  if (selectedWineTier === "bondPick") {
+    selectedWineTier = null;
+    saveState();
+  }
   const tiers = [
     { id: "worldwideTopRated", label: "Worldwide" },
     { id: "domesticTopRated", label: "Domestic" },
     { id: "budgetTopRated", label: "Budget" },
-    { id: "bondPick", label: "James Bond" },
     { id: "none", label: "Skip wine for now" },
   ];
   container.innerHTML = tiers
