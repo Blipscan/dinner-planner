@@ -1170,57 +1170,33 @@ function formatTime(date) {
 function buildTimelineItems() {
   const baseTime = parseServiceTime();
   const timelineItems = selectedMenuDetails?.timeline?.items;
-  if (Array.isArray(timelineItems) && timelineItems.length) {
-    return timelineItems
-      .slice()
-      .sort((a, b) => a.offsetMinutes - b.offsetMinutes)
-      .map((item) => {
-        const relative = formatOffsetLabel(item.offsetMinutes);
-        const absolute = baseTime
-          ? formatTime(new Date(baseTime.getTime() + item.offsetMinutes * 60000))
-          : "";
-        const timeLabel = absolute ? `${absolute} (${relative})` : relative;
-        const duration = item.durationMinutes ? ` • ${item.durationMinutes} min` : "";
-        const task = `${item.label}${duration}`;
-        return { time: timeLabel, task };
-      });
+  if (!Array.isArray(timelineItems) || !timelineItems.length) {
+    return [];
   }
 
-  const staffing = DATA.STAFFING?.find((item) => item.id === selectedStaffing) || { activeMin: 0 };
-  const schedule = [
-    { offset: -360, label: "Final shopping for any last-minute items", offsetLabel: "-6 hr" },
-    { offset: -300, label: "Begin slow-cooking items (braises, stocks)", offsetLabel: "-5 hr" },
-    { offset: -240, label: "Prep remaining vegetables and garnishes", offsetLabel: "-4 hr" },
-    { offset: -180, label: "Start sauces and reductions", offsetLabel: "-3 hr" },
-    { offset: -120, label: "Set out cheese and butter to temper", offsetLabel: "-2 hr" },
-    { offset: -90, label: "Open and decant red wines", offsetLabel: "-90 min" },
-    { offset: -60, label: "Final protein prep, bring to room temp", offsetLabel: "-1 hr" },
-    { offset: -45, label: "Preheat oven, warm plates", offsetLabel: "-45 min" },
-    { offset: -30, label: "Light candles, start music, final touches", offsetLabel: "-30 min" },
-    { offset: -15, label: "Plate amuse-bouche, pour welcome drinks", offsetLabel: "-15 min" },
-    { offset: 0, label: "Guests arrive - service begins", offsetLabel: "0" },
-    { offset: 15, label: "Serve amuse-bouche", offsetLabel: "+15 min" },
-    { offset: 30, label: "Fire first course", offsetLabel: "+30 min" },
-    { offset: 50, label: "Clear, serve second course", offsetLabel: "+50 min" },
-    { offset: 80, label: "Fire main course", offsetLabel: "+80 min" },
-    { offset: 110, label: "Clear, prepare dessert", offsetLabel: "+110 min" },
-    { offset: 130, label: "Serve dessert and dessert wine", offsetLabel: "+130 min" },
-  ];
-
-  return schedule.map((item) => {
-    if (!baseTime) {
-      return { time: item.offsetLabel, task: item.label, activeMin: staffing.activeMin };
-    }
-    const time = new Date(baseTime.getTime() + item.offset * 60000);
-    const label = `${formatTime(time)} (${item.offsetLabel})`;
-    return { time: label, task: item.label, activeMin: staffing.activeMin };
-  });
+  return timelineItems
+    .slice()
+    .sort((a, b) => a.offsetMinutes - b.offsetMinutes)
+    .map((item) => {
+      const relative = formatOffsetLabel(item.offsetMinutes);
+      const absolute = baseTime
+        ? formatTime(new Date(baseTime.getTime() + item.offsetMinutes * 60000))
+        : "";
+      const timeLabel = absolute ? `${absolute} (${relative})` : relative;
+      const duration = item.durationMinutes ? ` • ${item.durationMinutes} min` : "";
+      const task = `${item.label}${duration}`;
+      return { time: timeLabel, task };
+    });
 }
 
 function renderTimelinePreview() {
   const container = $("#timelinePreview");
   if (!container) return;
   const items = buildTimelineItems();
+  if (!items.length) {
+    container.innerHTML = `<div class="inline-message">Day-of timeline will appear once details are ready.</div>`;
+    return;
+  }
   const cadence = selectedMenuDetails?.timeline?.cadenceMinutes;
   const cadenceHtml =
     cadence && Number.isFinite(cadence)
