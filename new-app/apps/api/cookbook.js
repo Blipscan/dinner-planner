@@ -50,14 +50,19 @@ function getWineTierEntries(wine) {
     { label: 'Worldwide top rated', value: normalized.worldwideTopRated },
     { label: 'Domestic top rated', value: normalized.domesticTopRated },
     { label: 'Budget top rated', value: normalized.budgetTopRated },
-    { label: 'Bond pick', value: normalized.bondPick }
+    { label: 'James Bond would select', value: normalized.bondPick }
   ];
 }
 
 // Build complete cookbook document
-async function buildCookbook(menu, context, staffing, recipes) {
+async function buildCookbook(menu, context, staffing, recipes, shoppingList, timeline) {
   const staffingInfo = STAFFING.find(s => s.id === staffing) || STAFFING[0];
-  const guestNames = context.guestList ? context.guestList.split('\n').filter(n => n.trim()) : [];
+  const rawGuestList = context?.guestList;
+  const guestNames = Array.isArray(rawGuestList)
+    ? rawGuestList.map((name) => String(name).trim()).filter(Boolean)
+    : typeof rawGuestList === 'string'
+      ? rawGuestList.split('\n').map((name) => name.trim()).filter(Boolean)
+      : [];
   
   const doc = new Document({
     styles: {
@@ -148,13 +153,13 @@ async function buildCookbook(menu, context, staffing, recipes) {
         ...buildRecipes(menu, recipes),
         
         // ========== SHOPPING LIST ==========
-        ...buildShoppingList(menu, context, recipes),
+        ...buildShoppingList(menu, context, recipes, shoppingList),
         
         // ========== DAY BEFORE PREP ==========
         ...buildDayBeforePrep(menu, staffingInfo),
         
         // ========== DAY OF TIMELINE ==========
-        ...buildDayOfTimeline(menu, context, staffingInfo),
+        ...buildDayOfTimeline(menu, context, staffingInfo, timeline),
         
         // ========== PLATING GUIDES ==========
         ...buildPlatingGuides(menu),
@@ -252,7 +257,7 @@ function buildMenuOverview(menu) {
       })
     );
     const tierEntries = getWineTierEntries(course.wine);
-    const bondPick = tierEntries.find(entry => entry.label === 'Bond pick' && entry.value);
+    const bondPick = tierEntries.find(entry => entry.label === 'James Bond would select' && entry.value);
     const highlight = bondPick || tierEntries.find(entry => entry.value);
     if (highlight?.value) {
       children.push(
@@ -387,6 +392,36 @@ function buildRecipes(menu, recipes) {
           new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Ingredients will be generated based on your selections')] })
         );
       }
+
+      // Equipment
+      if (recipe.equipment && recipe.equipment.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Equipment', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.equipment.forEach(item => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(item)] })
+          );
+        });
+      }
+
+      // Techniques
+      if (recipe.techniques && recipe.techniques.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Techniques', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.techniques.forEach(item => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(item)] })
+          );
+        });
+      }
       
       // Method
       children.push(
@@ -408,12 +443,14 @@ function buildRecipes(menu, recipes) {
         );
       }
 
-      // Why It Works
+      // Why the chef chose it + meal fit
       if (recipe.whyItWorks) {
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
-            children: [new TextRun({ text: 'Why It Works', size: 26, bold: true, color: COLORS.gold })]
+            children: [
+              new TextRun({ text: "Why the chef chose it and how it works in the meal", size: 26, bold: true, color: COLORS.gold })
+            ]
           }),
           new Paragraph({
             children: [new TextRun({ text: recipe.whyItWorks, color: COLORS.text })]
@@ -461,7 +498,7 @@ function buildRecipes(menu, recipes) {
   return children;
 }
 
-function buildShoppingList(menu, context, recipes) {
+function buildShoppingList(menu, context, recipes, shoppingList) {
   const guestCount = parseInt(context.guestCount) || 6;
   
   const children = [
@@ -475,19 +512,43 @@ function buildShoppingList(menu, context, recipes) {
     })
   ];
   
-  const categories = ['Proteins', 'Seafood', 'Produce', 'Dairy & Eggs', 'Pantry', 'Wine & Beverages', 'Special Ingredients'];
-  
-  categories.forEach(cat => {
-    children.push(
-      new Paragraph({
-        heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text: cat, size: 26, bold: true, color: COLORS.gold })]
-      }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Items based on your menu')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] })
+  if (shoppingList?.categories?.length) {
+    const order = ['Proteins', 'Produce', 'Dairy', 'Pantry', 'Wine', 'Misc'];
+    const categories = [...shoppingList.categories].sort(
+      (a, b) => order.indexOf(a.name) - order.indexOf(b.name)
     );
-  });
+
+    categories.forEach(cat => {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun({ text: cat.name, size: 26, bold: true, color: COLORS.gold })]
+        })
+      );
+
+      (cat.items || []).forEach(item => {
+        const quantities = [item.quantityUS, item.quantityMetric].filter(Boolean);
+        const qtyText = quantities.length ? ` — ${quantities.join(' / ')}` : '';
+        const notes = item.notes ? ` (${item.notes})` : '';
+        const line = `${item.item}${qtyText}${notes}`;
+        children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(line)] }));
+      });
+    });
+  } else {
+    const categories = ['Proteins', 'Produce', 'Dairy', 'Pantry', 'Wine', 'Misc'];
+
+    categories.forEach(cat => {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun({ text: cat, size: 26, bold: true, color: COLORS.gold })]
+        }),
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Items based on your menu')] }),
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] }),
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] })
+      );
+    });
+  }
   
   children.push(
     new Paragraph({
@@ -539,8 +600,50 @@ function buildDayBeforePrep(menu, staffingInfo) {
   return children;
 }
 
-function buildDayOfTimeline(menu, context, staffingInfo) {
+function parseServiceTime(serviceTime) {
+  if (!serviceTime) return null;
+  const trimmed = String(serviceTime).trim();
+  const match = trimmed.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem) {
+    hours = hours % 12;
+    if (meridiem === 'PM') hours += 12;
+  }
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+}
+
+function formatTime(date) {
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${minutes} ${ampm}`;
+}
+
+function formatOffsetLabel(offsetMinutes) {
+  if (!Number.isFinite(offsetMinutes)) return '';
+  if (offsetMinutes === 0) return 'T0';
+  const sign = offsetMinutes < 0 ? '-' : '+';
+  const total = Math.abs(offsetMinutes);
+  const days = Math.floor(total / 1440);
+  const hours = Math.floor((total % 1440) / 60);
+  const minutes = total % 60;
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes || (!days && !hours)) parts.push(`${minutes}m`);
+  return `T${sign}${parts.join(' ')}`;
+}
+
+function buildDayOfTimeline(menu, context, staffingInfo, timeline) {
   const serviceTime = context.serviceTime || '7:00 PM';
+  const baseTime = parseServiceTime(serviceTime);
   
   const children = [
     new Paragraph({ 
@@ -552,9 +655,46 @@ function buildDayOfTimeline(menu, context, staffingInfo) {
       children: [new TextRun({ text: `Service Time: ${serviceTime} | Your active time: ~${staffingInfo.activeMin} minutes`, size: 24, italics: true, color: COLORS.textLight })]
     })
   ];
+
+  if (timeline?.items?.length) {
+    const cadence = Number.isFinite(timeline.cadenceMinutes)
+      ? `Cadence: every ${timeline.cadenceMinutes} minutes`
+      : null;
+    if (cadence) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 200 },
+          children: [new TextRun({ text: cadence, size: 22, italics: true, color: COLORS.textLight })]
+        })
+      );
+    }
+
+    const items = [...timeline.items].sort((a, b) => a.offsetMinutes - b.offsetMinutes);
+    items.forEach(item => {
+      const relative = formatOffsetLabel(item.offsetMinutes);
+      const absolute = baseTime
+        ? formatTime(new Date(baseTime.getTime() + item.offsetMinutes * 60000))
+        : '';
+      const timeLabel = absolute ? `${absolute} (${relative})` : relative;
+      const duration = item.durationMinutes ? ` — ${item.durationMinutes} min` : '';
+      const label = `${item.label}${duration}`;
+      children.push(
+        new Paragraph({
+          spacing: { before: 100 },
+          children: [
+            new TextRun({ text: timeLabel.padEnd(18), bold: true, color: COLORS.gold, size: 22 }),
+            new TextRun({ text: label, size: 22 })
+          ]
+        })
+      );
+    });
+
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    return children;
+  }
   
   // Work backwards from service time
-  const timeline = [
+  const fallbackTimeline = [
     { time: '-6 hours', task: 'Final shopping for any last-minute items' },
     { time: '-5 hours', task: 'Begin slow-cooking items (braises, stocks)' },
     { time: '-4 hours', task: 'Prep remaining vegetables and garnishes' },
@@ -574,7 +714,7 @@ function buildDayOfTimeline(menu, context, staffingInfo) {
     { time: '+130 min', task: 'Serve dessert and dessert wine' }
   ];
   
-  timeline.forEach(item => {
+  fallbackTimeline.forEach(item => {
     children.push(
       new Paragraph({
         spacing: { before: 100 },
@@ -784,8 +924,9 @@ function buildImagePrompts(menu, context) {
     })
   ];
   
+  const diningSpace = context?.diningSpace ? ` in the host's dining space (${context.diningSpace})` : '';
   menu.courses.forEach(course => {
-    const prompt = `Professional food photography of ${course.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
+    const prompt = `Professional food photography of ${course.name}${diningSpace}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
     
     children.push(
       new Paragraph({

@@ -352,34 +352,58 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
 
     /* ===== DETAIL PREVIEWS ===== */
+    .wine-course-list {
+      display: grid;
+      gap: 1.1rem;
+      margin-top: 0.75rem;
+    }
+    .wine-course-card {
+      border: 1px solid var(--cream-dark);
+      border-radius: 14px;
+      padding: 1.1rem;
+      background: linear-gradient(180deg, #ffffff 0%, #fbf7f2 100%);
+      box-shadow: 0 8px 24px rgba(30,58,95,0.06);
+    }
+    .wine-course-header {
+      display: grid;
+      gap: 0.35rem;
+      margin-bottom: 0.85rem;
+    }
+    .wine-course-type {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--gold-dark);
+    }
+    .wine-course-name {
+      font-size: 1rem;
+      color: var(--navy);
+      font-weight: 600;
+      font-family: 'Playfair Display', serif;
+    }
     .wine-tier-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-top: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 0.75rem;
     }
     .wine-tier-card {
       border: 1px solid var(--cream-dark);
       border-radius: 12px;
-      padding: 1rem;
+      padding: 0.85rem;
       background: white;
     }
     .wine-tier-title {
       font-weight: 600;
       color: var(--navy);
       margin-bottom: 0.35rem;
-      font-size: 0.95rem;
-    }
-    .wine-tier-cost {
       font-size: 0.85rem;
-      color: var(--gold-dark);
-      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
-    .wine-tier-card ul {
-      padding-left: 1.1rem;
-      margin: 0;
+    .wine-tier-wine {
+      font-size: 0.88rem;
       color: var(--text-light);
-      font-size: 0.85rem;
       line-height: 1.4;
     }
     .recipe-card {
@@ -404,6 +428,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       margin: 0.4rem 0 0.6rem 1.2rem;
       color: var(--text-light);
       font-size: 0.85rem;
+    }
+    .recipe-why {
+      padding: 0.6rem 0.75rem;
+      background: rgba(30,58,95,0.04);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: var(--text-light);
+      margin-top: 0.65rem;
     }
     .timeline-list {
       display: grid;
@@ -911,12 +943,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
       <div id="detailsLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Preparing recipes, wine tiers, and timeline...</p>
+        <p>Preparing recipes, wine pairings, and timeline...</p>
       </div>
 
       <div class="card">
-        <h3 class="card-title" style="font-size:1.2rem">Wine Pairing Tiers</h3>
-        <div id="wineTierList" class="wine-tier-grid"></div>
+        <h3 class="card-title" style="font-size:1.2rem">Wine Pairings (4 Tiers)</h3>
+        <div id="wineTierList" class="wine-course-list"></div>
       </div>
 
       <div class="card">
@@ -1265,24 +1297,97 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       return String(menu.id ?? menu.title ?? selectedMenu ?? '');
     }
 
-    function renderWineTiers(wineTiers) {
+    function normalizeWineTiers(wine) {
+      if (!wine) {
+        return {
+          worldwideTopRated: null,
+          domesticTopRated: null,
+          budgetTopRated: null,
+          bondPick: null
+        };
+      }
+      if (typeof wine === 'string') {
+        return {
+          worldwideTopRated: wine,
+          domesticTopRated: null,
+          budgetTopRated: null,
+          bondPick: null
+        };
+      }
+      return {
+        worldwideTopRated: wine.worldwideTopRated || wine.worldwide || null,
+        domesticTopRated: wine.domesticTopRated || wine.domestic || null,
+        budgetTopRated: wine.budgetTopRated || wine.budget || null,
+        bondPick: wine.bondPick || wine.bond || null
+      };
+    }
+
+    function getWineTierEntries(wine) {
+      const normalized = normalizeWineTiers(wine);
+      return [
+        { key: 'worldwideTopRated', label: 'Worldwide top rated', value: normalized.worldwideTopRated },
+        { key: 'domesticTopRated', label: 'Domestic top rated', value: normalized.domesticTopRated },
+        { key: 'budgetTopRated', label: 'Budget top rated', value: normalized.budgetTopRated },
+        { key: 'bondPick', label: 'Bond pick', value: normalized.bondPick }
+      ];
+    }
+
+    function normalizeWinePairings(menu, winePairings) {
+      const menuCourses = menu?.courses || [];
+      const source = Array.isArray(winePairings) && winePairings.length ? winePairings : menuCourses;
+      return source.map((course, index) => {
+        const fallback = menuCourses[index] || {};
+        const type = course.type || course.courseType || fallback.type || `Course ${index + 1}`;
+        const name = course.name || course.courseName || fallback.name || '';
+        const wine = normalizeWineTiers(course.wine || course.pairings || fallback.wine);
+        return { type, name, wine };
+      });
+    }
+
+    function getWineHighlight(wine) {
+      const tiers = normalizeWineTiers(wine);
+      if (tiers.bondPick) return { label: 'Bond pick', value: tiers.bondPick };
+      if (tiers.worldwideTopRated) return { label: 'Worldwide', value: tiers.worldwideTopRated };
+      if (tiers.domesticTopRated) return { label: 'Domestic', value: tiers.domesticTopRated };
+      if (tiers.budgetTopRated) return { label: 'Budget', value: tiers.budgetTopRated };
+      return null;
+    }
+
+    function renderWineHighlight(wine) {
+      const highlight = getWineHighlight(wine);
+      if (!highlight) return '';
+      return `<span class="course-wine">🍷 ${highlight.label}: ${highlight.value}</span>`;
+    }
+
+    function renderWinePairings(winePairings, menu) {
       const container = document.getElementById('wineTierList');
       if (!container) return;
 
-      if (!wineTiers || !wineTiers.length) {
-        container.innerHTML = '<div class="error-msg">Wine tiers will appear once menu details are ready.</div>';
+      const courses = normalizeWinePairings(menu, winePairings);
+      if (!courses || !courses.length) {
+        container.innerHTML = '<div class="error-msg">Wine pairings will appear once menu details are ready.</div>';
         return;
       }
 
-      container.innerHTML = wineTiers.map(tier => `
-        <div class="wine-tier-card">
-          <div class="wine-tier-title">${tier.label}</div>
-          <div class="wine-tier-cost">${tier.totalCost || ''}</div>
-          <ul>
-            ${(tier.pairings || []).map(p => `<li>${p}</li>`).join('')}
-          </ul>
-        </div>
-      `).join('');
+      container.innerHTML = courses.map(course => {
+        const tiers = getWineTierEntries(course.wine);
+        return `
+          <div class="wine-course-card">
+            <div class="wine-course-header">
+              <div class="wine-course-type">${course.type}</div>
+              <div class="wine-course-name">${course.name || ''}</div>
+            </div>
+            <div class="wine-tier-grid">
+              ${tiers.map(tier => `
+                <div class="wine-tier-card">
+                  <div class="wine-tier-title">${tier.label}</div>
+                  <div class="wine-tier-wine">${tier.value || 'To be determined'}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     function renderMenuError(message, detail) {
@@ -1327,6 +1432,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <ol>
             ${(recipe.steps || []).map(s => `<li>${s}</li>`).join('')}
           </ol>
+          ${recipe.whyItWorks ? `<div class="recipe-why"><strong>Why it works:</strong> ${recipe.whyItWorks}</div>` : ''}
           ${recipe.notes ? `<div class="recipe-meta"><em>${recipe.notes}</em></div>` : ''}
           ${recipe.makeAhead ? `<div class="recipe-meta"><strong>Make Ahead:</strong> ${recipe.makeAhead}</div>` : ''}
         </div>
@@ -1462,31 +1568,27 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             `Season, plate, and serve ${title}.`
           ],
           notes: 'Taste and adjust seasoning right before serving.',
-          makeAhead: 'Most prep can be completed earlier in the day.'
+          makeAhead: 'Most prep can be completed earlier in the day.',
+          whyItWorks: 'Simple flavors and clear timing keep the dish elegant and reliable.'
         };
       });
     }
 
-    function buildFallbackWineTiers(menu) {
-      const baseRange = parseBudgetRange(document.getElementById('wineBudget').value || menu?.wineCost || '$80-120');
-      const basePairings = (menu?.courses || []).map(course => {
-        return course.wine || `${course.type} pairing`;
-      });
-      const tiers = [
-        { id: 'value', label: 'Value', factor: 0.7 },
-        { id: 'classic', label: 'Classic', factor: 1 },
-        { id: 'premium', label: 'Premium', factor: 1.6 },
-        { id: 'splurge', label: 'Splurge', factor: 2.4 }
-      ];
-
-      return tiers.map(tier => {
-        const min = Math.max(30, Math.round(baseRange.min * tier.factor));
-        const max = Math.max(min, Math.round(baseRange.max * tier.factor));
+    function buildFallbackWinePairings(menu) {
+      return (menu?.courses || []).map(course => {
+        const fallbackLabel = `${course.type} pairing`;
+        const normalized = normalizeWineTiers(course.wine);
+        const hasAny = Object.values(normalized).some(Boolean);
+        const wine = hasAny ? normalized : {
+          worldwideTopRated: fallbackLabel,
+          domesticTopRated: fallbackLabel,
+          budgetTopRated: fallbackLabel,
+          bondPick: fallbackLabel
+        };
         return {
-          id: tier.id,
-          label: tier.label,
-          totalCost: formatBudgetRange(min, max),
-          pairings: basePairings.map(pairing => `${tier.label} pick: ${pairing}`)
+          type: course.type,
+          name: course.name,
+          wine
         };
       });
     }
@@ -1494,7 +1596,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     function buildFallbackDetails(menu) {
       return {
         recipes: buildFallbackRecipes(menu),
-        wineTiers: buildFallbackWineTiers(menu)
+        winePairings: buildFallbackWinePairings(menu)
       };
     }
 
@@ -1505,14 +1607,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const cacheKey = getSelectedMenuKey(menu);
       if (menuDetailsCache[cacheKey]) {
         selectedMenuDetails = menuDetailsCache[cacheKey];
-        renderWineTiers(selectedMenuDetails.wineTiers);
+        renderWinePairings(selectedMenuDetails.winePairings, menu);
         renderRecipePreview(selectedMenuDetails.recipes);
         renderTimelinePreview();
         return selectedMenuDetails;
       }
 
       showDetailsLoading(true);
-      renderWineTiers([]);
+      renderWinePairings([], menu);
       renderRecipePreview([]);
       renderTimelinePreview();
 
@@ -1531,7 +1633,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           if (allowDemoFallback()) {
             selectedMenuDetails = buildFallbackDetails(menu);
             menuDetailsCache[cacheKey] = selectedMenuDetails;
-            renderWineTiers(selectedMenuDetails.wineTiers);
+            renderWinePairings(selectedMenuDetails.winePairings, menu);
             renderRecipePreview(selectedMenuDetails.recipes);
             return selectedMenuDetails;
           }
@@ -1540,19 +1642,22 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
 
         if (data.demo && !allowDemoFallback()) {
-          renderDetailError('Details are in demo mode.', 'Enable the API key to generate real recipes and wine tiers.');
+          renderDetailError('Details are in demo mode.', 'Enable the API key to generate real recipes and wine pairings.');
           return null;
         }
 
-        selectedMenuDetails = data;
+        selectedMenuDetails = {
+          ...data,
+          winePairings: normalizeWinePairings(menu, data.winePairings)
+        };
         menuDetailsCache[cacheKey] = selectedMenuDetails;
-        renderWineTiers(selectedMenuDetails.wineTiers);
+        renderWinePairings(selectedMenuDetails.winePairings, menu);
         renderRecipePreview(selectedMenuDetails.recipes);
       } catch (err) {
         if (allowDemoFallback()) {
           selectedMenuDetails = buildFallbackDetails(menu);
           menuDetailsCache[cacheKey] = selectedMenuDetails;
-          renderWineTiers(selectedMenuDetails.wineTiers);
+          renderWinePairings(selectedMenuDetails.winePairings, menu);
           renderRecipePreview(selectedMenuDetails.recipes);
           return selectedMenuDetails;
         }
@@ -1945,7 +2050,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
               <div class="course">
                 <span class="course-type">${c.type}</span>
                 <span class="course-name">${c.name}</span>
-                ${c.wine ? `<span class="course-wine">🍷 ${c.wine}</span>` : ''}
+                ${renderWineHighlight(c.wine)}
               </div>
             `).join('')}
           </div>
@@ -1973,6 +2078,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             <span>${c.name}</span>
           </div>
         `).join('')}
+        <div style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-light)">Wine pairings include worldwide, domestic, budget, and Bond selections for each course.</div>
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--cream-dark);font-size:0.9rem;color:var(--text-light)">
           Food: ${menu.foodCost} | Wine: ${menu.wineCost}
         </div>

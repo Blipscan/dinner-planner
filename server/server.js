@@ -90,6 +90,58 @@ function formatBudgetRange(min, max) {
   return `$${min}-${max} total`;
 }
 
+function normalizeWineTiers(wine) {
+  if (!wine) {
+    return {
+      worldwideTopRated: null,
+      domesticTopRated: null,
+      budgetTopRated: null,
+      bondPick: null,
+    };
+  }
+
+  if (typeof wine === "string") {
+    return {
+      worldwideTopRated: wine,
+      domesticTopRated: null,
+      budgetTopRated: null,
+      bondPick: null,
+    };
+  }
+
+  return {
+    worldwideTopRated: wine.worldwideTopRated || wine.worldwide || null,
+    domesticTopRated: wine.domesticTopRated || wine.domestic || null,
+    budgetTopRated: wine.budgetTopRated || wine.budget || null,
+    bondPick: wine.bondPick || wine.bond || null,
+  };
+}
+
+function normalizeMenuWinePairings(menu) {
+  if (!menu?.courses?.length) {
+    return menu;
+  }
+  return {
+    ...menu,
+    courses: menu.courses.map((course) => ({
+      ...course,
+      wine: normalizeWineTiers(course?.wine),
+    })),
+  };
+}
+
+function normalizeWinePairings(menu, winePairings) {
+  const menuCourses = menu?.courses || [];
+  const source = Array.isArray(winePairings) && winePairings.length ? winePairings : menuCourses;
+  return source.map((course, index) => {
+    const fallback = menuCourses[index] || {};
+    const type = course.type || course.courseType || fallback.type || `Course ${index + 1}`;
+    const name = course.name || course.courseName || fallback.name || "";
+    const wine = normalizeWineTiers(course?.wine || course?.pairings || fallback?.wine);
+    return { type, name, wine };
+  });
+}
+
 function buildDemoRecipes(menu, context) {
   const guestCount = parseInt(context?.guestCount || "6", 10);
   const timeByCourse = {
@@ -122,38 +174,19 @@ function buildDemoRecipes(menu, context) {
       ],
       notes: "Taste and adjust seasoning right before serving.",
       makeAhead: "Most prep can be completed earlier in the day.",
+      whyItWorks: "Balanced textures and clean flavors keep the course elegant and easy to execute.",
     };
   });
 }
 
-function buildDemoWineTiers(menu, context) {
-  const baseRange = parseBudgetRange(context?.wineBudget || menu?.wineCost || "$80-120");
-  const basePairings = (menu?.courses || []).map((course) => {
-    return course.wine || `${course.type} pairing`;
-  });
-  const tiers = [
-    { id: "value", label: "Value", factor: 0.7 },
-    { id: "classic", label: "Classic", factor: 1 },
-    { id: "premium", label: "Premium", factor: 1.6 },
-    { id: "splurge", label: "Splurge", factor: 2.4 },
-  ];
-
-  return tiers.map((tier) => {
-    const min = Math.max(30, Math.round(baseRange.min * tier.factor));
-    const max = Math.max(min, Math.round(baseRange.max * tier.factor));
-    return {
-      id: tier.id,
-      label: tier.label,
-      totalCost: formatBudgetRange(min, max),
-      pairings: basePairings.map((pairing) => `${tier.label} pick: ${pairing}`),
-    };
-  });
+function buildDemoWinePairings(menu) {
+  return normalizeWinePairings(menu, menu?.courses || []);
 }
 
 function buildDemoDetails(menu, context) {
   return {
     recipes: buildDemoRecipes(menu, context),
-    wineTiers: buildDemoWineTiers(menu, context),
+    winePairings: buildDemoWinePairings(menu),
   };
 }
 
@@ -360,7 +393,12 @@ Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
 - courses: Array of exactly 5 courses, each with:
   - type: One of "Amuse-Bouche", "First Course", "Second Course", "Main Course", "Dessert"
   - name: Full dish name with key components
-  - wine: Specific wine pairing with producer if possible (null for amuse and salads)
+  - wine: object with four tiers (strings or null):
+    - worldwideTopRated
+    - domesticTopRated
+    - budgetTopRated
+    - bondPick
+    Use null for tiers when a pairing should be omitted.
  
 RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
  
@@ -380,6 +418,7 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
       const text = response.content[0].text.trim();
       const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
       menus = JSON.parse(jsonText);
+      menus = Array.isArray(menus) ? menus.map(normalizeMenuWinePairings) : [];
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content[0].text);
@@ -399,7 +438,7 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
   }
 });
  
-// Generate recipes + wine tiers for selected menu
+// Generate recipes + wine pairings for selected menu
 app.post("/api/generate-details", async (req, res) => {
   const { menu, context } = req.body || {};
 
@@ -407,13 +446,15 @@ app.post("/api/generate-details", async (req, res) => {
     return res.status(400).json({ error: "Menu data is required." });
   }
 
+  const normalizedMenu = normalizeMenuWinePairings(menu);
+
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ ...buildDemoDetails(menu, context), demo: true });
+    return res.json({ ...buildDemoDetails(normalizedMenu, context), demo: true });
   }
 
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    const systemPrompt = `You are an expert culinary team creating detailed recipe previews and tiered wine pairings.
+    const systemPrompt = `You are an expert culinary team creating detailed recipe previews and wine pairings.
 
 Return ONLY valid JSON with this exact shape:
 {
@@ -426,22 +467,28 @@ Return ONLY valid JSON with this exact shape:
       "ingredients": ["string", "..."],
       "steps": ["string", "..."],
       "notes": "string",
-      "makeAhead": "string"
+      "makeAhead": "string",
+      "whyItWorks": "string"
     }
   ],
-  "wineTiers": [
+  "winePairings": [
     {
-      "id": "value|classic|premium|splurge",
-      "label": "Value|Classic|Premium|Splurge",
-      "totalCost": "string",
-      "pairings": ["string", "..."]
+      "type": "Amuse-Bouche",
+      "name": "string",
+      "wine": {
+        "worldwideTopRated": "string or null",
+        "domesticTopRated": "string or null",
+        "budgetTopRated": "string or null",
+        "bondPick": "string or null"
+      }
     }
   ]
 }
 
 Rules:
 - Provide exactly 5 recipes, in the same order as the menu courses.
-- Provide exactly 4 wine tiers, each with 5 pairings in course order.
+- Each recipe includes whyItWorks (1-3 sentences explaining flavor/technique balance).
+- Provide exactly 5 winePairings, in the same order as the menu courses.
 - Pairings should be specific bottles with producer + vintage when possible.
 - Keep steps concise and practical for a skilled home cook.`;
 
@@ -453,7 +500,7 @@ Rules:
         messages: [
           {
             role: "user",
-            content: `Generate details for this menu and context:\n\nMenu:\n${JSON.stringify(menu, null, 2)}\n\nContext:\n${JSON.stringify(context || {}, null, 2)}`,
+            content: `Generate details for this menu and context:\n\nMenu:\n${JSON.stringify(normalizedMenu, null, 2)}\n\nContext:\n${JSON.stringify(context || {}, null, 2)}`,
           },
         ],
       }),
@@ -464,11 +511,18 @@ Rules:
     const text = response.content[0].text.trim();
     const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
     const details = JSON.parse(jsonText);
-    res.json(details);
+    const normalizedRecipes = Array.isArray(details.recipes)
+      ? details.recipes.map((recipe) => ({
+          ...recipe,
+          whyItWorks: recipe.whyItWorks || "Balanced flavors and thoughtful technique make this course shine.",
+        }))
+      : [];
+    const normalizedPairings = normalizeWinePairings(normalizedMenu, details.winePairings);
+    res.json({ ...details, recipes: normalizedRecipes, winePairings: normalizedPairings });
   } catch (err) {
     console.error("Details generation error:", err);
     if (ALLOW_DEMO_FALLBACK) {
-      return res.json({ ...buildDemoDetails(menu, context), demo: true, warning: "AI request failed." });
+      return res.json({ ...buildDemoDetails(normalizedMenu, context), demo: true, warning: "AI request failed." });
     }
     return res.status(502).json({ error: "Details generation failed.", detail: err.message });
   }

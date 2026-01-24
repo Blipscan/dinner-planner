@@ -1,0 +1,23 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "docx": "^9.5.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonrepair": "^3.13.2",
+    "pdf-lib": "^1.17.1"
+  }
+}
