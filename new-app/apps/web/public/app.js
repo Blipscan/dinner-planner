@@ -4,9 +4,9 @@ const STORAGE_KEY = "dinnerPlanner.newApp.state";
 
 const FETCH_TIMEOUTS_MS = {
   chat: 15000,
-  menus: 60000,
-  details: 60000,
-  cookbook: 20000,
+  menus: 180000,
+  details: 180000,
+  cookbook: 180000,
 };
 
 let DATA = {};
@@ -773,7 +773,10 @@ function getWineHighlight(wine) {
 
 async function generateMenus() {
   showInlineMessage("menuMessage", "Generating menus...");
-  showLoading("menuLoading", "Crafting five menus based on your inspiration, style, and cuisine...");
+  showLoading(
+    "menuLoading",
+    "Crafting five menus based on your inspiration, style, and cuisine (this can take a couple minutes)..."
+  );
   try {
     const res = await fetchWithTimeout(
       "/api/generate-menus",
@@ -1137,7 +1140,10 @@ async function loadMenuDetails() {
   }
 
   showInlineMessage("detailsMessage", "Preparing recipes and wine pairings...");
-  showLoading("detailsLoading", "Building recipes, equipment, techniques, and wine pairings...");
+  showLoading(
+    "detailsLoading",
+    "Building recipes, equipment, techniques, and wine pairings (this can take a couple minutes)..."
+  );
 
   try {
     const res = await fetchWithTimeout(
