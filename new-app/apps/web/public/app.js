@@ -1371,7 +1371,19 @@ async function generateCookbook() {
 
   const menu = menus[selectedMenuIndex];
   showInlineMessage("detailsMessage", "Creating cookbook...");
-  showLoading("cookbookLoading", "Generating cookbook sections and formatting the document...");
+  const cookbookStatus = [
+    "Assembling menu overview and wine program...",
+    "Building detailed recipes with measurements and techniques...",
+    "Aggregating shopping list by category...",
+    "Constructing the minute-by-minute timeline...",
+    "Formatting tables, sections, and layout..."
+  ];
+  let cookbookIndex = 0;
+  showLoading("cookbookLoading", cookbookStatus[cookbookIndex]);
+  const cookbookTimer = setInterval(() => {
+    cookbookIndex = (cookbookIndex + 1) % cookbookStatus.length;
+    showLoading("cookbookLoading", cookbookStatus[cookbookIndex]);
+  }, 6000);
 
   try {
     const res = await fetchWithTimeout(
@@ -1402,6 +1414,7 @@ async function generateCookbook() {
   } catch (err) {
     showInlineMessage("detailsMessage", "Cookbook generation failed. Please try again.", true);
   } finally {
+    clearInterval(cookbookTimer);
     hideLoading("cookbookLoading");
   }
 }
@@ -1413,7 +1426,17 @@ async function downloadCookbook() {
   }
 
   updateCookbookStatus("Preparing download...");
-  showLoading("cookbookLoading", "Building DOCX file for download...");
+  const downloadStatus = [
+    "Assembling cookbook content...",
+    "Rendering DOCX layout...",
+    "Compressing file for download..."
+  ];
+  let downloadIndex = 0;
+  showLoading("cookbookLoading", downloadStatus[downloadIndex]);
+  const downloadTimer = setInterval(() => {
+    downloadIndex = (downloadIndex + 1) % downloadStatus.length;
+    showLoading("cookbookLoading", downloadStatus[downloadIndex]);
+  }, 4000);
   try {
     const res = await fetchWithTimeout(
       "/api/download-cookbook",
@@ -1441,6 +1464,7 @@ async function downloadCookbook() {
   } catch (err) {
     updateCookbookStatus("Download failed. Please try again.");
   } finally {
+    clearInterval(downloadTimer);
     hideLoading("cookbookLoading");
   }
 }
