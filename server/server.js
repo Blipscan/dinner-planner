@@ -228,6 +228,30 @@ function validateDetails(details, menu) {
   return errors;
 }
 
+function mergeDetails(base, patch) {
+  if (patch === null || patch === undefined) {
+    return base;
+  }
+  if (Array.isArray(patch)) {
+    return patch;
+  }
+  if (typeof patch !== "object") {
+    return patch;
+  }
+  const output = { ...(base || {}) };
+  Object.entries(patch).forEach(([key, value]) => {
+    const existing = output[key];
+    if (Array.isArray(value)) {
+      output[key] = value;
+    } else if (value && typeof value === "object") {
+      output[key] = mergeDetails(existing, value);
+    } else {
+      output[key] = value;
+    }
+  });
+  return output;
+}
+
 function scanForPlaceholders(details) {
   const errors = [];
   const placeholderPattern = /\b(TBD|TBA|TO BE DETERMINED|TODO)\b/i;
@@ -275,6 +299,38 @@ function runCookbookQualityCheck(details, menu) {
   errors.push(...scanForPlaceholders(details));
 
   return errors;
+}
+
+function shouldRetryRecipes(errors) {
+  return errors.some((err) => err.includes("recipes") || err.includes("wineTiers"));
+}
+
+function shouldRetryOperations(errors) {
+  return errors.some((err) => !err.includes("recipes") && !err.includes("wineTiers"));
+}
+
+async function requestOperationsPatch(client, basePrompt, errors) {
+  const errorList = errors.map((err, index) => `${index + 1}. ${err}`).join("\n");
+  const prompt = `Your previous operational output failed these checks:\n${errorList}\n\nReturn ONLY JSON that fixes the missing fields. Include complete objects/arrays for any missing section. No placeholders. No empty arrays. Use the same schema as the operational details.`;
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 3600,
+    system: prompt,
+    messages: [{ role: "user", content: basePrompt }],
+  });
+  return parseJsonPayload(response.content?.[0]?.text, "Operational patch");
+}
+
+async function requestRecipesPatch(client, basePrompt, errors) {
+  const errorList = errors.map((err, index) => `${index + 1}. ${err}`).join("\n");
+  const prompt = `Your previous recipe output failed these checks:\n${errorList}\n\nReturn ONLY JSON with complete "recipes" and/or "wineTiers" arrays to fix the missing fields. No placeholders.`;
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 3600,
+    system: prompt,
+    messages: [{ role: "user", content: basePrompt }],
+  });
+  return parseJsonPayload(response.content?.[0]?.text, "Recipe patch");
 }
 
 function isBondTheme(context) {
@@ -806,13 +862,10 @@ Rules:
       "Details recipe generation"
     );
 
-    const operationalDetails = parseJsonPayload(operationsResponse.content?.[0]?.text, "Operational details");
-    const recipeDetails = parseJsonPayload(recipesResponse.content?.[0]?.text, "Recipe details");
+    let operationalDetails = parseJsonPayload(operationsResponse.content?.[0]?.text, "Operational details");
+    let recipeDetails = parseJsonPayload(recipesResponse.content?.[0]?.text, "Recipe details");
 
-    const details = {
-      ...operationalDetails,
-      ...recipeDetails,
-    };
+    let details = mergeDetails(operationalDetails, recipeDetails);
 
     details.systemIndex = details.systemIndex || {};
     details.systemIndex.eventName = details.systemIndex.eventName || context?.eventTitle || "Dinner Party";
@@ -836,7 +889,58 @@ Rules:
 
     injectBondWineIntoDetails(details, menu, context);
 
-    const validationErrors = validateDetails(details, menu);
+    let validationErrors = validateDetails(details, menu);
+    let attempts = 0;
+    while (validationErrors.length && attempts < 2) {
+      attempts += 1;
+
+      if (shouldRetryOperations(validationErrors)) {
+        const patch = await withTimeout(
+          requestOperationsPatch(client, basePrompt, validationErrors),
+          REQUEST_TIMEOUTS_MS.details,
+          "Details operations repair"
+        );
+        operationalDetails = mergeDetails(operationalDetails, patch);
+      }
+
+      if (shouldRetryRecipes(validationErrors)) {
+        const patch = await withTimeout(
+          requestRecipesPatch(client, basePrompt, validationErrors),
+          REQUEST_TIMEOUTS_MS.details,
+          "Details recipe repair"
+        );
+        recipeDetails = mergeDetails(recipeDetails, patch);
+      }
+
+      details = mergeDetails(operationalDetails, recipeDetails);
+
+      details.systemIndex = details.systemIndex || {};
+      details.systemIndex.eventName = details.systemIndex.eventName || context?.eventTitle || "Dinner Party";
+      details.systemIndex.eventDate = details.systemIndex.eventDate || context?.eventDate || "TBD";
+      details.systemIndex.location = details.systemIndex.location || context?.eventLocation || "TBD";
+      details.systemIndex.guestCount = details.systemIndex.guestCount || parseInt(context?.guestCount || "0", 10) || 0;
+      details.systemIndex.serviceStyle = details.systemIndex.serviceStyle || context?.serviceStyle || "plated";
+      details.systemIndex.menuSummary =
+        details.systemIndex.menuSummary?.length
+          ? details.systemIndex.menuSummary
+          : (menu?.courses || []).map((c) => `${c.type}: ${c.name}`);
+
+      details.archiveMetadata = details.archiveMetadata || {};
+      details.archiveMetadata.generatedAt = new Date().toISOString().split("T")[0];
+      details.archiveMetadata.parameters = details.archiveMetadata.parameters || {};
+      details.archiveMetadata.parameters.guestCount =
+        details.archiveMetadata.parameters.guestCount || details.systemIndex.guestCount;
+      details.archiveMetadata.parameters.menuStyle =
+        details.archiveMetadata.parameters.menuStyle || context?.menuStyle || "classic";
+      details.archiveMetadata.parameters.serviceStyle =
+        details.archiveMetadata.parameters.serviceStyle || details.systemIndex.serviceStyle;
+      details.archiveMetadata.notes = "";
+
+      injectBondWineIntoDetails(details, menu, context);
+
+      validationErrors = validateDetails(details, menu);
+    }
+
     if (validationErrors.length) {
       throw new Error(`Details incomplete: ${validationErrors.join("; ")}`);
     }
