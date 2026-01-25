@@ -639,6 +639,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       color: var(--text-light);
       font-size: 0.85rem;
     }
+    .deploy-info {
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--text-light);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
 
     /* ===== FOOTER ===== */
     footer {
@@ -680,6 +687,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div class="header-icon">🍽️</div>
       <h1>Dinner Party Planner</h1>
       <p>Create Unforgettable Experiences</p>
+      <div class="deploy-info" id="deployInfo">Deploy: —</div>
     </div>
   </header>
   
@@ -1103,6 +1111,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       versionEl.textContent = version ? `Version: ${version}` : 'Version: —';
     }
 
+    function setDeployInfo(deployId) {
+      const deployEl = document.getElementById('deployInfo');
+      if (!deployEl) return;
+      deployEl.textContent = deployId ? `Deploy: ${deployId}` : 'Deploy: —';
+    }
+
     async function loadApiStatus() {
       try {
         const res = await fetch('/api/health', { cache: 'no-store' });
@@ -1111,8 +1125,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         }
         const data = await res.json();
         setApiStatus(true, data?.version, data?.apiConfigured);
+        setDeployInfo(data?.deploy);
       } catch (e) {
         setApiStatus(false);
+        setDeployInfo();
       }
     }
 

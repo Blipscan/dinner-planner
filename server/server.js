@@ -40,6 +40,13 @@ app.get("/", (req, res) => {
  
 const PORT = process.env.PORT || 3000;
 const APP_VERSION = process.env.APP_VERSION || "2.0.0-cadillac";
+const DEPLOY_ID =
+  process.env.DEPLOY_NUMBER ||
+  process.env.DEPLOY_ID ||
+  process.env.RENDER_GIT_COMMIT ||
+  process.env.RENDER_DEPLOY_ID ||
+  process.env.RENDER_INSTANCE_ID ||
+  "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
  
 const ADMIN_CODE = process.env.ADMIN_CODE || "ADMIN2024";
@@ -100,6 +107,20 @@ function formatBudgetRange(min, max) {
     return `$${min}+ total`;
   }
   return `$${min}-${max} total`;
+}
+
+function formatDeployId(value) {
+  if (!value) {
+    return "";
+  }
+  const trimmed = String(value).trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^[0-9a-f]{7,}$/i.test(trimmed)) {
+    return trimmed.slice(0, 7);
+  }
+  return trimmed.length > 16 ? trimmed.slice(0, 16) : trimmed;
 }
 
 function buildDemoRecipes(menu, context) {
@@ -194,6 +215,7 @@ app.get("/api/health", (req, res) => {
     apiConfigured: !!ANTHROPIC_API_KEY,
     betaExpiry: BETA_EXPIRY,
     version: APP_VERSION,
+    deploy: formatDeployId(DEPLOY_ID),
   });
 });
  
