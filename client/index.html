@@ -2167,7 +2167,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: accessCode,
-            cookbookId: cookbookId
+            cookbookId: cookbookId,
+            menu: menus[selectedMenu],
+            context: getContext(),
+            staffing: selectedStaffing,
+            recipes: selectedMenuDetails?.recipes || null
           })
         });
         
@@ -2183,7 +2187,16 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
         } else {
-          alert('Error downloading cookbook. Please try again.');
+          let message = 'Error downloading cookbook. Please try again.';
+          try {
+            const data = await res.json();
+            if (data?.error) {
+              message = data.detail ? `${data.error}: ${data.detail}` : data.error;
+            }
+          } catch (err) {
+            // ignore JSON parse errors
+          }
+          alert(message);
         }
       } catch (err) {
         alert('Connection error. Please try again.');

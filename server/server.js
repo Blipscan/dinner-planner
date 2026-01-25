@@ -496,26 +496,30 @@ app.post("/api/generate-cookbook", async (req, res) => {
 });
  
 app.post("/api/download-cookbook", async (req, res) => {
-  const { cookbookId } = req.body || {};
-  const cookbookData = global.cookbooks?.[cookbookId];
- 
-  if (!cookbookData) {
+  const { cookbookId, menu, context, staffing, recipes } = req.body || {};
+  let cookbookData = cookbookId ? global.cookbooks?.[cookbookId] : null;
+
+  if (!cookbookData && menu && context) {
+    cookbookData = { menu, context, staffing, recipes };
+  }
+
+  if (!cookbookData || !cookbookData.menu || !cookbookData.menu.courses) {
     return res.status(404).json({ error: "Cookbook not found" });
   }
- 
-  const { menu, context, staffing, recipes } = cookbookData;
- 
+
+  const payload = cookbookData;
+
   try {
-    const buffer = await buildCookbook(menu, context, staffing, recipes);
+    const buffer = await buildCookbook(payload.menu, payload.context, payload.staffing, payload.recipes);
     const filename =
-      (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
- 
+      (payload.context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
+
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(buffer);
   } catch (err) {
     console.error("DOCX generation error:", err);
-    res.status(500).json({ error: "Error generating cookbook" });
+    res.status(500).json({ error: "Error generating cookbook", detail: err.message });
   }
 });
  
