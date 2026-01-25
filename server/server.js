@@ -72,7 +72,7 @@ const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "").toLowerCase(
 const DEFAULT_TIMEOUTS_MS = {
   chat: 15000,
   menus: 45000,
-  details: 30000,
+  details: 60000,
 };
 
 function parseTimeout(value, fallback) {
@@ -486,12 +486,14 @@ Rules:
 - Provide exactly 5 recipes, in the same order as the menu courses.
 - Provide exactly 4 wine tiers, each with 5 pairings in course order.
 - Pairings should be specific bottles with producer + vintage when possible.
-- Keep steps concise and practical for a skilled home cook.`;
+- Keep steps concise and practical for a skilled home cook.
+- Keep each recipe to 6-8 ingredients and 4-6 steps.
+- Keep notes and make-ahead guidance to one sentence each.`;
 
     const response = await withTimeout(
       client.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 3072,
+        max_tokens: 2048,
         system: systemPrompt,
         messages: [
           {
