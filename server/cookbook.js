@@ -409,6 +409,19 @@ function buildRecipes(menu, recipes) {
           })
         );
       }
+
+      // Why it works
+      if (recipe.whyItWorks) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Why It Works', size: 26, bold: true, color: COLORS.gold })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: recipe.whyItWorks, italics: true, color: COLORS.textLight })]
+          })
+        );
+      }
     } else {
       // Placeholder
       children.push(

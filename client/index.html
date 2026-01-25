@@ -425,6 +425,28 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       color: var(--text-light);
       font-size: 0.85rem;
     }
+    .recipe-why {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      margin-top: 0.6rem;
+      font-style: italic;
+    }
+    .expert-notes {
+      display: grid;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    .expert-note {
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--cream-dark);
+      border-radius: 10px;
+      background: white;
+    }
+    .expert-note h4 {
+      margin: 0 0 0.4rem;
+      font-size: 0.95rem;
+      color: var(--navy);
+    }
     .timeline-list {
       display: grid;
       gap: 0.6rem;
@@ -978,7 +1000,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div id="detailsLoading" class="loading hidden">
         <div class="spinner"></div>
         <p id="detailsLoadingMessage">Preparing recipes, wine tiers, and timeline...</p>
-        <p id="detailsLoadingTimer" class="loading-subtext">Elapsed 0:00 • Typical time: up to 2:00</p>
+        <p id="detailsLoadingTimer" class="loading-subtext">Elapsed 0:00 • Typical time: up to 5:00</p>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title" style="font-size:1.2rem">Expert Guidance</h3>
+        <div id="expertGuidance"></div>
       </div>
 
       <div class="card">
@@ -1458,8 +1485,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const markup = `<div class="error-msg">${message}${detailHtml}</div>`;
       const wineContainer = document.getElementById('wineTierList');
       const recipeContainer = document.getElementById('recipePreview');
+      const guidanceContainer = document.getElementById('expertGuidance');
       if (wineContainer) wineContainer.innerHTML = markup;
       if (recipeContainer) recipeContainer.innerHTML = markup;
+      if (guidanceContainer) guidanceContainer.innerHTML = markup;
     }
 
     function allowDemoFallback() {
@@ -1490,8 +1519,34 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           </ol>
           ${recipe.notes ? `<div class="recipe-meta"><em>${recipe.notes}</em></div>` : ''}
           ${recipe.makeAhead ? `<div class="recipe-meta"><strong>Make Ahead:</strong> ${recipe.makeAhead}</div>` : ''}
+          ${recipe.whyItWorks ? `<div class="recipe-why"><strong>Why it works:</strong> ${recipe.whyItWorks}</div>` : ''}
         </div>
       `).join('');
+    }
+
+    function renderExpertGuidance(details) {
+      const container = document.getElementById('expertGuidance');
+      if (!container) return;
+
+      if (!details) {
+        container.innerHTML = '<div class="error-msg">Expert notes will appear once details are ready.</div>';
+        return;
+      }
+
+      const chefNote = details.chefOverview;
+      const wineNote = details.wineOverview;
+
+      if (!chefNote && !wineNote) {
+        container.innerHTML = '<div class="error-msg">Expert notes were not returned. Try again.</div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="expert-notes">
+          ${chefNote ? `<div class="expert-note"><h4>Chef Guidance</h4><div>${chefNote}</div></div>` : ''}
+          ${wineNote ? `<div class="expert-note"><h4>Sommelier Guidance</h4><div>${wineNote}</div></div>` : ''}
+        </div>
+      `;
     }
 
     function parseServiceTime(timeStr) {
@@ -1668,6 +1723,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         selectedMenuDetails = menuDetailsCache[cacheKey];
         renderWineTiers(selectedMenuDetails.wineTiers);
         renderRecipePreview(selectedMenuDetails.recipes);
+        renderExpertGuidance(selectedMenuDetails);
         renderTimelinePreview();
         return selectedMenuDetails;
       }
@@ -1675,6 +1731,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       showDetailsLoading(true);
       renderWineTiers([]);
       renderRecipePreview([]);
+      renderExpertGuidance(null);
       renderTimelinePreview();
 
       try {
@@ -1694,6 +1751,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             menuDetailsCache[cacheKey] = selectedMenuDetails;
             renderWineTiers(selectedMenuDetails.wineTiers);
             renderRecipePreview(selectedMenuDetails.recipes);
+            renderExpertGuidance(selectedMenuDetails);
             return selectedMenuDetails;
           }
           renderDetailError('Details generation failed.', data.detail || 'Check your API key and account credits.');
@@ -1709,12 +1767,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         menuDetailsCache[cacheKey] = selectedMenuDetails;
         renderWineTiers(selectedMenuDetails.wineTiers);
         renderRecipePreview(selectedMenuDetails.recipes);
+        renderExpertGuidance(selectedMenuDetails);
       } catch (err) {
         if (allowDemoFallback()) {
           selectedMenuDetails = buildFallbackDetails(menu);
           menuDetailsCache[cacheKey] = selectedMenuDetails;
           renderWineTiers(selectedMenuDetails.wineTiers);
           renderRecipePreview(selectedMenuDetails.recipes);
+          renderExpertGuidance(selectedMenuDetails);
           return selectedMenuDetails;
         }
         const detailMessage = err?.name === 'AbortError'

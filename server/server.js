@@ -291,6 +291,7 @@ function buildDemoRecipes(menu, context) {
       ],
       notes: "Taste and adjust seasoning right before serving.",
       makeAhead: "Most prep can be completed earlier in the day.",
+      whyItWorks: `Balances flavor, texture, and timing for ${title}.`,
     };
   });
 }
@@ -323,6 +324,8 @@ function buildDemoDetails(menu, context) {
   return {
     recipes: buildDemoRecipes(menu, context),
     wineTiers: buildDemoWineTiers(menu, context),
+    chefOverview: "Courses are balanced to build intensity and finish light.",
+    wineOverview: "Pairings progress from crisp to fuller-bodied for a smooth arc.",
   };
 }
 
@@ -598,6 +601,8 @@ app.post("/api/generate-details", async (req, res) => {
 
 Return ONLY valid JSON with this exact shape:
 {
+  "chefOverview": "string",
+  "wineOverview": "string",
   "recipes": [
     {
       "title": "string",
@@ -607,7 +612,8 @@ Return ONLY valid JSON with this exact shape:
       "ingredients": ["string", "..."],
       "steps": ["string", "..."],
       "notes": "string",
-      "makeAhead": "string"
+      "makeAhead": "string",
+      "whyItWorks": "string"
     }
   ],
   "wineTiers": [
@@ -626,7 +632,9 @@ Rules:
 - Pairings should be specific bottles with producer + vintage when possible.
 - For each pairing, append a short reason after an em dash (max 10 words).
 - Use 10-14 ingredients and 6-10 steps per recipe.
-- Notes and make-ahead guidance can be 1-2 sentences each.`;
+- Notes, make-ahead guidance, and why-it-works can be 1-2 sentences each.
+- chefOverview should explain the course progression (2-3 sentences).
+- wineOverview should explain pairing logic and progression (2-3 sentences).`;
 
     const response = await withTimeout(
       client.messages.create({
