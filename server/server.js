@@ -429,7 +429,7 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     const response = await withTimeout(
       client.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+        max_tokens: 6000,
         system: systemPrompt,
         messages: [{ role: "user", content: "Generate 5 personalized menu options based on the context provided." }],
       }),
@@ -471,23 +471,51 @@ app.post("/api/generate-details", async (req, res) => {
 
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    const systemPrompt = `You are an expert culinary team creating detailed recipe previews, wine pairings, and cookbook guidance.
+    const systemPrompt = `You are compiling a master operational cookbook for a French-style multi-course dinner.
 
 Return ONLY valid JSON with this exact shape:
 {
+  "systemIndex": {
+    "eventName": "string",
+    "eventDate": "string",
+    "location": "string",
+    "guestCount": number,
+    "serviceStyle": "string",
+    "menuSummary": ["string", "..."],
+    "complexity": "Low|Medium|High",
+    "totalPrepTime": "string",
+    "totalActiveTime": "string",
+    "stationsRequired": number
+  },
+  "coursePlan": [
+    {
+      "courseType": "string",
+      "dish": "string",
+      "purpose": "string",
+      "portion": "small|medium|substantial",
+      "temperature": "hot|cold|room",
+      "serviceDuration": "string",
+      "dependsOn": ["string", "..."]
+    }
+  ],
+  "mealBalance": {
+    "warnings": ["string", "..."],
+    "overridesRequired": boolean
+  },
   "chefOverview": "string",
   "wineOverview": "string",
   "recipes": [
     {
       "title": "string",
       "serves": number,
+      "yield": "string",
       "activeTime": "string",
       "totalTime": "string",
+      "equipment": ["string", "..."],
       "ingredients": ["string", "..."],
       "steps": ["string", "..."],
-      "notes": "string",
-      "makeAhead": "string",
-      "whyItWorks": "string"
+      "holding": "string",
+      "failurePoints": ["string", "..."]
     }
   ],
   "wineTiers": [
@@ -498,60 +526,99 @@ Return ONLY valid JSON with this exact shape:
       "pairings": ["string", "..."]
     }
   ],
-  "shoppingList": {
+  "masterTimeline": [
+    {
+      "time": "HH:MM",
+      "offset": "string",
+      "role": "Host|Kitchen|Service|Bar|Shopping|Prep|Day-Of Execution|Cleanup",
+      "course": "string",
+      "task": "string",
+      "duration": "string",
+      "dependsOn": ["string", "..."],
+      "parallel": boolean
+    }
+  ],
+  "roleViews": [
+    {
+      "role": "Host|Kitchen|Service|Bar|Shopping|Prep|Day-Of Execution|Cleanup",
+      "startTime": "string",
+      "endTime": "string",
+      "reportsTo": "string",
+      "setup": ["string", "..."],
+      "courseTasks": [
+        { "courseType": "string", "tasks": ["string", "..."] }
+      ],
+      "transitions": ["string", "..."],
+      "endOfNight": ["string", "..."]
+    }
+  ],
+  "masterShoppingList": {
     "categories": [
-      { "name": "string", "items": ["string", "..."] }
-    ],
-    "notes": ["string", "..."]
+      {
+        "name": "string",
+        "items": [
+          {
+            "item": "string",
+            "quantity": number,
+            "unit": "string",
+            "metricQuantity": number,
+            "metricUnit": "string"
+          }
+        ]
+      }
+    ]
   },
-  "dayBeforePrep": ["string", "..."],
-  "dayOfTimeline": [
-    { "time": "string", "task": "string" }
+  "executionPacket": [
+    {
+      "courseType": "string",
+      "title": "string",
+      "steps": ["string", "..."]
+    }
   ],
-  "platingGuides": [
-    { "courseType": "string", "guidance": "string" }
+  "equipmentConstraints": {
+    "stationsRequired": number,
+    "burnersRequired": number,
+    "ovenConflicts": ["string", "..."],
+    "fridgeConstraints": ["string", "..."],
+    "holdingWindows": ["string", "..."],
+    "resolutions": ["string", "..."]
+  },
+  "contingencies": [
+    { "issue": "string", "fix": "string" }
   ],
-  "tableSetting": {
-    "placeSetting": ["string", "..."],
-    "centerpiece": "string",
-    "notes": ["string", "..."]
+  "cleanupReset": {
+    "immediate": ["string", "..."],
+    "later": ["string", "..."],
+    "leftovers": ["string", "..."]
   },
-  "serviceNotes": {
-    "pacing": ["string", "..."],
-    "wineService": ["string", "..."],
-    "clearing": ["string", "..."]
-  },
-  "ambianceGuide": {
-    "lighting": ["string", "..."],
-    "music": ["string", "..."],
-    "temperature": ["string", "..."]
-  },
-  "finalChecklist": {
-    "weekBefore": ["string", "..."],
-    "dayBefore": ["string", "..."],
-    "dayOf": ["string", "..."]
-  },
-  "imagePrompts": ["string", "..."]
+  "archiveMetadata": {
+    "version": "string",
+    "generatedAt": "YYYY-MM-DD",
+    "parameters": {
+      "guestCount": number,
+      "menuStyle": "string",
+      "serviceStyle": "string"
+    },
+    "notes": ""
+  }
 }
 
 Rules:
-- Provide exactly 5 recipes, in the same order as the menu courses.
+- Provide exactly 5 recipes in menu course order.
 - Provide exactly 4 wine tiers, each with 5 pairings in course order.
-- Pairings should be specific bottles with producer + vintage when possible.
-- For each pairing, append a short reason after " - " (max 10 words).
+- Pairings must include producer + vintage and end with " - reason" (max 10 words).
+- Recipes must be operational: no narrative or marketing language.
 - Use 8-12 ingredients and 5-8 steps per recipe.
-- Notes, make-ahead guidance, and why-it-works can be 1-2 sentences each.
-- chefOverview should explain the course progression (2-3 sentences).
-- wineOverview should explain pairing logic and progression (2-3 sentences).
-- shoppingList.categories: 6 categories, each 4-6 items.
-- dayBeforePrep: 8-10 tasks.
-- dayOfTimeline: 10-12 time-stamped items.
-- platingGuides: 5 entries, 2-3 sentences each.
-- tableSetting.placeSetting: 6-8 items; centerpiece 1 sentence; notes 3 bullets.
-- serviceNotes: 3-5 bullets per section.
-- ambianceGuide: 3 bullets per section.
-- finalChecklist: 4-6 items per section.
-- imagePrompts: 6 prompts (5 courses + 1 tablescape).`;
+- Provide equipment, holding guidance, and likely failure points.
+- coursePlan must define purpose, portion, temperature, service duration, dependencies.
+- mealBalance.warnings must be empty if constraints are satisfied.
+- masterTimeline: 14-18 tasks with absolute time and offset.
+- roleViews: include all listed roles; each checklist is self-contained.
+- masterShoppingList: 6-8 categories, 4-8 items each, normalized units.
+- executionPacket: stripped steps only, one entry per course.
+- equipmentConstraints must flag conflicts and provide resolutions.
+- cleanupReset must separate immediate vs later tasks.
+- archiveMetadata.notes must be empty.`;
 
     const response = await withTimeout(
       client.messages.create({

@@ -602,12 +602,6 @@ a { color: var(--navy); }
       color: var(--text-light);
       font-size: 0.85rem;
     }
-    .recipe-why {
-      font-size: 0.85rem;
-      color: var(--text-light);
-      margin-top: 0.6rem;
-      font-style: italic;
-    }
     .expert-notes {
       display: grid;
       gap: 1rem;
@@ -972,6 +966,22 @@ a { color: var(--navy); }
           <div class="form-group">
             <label for="eventDate">Date</label>
             <input type="date" id="eventDate">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eventLocation">Location</label>
+            <input type="text" id="eventLocation" placeholder="e.g., 123 Rose Ave, Dining Room">
+          </div>
+          <div class="form-group">
+            <label for="serviceStyle">Service Style</label>
+            <select id="serviceStyle">
+              <option value="plated" selected>Plated</option>
+              <option value="family-style">Family-Style</option>
+              <option value="buffet">Buffet</option>
+              <option value="passed">Passed Courses</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
           </div>
         </div>
         <div class="form-row">
@@ -1699,9 +1709,11 @@ a { color: var(--navy); }
           <ol>
             ${(recipe.steps || []).map(s => `<li>${s}</li>`).join('')}
           </ol>
+          ${recipe.equipment?.length ? `<div class="recipe-meta"><strong>Equipment:</strong> ${recipe.equipment.join(', ')}</div>` : ''}
+          ${recipe.holding ? `<div class="recipe-meta"><strong>Holding:</strong> ${recipe.holding}</div>` : ''}
+          ${recipe.failurePoints?.length ? `<div class="recipe-meta"><strong>Failure Points:</strong> ${recipe.failurePoints.join(' • ')}</div>` : ''}
           ${recipe.notes ? `<div class="recipe-meta"><em>${recipe.notes}</em></div>` : ''}
           ${recipe.makeAhead ? `<div class="recipe-meta"><strong>Make Ahead:</strong> ${recipe.makeAhead}</div>` : ''}
-          ${recipe.whyItWorks ? `<div class="recipe-why"><strong>Why it works:</strong> ${recipe.whyItWorks}</div>` : ''}
         </div>
       `).join('');
     }
@@ -2165,9 +2177,11 @@ a { color: var(--navy); }
       return {
         eventTitle: document.getElementById('eventTitle').value,
         eventDate: document.getElementById('eventDate').value,
+        eventLocation: document.getElementById('eventLocation').value,
         guestCount: document.getElementById('guestCount').value,
         guestList: document.getElementById('guestList').value,
         serviceTime: document.getElementById('serviceTime').value,
+        serviceStyle: document.getElementById('serviceStyle').value,
         foodBudget: document.getElementById('foodBudget').value,
         wineBudget: document.getElementById('wineBudget').value,
         skillLevel: document.getElementById('skillLevel').value,

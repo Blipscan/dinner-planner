@@ -129,50 +129,38 @@ async function buildCookbook(menu, context, staffing, recipes, details) {
         }
       },
       children: [
-        // ========== COVER PAGE ==========
-        ...buildCoverPage(menu, context),
-        
-        // ========== MENU OVERVIEW ==========
-        ...buildMenuOverview(menu, details),
-        
-        // ========== WINE PROGRAM ==========
-        ...buildWineProgram(menu, context, details),
-        
-        // ========== RECIPES ==========
-        ...buildRecipes(menu, recipes),
-        
-        // ========== SHOPPING LIST ==========
-        ...buildShoppingList(menu, context, recipes, details),
-        
-        // ========== DAY BEFORE PREP ==========
-        ...buildDayBeforePrep(menu, staffingInfo, details),
-        
-        // ========== DAY OF TIMELINE ==========
-        ...buildDayOfTimeline(menu, context, staffingInfo, details),
-        
-        // ========== PLATING GUIDES ==========
-        ...buildPlatingGuides(menu, details),
-        
-        // ========== TABLE SETTING ==========
-        ...buildTableSetting(menu, context, guestNames, details),
-        
-        // ========== SERVICE NOTES ==========
-        ...buildServiceNotes(menu, staffingInfo, details),
-        
-        // ========== AMBIANCE & MUSIC ==========
-        ...buildAmbianceGuide(menu, context, details),
-        
-        // ========== FINAL CHECKLIST ==========
-        ...buildFinalChecklist(menu, context, details),
-        
-        // ========== AI IMAGE PROMPTS ==========
-        ...buildImagePrompts(menu, context, details),
-        
-        // ========== NOTES PAGES ==========
-        ...buildNotesPages(),
-        
-        // ========== COPYRIGHT ==========
-        ...buildCopyright(context)
+        // ========== SYSTEM INDEX (FIRST PAGE) ==========
+        ...buildSystemIndex(menu, context, details),
+
+        // ========== COURSE ARCHITECTURE ==========
+        ...buildCourseArchitecture(menu, details),
+
+        // ========== MASTER TIMELINE ==========
+        ...buildMasterTimeline(details, context),
+
+        // ========== ROLE-BASED VIEWS ==========
+        ...buildRoleViews(details, context),
+
+        // ========== MASTER SHOPPING LIST ==========
+        ...buildMasterShoppingList(details, context),
+
+        // ========== RECIPE MODULES ==========
+        ...buildRecipeModules(menu, details, recipes),
+
+        // ========== DAY-OF EXECUTION PACKET ==========
+        ...buildExecutionPacket(details, menu),
+
+        // ========== EQUIPMENT & CAPACITY CONSTRAINTS ==========
+        ...buildEquipmentConstraints(details),
+
+        // ========== FAILURE & CONTINGENCY NOTES ==========
+        ...buildContingencies(details),
+
+        // ========== CLEANUP & RESET ==========
+        ...buildCleanupReset(details),
+
+        // ========== ARCHIVE & REUSE METADATA ==========
+        ...buildArchiveMetadata(details, context)
       ]
     }]
   });
@@ -924,6 +912,509 @@ function buildImagePrompts(menu, context, details) {
   });
   
   children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildKeyValueLine(label, value) {
+  const displayValue = value && String(value).trim() ? String(value) : 'TBD';
+  return new Paragraph({
+    children: [
+      new TextRun({ text: `${label}: `, bold: true, color: COLORS.navy }),
+      new TextRun({ text: displayValue, color: COLORS.text })
+    ]
+  });
+}
+
+function buildCheckboxList(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [new Paragraph({ children: [new TextRun('□  TBD')] })];
+  }
+  return items.map(item => {
+    const text = String(item || '').trim();
+    return new Paragraph({ children: [new TextRun(`□  ${text || 'TBD'}`)] });
+  });
+}
+
+function buildBulletList(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('TBD')] })];
+  }
+  return items.map(item => new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(String(item))] }));
+}
+
+function buildSystemIndex(menu, context, details) {
+  const info = details?.systemIndex || {};
+  const courseSummary = info.menuSummary?.length
+    ? info.menuSummary
+    : (menu?.courses || []).map(course => `${course.type}: ${course.name}`);
+  const complexity = info.complexity || 'Medium';
+  const stationsRequired =
+    info.stationsRequired ||
+    details?.equipmentConstraints?.stationsRequired ||
+    'TBD';
+
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'System Index', size: 48, bold: true, color: COLORS.navy })]
+    }),
+    buildKeyValueLine('Event', info.eventName || context.eventTitle || 'Dinner Party'),
+    buildKeyValueLine('Date', info.eventDate || context.eventDate || 'TBD'),
+    buildKeyValueLine('Location', info.location || context.eventLocation || 'TBD'),
+    buildKeyValueLine('Guests', info.guestCount || context.guestCount || 'TBD'),
+    buildKeyValueLine('Service Style', info.serviceStyle || context.serviceStyle || 'TBD'),
+    buildKeyValueLine('Complexity', complexity),
+    buildKeyValueLine('Total Prep Time', info.totalPrepTime || details?.archiveMetadata?.parameters?.totalPrepTime || 'TBD'),
+    buildKeyValueLine('Total Active Time', info.totalActiveTime || details?.archiveMetadata?.parameters?.totalActiveTime || 'TBD'),
+    buildKeyValueLine('Stations Required', stationsRequired)
+  ];
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 300 },
+      children: [new TextRun({ text: 'Menu Summary', size: 32, bold: true, color: COLORS.navy })]
+    })
+  );
+  courseSummary.forEach(item => {
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(item)] }));
+  });
+
+  const warnings = details?.mealBalance?.warnings || [];
+  if (warnings.length) {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 300 },
+        children: [new TextRun({ text: 'Meal Balance Warnings', size: 32, bold: true, color: COLORS.navy })]
+      })
+    );
+    children.push(...buildBulletList(warnings));
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildCourseArchitecture(menu, details) {
+  const plan = Array.isArray(details?.coursePlan) && details.coursePlan.length
+    ? details.coursePlan
+    : (menu?.courses || []).map(course => ({
+        courseType: course.type,
+        dish: course.name,
+        purpose: 'TBD',
+        portion: 'medium',
+        temperature: 'hot',
+        serviceDuration: 'TBD',
+        dependsOn: []
+      }));
+
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Course Architecture', size: 48, bold: true, color: COLORS.navy })]
+    })
+  ];
+
+  plan.forEach(course => {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: `${course.courseType}: ${course.dish}`, size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    children.push(
+      buildKeyValueLine('Purpose', course.purpose),
+      buildKeyValueLine('Portion', course.portion),
+      buildKeyValueLine('Temperature', course.temperature),
+      buildKeyValueLine('Service Duration', course.serviceDuration),
+      buildKeyValueLine('Dependencies', Array.isArray(course.dependsOn) ? course.dependsOn.join(', ') : 'None')
+    );
+  });
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildMasterTimeline(details, context) {
+  const timeline = Array.isArray(details?.masterTimeline) ? details.masterTimeline : [];
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Master Timeline', size: 48, bold: true, color: COLORS.navy })]
+    })
+  ];
+
+  if (!timeline.length) {
+    children.push(new Paragraph({ children: [new TextRun('Timeline data not available.')] }));
+  } else {
+    timeline.forEach(item => {
+      const timeLabel = [item.time, item.offset].filter(Boolean).join(' / ') || 'TBD';
+      const roleLabel = item.role ? `[${item.role}]` : '';
+      const courseLabel = item.course ? `${item.course}` : '';
+      const durationLabel = item.duration ? `(${item.duration})` : '';
+      const parallelLabel = item.parallel ? '[Parallel]' : '';
+      const taskLine = `${timeLabel} ${roleLabel} ${parallelLabel} ${courseLabel} ${item.task || ''} ${durationLabel}`.trim();
+      children.push(new Paragraph({ children: [new TextRun(taskLine)] }));
+      if (Array.isArray(item.dependsOn) && item.dependsOn.length) {
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: `Depends on: ${item.dependsOn.join(', ')}`, italics: true, color: COLORS.textLight })]
+          })
+        );
+      }
+    });
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildRoleViews(details, context) {
+  const roles = Array.isArray(details?.roleViews) ? details.roleViews : [];
+  if (!roles.length) {
+    return [
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: 'Role-Based Views', size: 48, bold: true, color: COLORS.navy })]
+      }),
+      new Paragraph({ children: [new TextRun('Role checklists not provided.')] }),
+      new Paragraph({ children: [new PageBreak()] })
+    ];
+  }
+
+  const children = [];
+  roles.forEach(role => {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: `Role View - ${role.role}`, size: 48, bold: true, color: COLORS.navy })]
+      }),
+      buildKeyValueLine('Event', details?.systemIndex?.eventName || context.eventTitle || 'Dinner Party'),
+      buildKeyValueLine('Date', details?.systemIndex?.eventDate || context.eventDate || 'TBD'),
+      buildKeyValueLine('Start', role.startTime),
+      buildKeyValueLine('End', role.endTime),
+      buildKeyValueLine('Reports To', role.reportsTo || 'Host')
+    );
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Setup', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    children.push(...buildCheckboxList(role.setup));
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Course Tasks', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    if (Array.isArray(role.courseTasks)) {
+      role.courseTasks.forEach(courseBlock => {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: courseBlock.courseType || 'Course', size: 24, bold: true, color: COLORS.navy })]
+          })
+        );
+        children.push(...buildCheckboxList(courseBlock.tasks));
+      });
+    }
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Transitions', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    children.push(...buildCheckboxList(role.transitions));
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'End of Night', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    children.push(...buildCheckboxList(role.endOfNight));
+
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+  });
+
+  return children;
+}
+
+function buildMasterShoppingList(details, context) {
+  const list = details?.masterShoppingList?.categories || [];
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Master Shopping List', size: 48, bold: true, color: COLORS.navy })]
+    })
+  ];
+
+  if (!list.length) {
+    children.push(new Paragraph({ children: [new TextRun('Shopping list data not available.')] }));
+  } else {
+    list.forEach(category => {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun({ text: category.name || 'Category', size: 26, bold: true, color: COLORS.gold })]
+        })
+      );
+      (category.items || []).forEach(item => {
+        const usQty = item.quantity !== undefined ? `${item.quantity} ${item.unit || ''}`.trim() : '';
+        const metricQty = item.metricQuantity !== undefined ? `${item.metricQuantity} ${item.metricUnit || ''}`.trim() : '';
+        const detail = metricQty ? ` (${metricQty})` : '';
+        const line = `□  ${item.item || 'Item'} - ${usQty}${detail}`.trim();
+        children.push(new Paragraph({ children: [new TextRun(line)] }));
+      });
+    });
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildRecipeModules(menu, details, recipes) {
+  const recipeList = Array.isArray(details?.recipes) && details.recipes.length
+    ? details.recipes
+    : Array.isArray(recipes) ? recipes : [];
+
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Recipe Modules', size: 48, bold: true, color: COLORS.navy })]
+    })
+  ];
+
+  recipeList.forEach((recipe, idx) => {
+    const course = menu?.courses?.[idx];
+    const title = course ? `${course.type}: ${course.name}` : recipe.title || `Recipe ${idx + 1}`;
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        pageBreakBefore: idx > 0,
+        children: [new TextRun({ text: title, size: 32, bold: true, color: COLORS.navy })]
+      }),
+      buildKeyValueLine('Serves', recipe.serves),
+      buildKeyValueLine('Yield', recipe.yield),
+      buildKeyValueLine('Active Time', recipe.activeTime),
+      buildKeyValueLine('Total Time', recipe.totalTime)
+    );
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Equipment', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    children.push(...buildBulletList(recipe.equipment));
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Ingredients', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    children.push(...buildBulletList(recipe.ingredients));
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Steps', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    if (Array.isArray(recipe.steps)) {
+      recipe.steps.forEach(step => {
+        children.push(new Paragraph({ numbering: { reference: 'numbers', level: 0 }, children: [new TextRun(step)] }));
+      });
+    }
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Holding Instructions', size: 26, bold: true, color: COLORS.gold })]
+      }),
+      new Paragraph({ children: [new TextRun(recipe.holding || 'TBD')] })
+    );
+
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Failure Points', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    children.push(...buildBulletList(recipe.failurePoints));
+  });
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildExecutionPacket(details, menu) {
+  const packet = Array.isArray(details?.executionPacket) && details.executionPacket.length
+    ? details.executionPacket
+    : Array.isArray(details?.recipes)
+      ? details.recipes.map((recipe, idx) => ({
+          courseType: menu?.courses?.[idx]?.type || `Course ${idx + 1}`,
+          title: recipe.title || menu?.courses?.[idx]?.name || `Course ${idx + 1}`,
+          steps: recipe.steps || []
+        }))
+      : [];
+
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Day-Of Execution Packet', size: 48, bold: true, color: COLORS.navy })]
+    })
+  ];
+
+  packet.forEach((entry, idx) => {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        pageBreakBefore: idx > 0,
+        children: [new TextRun({ text: `${entry.courseType} - ${entry.title}`, size: 32, bold: true, color: COLORS.navy })]
+      })
+    );
+    children.push(...buildCheckboxList(entry.steps));
+  });
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildEquipmentConstraints(details) {
+  const equipment = details?.equipmentConstraints || {};
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Equipment & Capacity Constraints', size: 48, bold: true, color: COLORS.navy })]
+    }),
+    buildKeyValueLine('Stations Required', equipment.stationsRequired),
+    buildKeyValueLine('Burners Required', equipment.burnersRequired)
+  ];
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Oven Conflicts', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    ...buildBulletList(equipment.ovenConflicts)
+  );
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Fridge Constraints', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    ...buildBulletList(equipment.fridgeConstraints)
+  );
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Holding Windows', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    ...buildBulletList(equipment.holdingWindows)
+  );
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Resolutions', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    ...buildBulletList(equipment.resolutions)
+  );
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildContingencies(details) {
+  const contingencies = Array.isArray(details?.contingencies) ? details.contingencies : [];
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Failure & Contingency Notes', size: 48, bold: true, color: COLORS.navy })]
+    })
+  ];
+
+  if (!contingencies.length) {
+    children.push(new Paragraph({ children: [new TextRun('No contingency notes provided.')] }));
+  } else {
+    contingencies.forEach(item => {
+      children.push(
+        new Paragraph({ children: [new TextRun({ text: `Issue: ${item.issue || 'TBD'}`, bold: true })] }),
+        new Paragraph({ children: [new TextRun(`Fix: ${item.fix || 'TBD'}`)] })
+      );
+    });
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildCleanupReset(details) {
+  const cleanup = details?.cleanupReset || {};
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Cleanup & Reset', size: 48, bold: true, color: COLORS.navy })]
+    })
+  ];
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Immediate', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    ...buildCheckboxList(cleanup.immediate)
+  );
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Later', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    ...buildCheckboxList(cleanup.later)
+  );
+
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: 'Leftovers', size: 26, bold: true, color: COLORS.gold })]
+    }),
+    ...buildCheckboxList(cleanup.leftovers)
+  );
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  return children;
+}
+
+function buildArchiveMetadata(details, context) {
+  const archive = details?.archiveMetadata || {};
+  const params = archive.parameters || {};
+  const children = [
+    new Paragraph({
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: 'Archive & Reuse Metadata', size: 48, bold: true, color: COLORS.navy })]
+    }),
+    buildKeyValueLine('Version', archive.version || 'TBD'),
+    buildKeyValueLine('Generated', archive.generatedAt || new Date().toISOString().split('T')[0]),
+    buildKeyValueLine('Guest Count', params.guestCount || context.guestCount || 'TBD'),
+    buildKeyValueLine('Menu Style', params.menuStyle || context.menuStyle || 'TBD'),
+    buildKeyValueLine('Service Style', params.serviceStyle || context.serviceStyle || 'TBD'),
+    new Paragraph({
+      spacing: { before: 300 },
+      children: [new TextRun({ text: 'Notes:', bold: true, color: COLORS.navy })]
+    }),
+    new Paragraph({ children: [new TextRun(' ') ] })
+  ];
+
   return children;
 }
 
