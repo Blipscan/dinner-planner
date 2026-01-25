@@ -17,6 +17,37 @@ const COLORS = {
   textLight: '6b7c85'
 };
 
+function buildWineRationale(course) {
+  const name = (course?.name || '').toLowerCase();
+  const type = (course?.type || '').toLowerCase();
+
+  if (type.includes('dessert') || /chocolate|caramel|custard|panna cotta|tart|cake|ice cream|sorbet|gelato/.test(name)) {
+    return "Chosen to mirror the dessert's sweetness and highlight its flavors.";
+  }
+  if (/scallop|shrimp|crab|lobster|oyster|clam|mussel|fish|salmon|tuna|seafood/.test(name)) {
+    return 'Bright acidity and minerality keep the seafood light and lift the dish.';
+  }
+  if (/lamb|beef|steak|short rib|duck|venison|game|rabbit/.test(name)) {
+    return 'Structured tannins and depth stand up to the richness of the protein.';
+  }
+  if (/pork|chicken|turkey|quail/.test(name)) {
+    return 'Balanced body and acidity complement savory flavors without overpowering.';
+  }
+  if (/mushroom|truffle|porcini/.test(name)) {
+    return "Earthy notes echo the dish's umami character.";
+  }
+  if (/citrus|lemon|lime|orange|grapefruit|yuzu/.test(name)) {
+    return 'Crisp acidity echoes citrus notes and refreshes the palate.';
+  }
+  if (/tomato|heirloom/.test(name)) {
+    return "Acid-driven wines balance the tomato's brightness and sweetness.";
+  }
+  if (/cheese|burrata|ricotta|cream/.test(name)) {
+    return 'Acidity cuts through creamy textures for a cleaner finish.';
+  }
+  return "Selected to balance the dish's flavors and keep the progression harmonious.";
+}
+
 // Build complete cookbook document
 async function buildCookbook(menu, context, staffing, recipes) {
   const staffingInfo = STAFFING.find(s => s.id === staffing) || STAFFING[0];
@@ -245,6 +276,7 @@ function buildWineProgram(menu, context) {
   ];
   
   wines.forEach(course => {
+    const rationale = buildWineRationale(course);
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
@@ -256,6 +288,10 @@ function buildWineProgram(menu, context) {
       new Paragraph({
         spacing: { before: 100 },
         children: [new TextRun({ text: `Pairs with: ${course.name}`, size: 22, italics: true, color: COLORS.textLight })]
+      }),
+      new Paragraph({
+        spacing: { before: 80 },
+        children: [new TextRun({ text: `Why this pairing: ${rationale}`, size: 20, italics: true, color: COLORS.textLight })]
       }),
       new Paragraph({
         spacing: { before: 100, after: 200 },

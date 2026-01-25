@@ -314,6 +314,26 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       color: var(--gold);
       font-style: italic;
     }
+
+    .menu-controls {
+      display: flex;
+      justify-content: center;
+      margin: 0.5rem 0 1.5rem;
+    }
+    .toggle-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--cream-dark);
+      background: white;
+      color: var(--text-light);
+      font-size: 0.85rem;
+    }
+    .toggle-field input {
+      accent-color: var(--navy);
+    }
     
     /* ===== STAFFING ===== */
     .staffing-option {
@@ -867,6 +887,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     <!-- Step 4: Menu Selection -->
     <section id="step4" class="hidden">
       <h2 class="section-title">Choose Your Menu</h2>
+
+      <div class="menu-controls">
+        <label class="toggle-field">
+          <input type="checkbox" id="showWineToggle" onchange="toggleWinePairings(this.checked)">
+          Show wine pairings
+        </label>
+      </div>
       
       <div id="menuLoading" class="loading hidden">
         <div class="spinner"></div>
@@ -1061,6 +1088,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let selectedMenuDetails = null;
     let preferencesVisited = false;
     let preferencesCompleted = false;
+    let showWinePairings = false;
     let detailsLoadingTimer = null;
     let detailsLoadingStart = null;
     const FETCH_TIMEOUTS_MS = {
@@ -2074,6 +2102,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     function renderMenus() {
       const container = document.getElementById('menuList');
+      const showWine = showWinePairings;
       container.innerHTML = menus.map((menu, i) => `
         <div class="menu-card ${selectedMenu === i ? 'selected' : ''}" onclick="highlightMenu(${i})">
           <div class="menu-header">
@@ -2086,13 +2115,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
               <div class="course">
                 <span class="course-type">${c.type}</span>
                 <span class="course-name">${c.name}</span>
-                ${c.wine ? `<span class="course-wine">🍷 ${c.wine}</span>` : ''}
+                ${showWine && c.wine ? `<span class="course-wine">🍷 ${c.wine}</span>` : ''}
               </div>
             `).join('')}
           </div>
-          <div style="margin-top:0.75rem;font-size:0.9rem;color:var(--gold-dark)">Wine: ${menu.wineCost}</div>
+          ${showWine ? `<div style="margin-top:0.75rem;font-size:0.9rem;color:var(--gold-dark)">Wine: ${menu.wineCost}</div>` : ''}
         </div>
       `).join('');
+    }
+
+    function toggleWinePairings(value) {
+      showWinePairings = !!value;
+      if (menus && menus.length) {
+        renderMenus();
+      }
     }
     
     function highlightMenu(index) {
