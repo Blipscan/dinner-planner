@@ -164,6 +164,87 @@ function parseJsonPayload(text, label) {
   }
 }
 
+function isBondTheme(context) {
+  const haystack = [
+    context?.eventTitle,
+    context?.inspiration,
+    context?.menuStyle,
+    context?.customMenu,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /(james\s*bond|007|skyfall|spectre|goldeneye|casino royale|bond)/i.test(haystack);
+}
+
+function ensureBondWineText(existing) {
+  const bondPick = "Bollinger Special Cuvée NV";
+  if (!existing) {
+    return `James Bond pick: ${bondPick}`;
+  }
+  if (/bollinger|james bond|bond pick/i.test(existing)) {
+    return existing;
+  }
+  return `${existing} — James Bond pick: ${bondPick}`;
+}
+
+function injectBondWineIntoMenus(menus, context) {
+  if (!isBondTheme(context) || !Array.isArray(menus)) {
+    return;
+  }
+
+  const hasBondAlready = menus.some((menu) =>
+    menu?.courses?.some((course) => /bollinger|james bond/i.test(course?.wine || ""))
+  );
+  if (hasBondAlready) {
+    return;
+  }
+
+  const targetMenu = menus.find((menu) => Array.isArray(menu?.courses)) || menus[0];
+  if (!targetMenu?.courses?.length) {
+    return;
+  }
+
+  const firstWineCourse = targetMenu.courses.find((course) => course?.wine);
+  if (firstWineCourse) {
+    firstWineCourse.wine = ensureBondWineText(firstWineCourse.wine);
+    return;
+  }
+
+  if (targetMenu.courses[1]) {
+    targetMenu.courses[1].wine = ensureBondWineText(targetMenu.courses[1].wine);
+  } else {
+    targetMenu.courses[0].wine = ensureBondWineText(targetMenu.courses[0].wine);
+  }
+}
+
+function injectBondWineIntoDetails(details, menu, context) {
+  if (!isBondTheme(context) || !details?.wineTiers?.length) {
+    return;
+  }
+
+  const hasBondAlready = details.wineTiers.some((tier) =>
+    tier?.pairings?.some((pairing) => /bollinger|james bond/i.test(pairing || ""))
+  );
+  if (hasBondAlready) {
+    return;
+  }
+
+  const targetTier = details.wineTiers.find((tier) => tier?.id === "classic") || details.wineTiers[0];
+  if (!targetTier) {
+    return;
+  }
+
+  if (!Array.isArray(targetTier.pairings)) {
+    targetTier.pairings = [];
+  }
+
+  const index = 0;
+  const courseLabel = menu?.courses?.[index]?.type ? `${menu.courses[index].type} pairing` : "Amuse-Bouche pairing";
+  const existing = targetTier.pairings[index] || courseLabel;
+  targetTier.pairings[index] = ensureBondWineText(existing);
+}
+
 function formatDeployId(value) {
   if (!value) {
     return "";
@@ -485,6 +566,7 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
       return res.status(502).json({ error: "Menu generation failed.", detail: "AI returned invalid JSON." });
     }
  
+    injectBondWineIntoMenus(menus, context);
     res.json({ menus });
   } catch (err) {
     console.error("Menu generation error:", err);
@@ -542,14 +624,14 @@ Rules:
 - Provide exactly 5 recipes, in the same order as the menu courses.
 - Provide exactly 4 wine tiers, each with 5 pairings in course order.
 - Pairings should be specific bottles with producer + vintage when possible.
-- Keep steps concise and practical for a skilled home cook.
-- Keep each recipe to 6-8 ingredients and 4-6 steps.
-- Keep notes and make-ahead guidance to one sentence each.`;
+- For each pairing, append a short reason after an em dash (max 10 words).
+- Use 10-14 ingredients and 6-10 steps per recipe.
+- Notes and make-ahead guidance can be 1-2 sentences each.`;
 
     const response = await withTimeout(
       client.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
+        max_tokens: 4096,
         system: systemPrompt,
         messages: [
           {
@@ -563,6 +645,7 @@ Rules:
     );
 
     const details = parseJsonPayload(response.content?.[0]?.text, "Details generation");
+    injectBondWineIntoDetails(details, menu, context);
     res.json(details);
   } catch (err) {
     console.error("Details generation error:", err);
