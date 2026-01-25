@@ -39,6 +39,7 @@ app.get("/", (req, res) => {
 // ============================================================
  
 const PORT = process.env.PORT || 3000;
+const APP_VERSION = process.env.APP_VERSION || "2.0.0-cadillac";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
  
 const ADMIN_CODE = process.env.ADMIN_CODE || "ADMIN2024";
@@ -181,7 +182,7 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     apiConfigured: !!ANTHROPIC_API_KEY,
     betaExpiry: BETA_EXPIRY,
-    version: "2.0.0-cadillac",
+    version: APP_VERSION,
   });
 });
  
@@ -512,5 +513,7 @@ app.post("/api/download-cookbook", async (req, res) => {
 // ============================================================
  
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Dinner Planner listening on port ${PORT} (${ANTHROPIC_API_KEY ? "API key set" : "demo mode"})`);
+  console.log(
+    `Dinner Planner ${APP_VERSION} listening on port ${PORT} (${ANTHROPIC_API_KEY ? "API key set" : "demo mode"})`
+  );
 });
