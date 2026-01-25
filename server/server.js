@@ -130,6 +130,104 @@ function parseJsonPayload(text, label) {
   }
 }
 
+function validateDetails(details, menu) {
+  const errors = [];
+  if (!details) {
+    return ["Details payload missing."];
+  }
+
+  const courseCount = menu?.courses?.length || 0;
+  const requiredRoles = ["Host", "Kitchen", "Service", "Bar", "Shopping", "Prep", "Day-Of Execution", "Cleanup"];
+
+  if (!details.systemIndex) {
+    errors.push("systemIndex missing");
+  } else {
+    const requiredIndexFields = ["eventName", "eventDate", "location", "guestCount", "serviceStyle", "menuSummary", "complexity", "totalPrepTime", "totalActiveTime", "stationsRequired"];
+    requiredIndexFields.forEach((field) => {
+      if (details.systemIndex[field] === undefined || details.systemIndex[field] === null || details.systemIndex[field] === "") {
+        errors.push(`systemIndex.${field} missing`);
+      }
+    });
+  }
+
+  if (!Array.isArray(details.coursePlan) || details.coursePlan.length !== courseCount) {
+    errors.push("coursePlan incomplete");
+  }
+
+  if (!Array.isArray(details.recipes) || details.recipes.length !== courseCount) {
+    errors.push("recipes incomplete");
+  }
+
+  if (!Array.isArray(details.wineTiers) || details.wineTiers.length !== 4) {
+    errors.push("wineTiers incomplete");
+  }
+
+  if (!Array.isArray(details.masterTimeline) || details.masterTimeline.length < 12) {
+    errors.push("masterTimeline incomplete");
+  }
+
+  if (!Array.isArray(details.roleViews) || details.roleViews.length < requiredRoles.length) {
+    errors.push("roleViews missing roles");
+  } else {
+    const rolesPresent = new Set(details.roleViews.map((r) => r.role));
+    requiredRoles.forEach((role) => {
+      if (!rolesPresent.has(role)) {
+        errors.push(`roleViews missing ${role}`);
+      }
+    });
+    details.roleViews.forEach((role) => {
+      if (!Array.isArray(role.setup) || role.setup.length === 0) {
+        errors.push(`roleViews.${role.role}.setup missing`);
+      }
+      if (!Array.isArray(role.courseTasks) || role.courseTasks.length === 0) {
+        errors.push(`roleViews.${role.role}.courseTasks missing`);
+      }
+      if (!Array.isArray(role.transitions) || role.transitions.length === 0) {
+        errors.push(`roleViews.${role.role}.transitions missing`);
+      }
+      if (!Array.isArray(role.endOfNight) || role.endOfNight.length === 0) {
+        errors.push(`roleViews.${role.role}.endOfNight missing`);
+      }
+    });
+  }
+
+  if (!details.masterShoppingList?.categories || details.masterShoppingList.categories.length < 6) {
+    errors.push("masterShoppingList incomplete");
+  }
+
+  if (!Array.isArray(details.executionPacket) || details.executionPacket.length !== courseCount) {
+    errors.push("executionPacket incomplete");
+  }
+
+  if (!details.equipmentConstraints) {
+    errors.push("equipmentConstraints missing");
+  }
+
+  if (!Array.isArray(details.contingencies) || details.contingencies.length < 2) {
+    errors.push("contingencies missing");
+  }
+
+  if (!details.cleanupReset) {
+    errors.push("cleanupReset missing");
+  } else {
+    if (!Array.isArray(details.cleanupReset.immediate) || details.cleanupReset.immediate.length === 0) {
+      errors.push("cleanupReset.immediate missing");
+    }
+    if (!Array.isArray(details.cleanupReset.later) || details.cleanupReset.later.length === 0) {
+      errors.push("cleanupReset.later missing");
+    }
+    if (!Array.isArray(details.cleanupReset.leftovers) || details.cleanupReset.leftovers.length === 0) {
+      errors.push("cleanupReset.leftovers missing");
+    }
+  }
+
+  if (!details.archiveMetadata) {
+    errors.push("archiveMetadata missing");
+  }
+
+  return errors;
+}
+
 function isBondTheme(context) {
   const haystack = [
     context?.eventTitle,
@@ -471,7 +569,7 @@ app.post("/api/generate-details", async (req, res) => {
 
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    const systemPrompt = `You are compiling a master operational cookbook for a French-style multi-course dinner.
+    const operationsPrompt = `You are compiling a master operational cookbook for a French-style multi-course dinner.
 
 Return ONLY valid JSON with this exact shape:
 {
@@ -504,28 +602,6 @@ Return ONLY valid JSON with this exact shape:
   },
   "chefOverview": "string",
   "wineOverview": "string",
-  "recipes": [
-    {
-      "title": "string",
-      "serves": number,
-      "yield": "string",
-      "activeTime": "string",
-      "totalTime": "string",
-      "equipment": ["string", "..."],
-      "ingredients": ["string", "..."],
-      "steps": ["string", "..."],
-      "holding": "string",
-      "failurePoints": ["string", "..."]
-    }
-  ],
-  "wineTiers": [
-    {
-      "id": "value|classic|premium|splurge",
-      "label": "Value|Classic|Premium|Splurge",
-      "totalCost": "string",
-      "pairings": ["string", "..."]
-    }
-  ],
   "masterTimeline": [
     {
       "time": "HH:MM",
@@ -604,40 +680,118 @@ Return ONLY valid JSON with this exact shape:
 }
 
 Rules:
-- Provide exactly 5 recipes in menu course order.
-- Provide exactly 4 wine tiers, each with 5 pairings in course order.
-- Pairings must include producer + vintage and end with " - reason" (max 10 words).
-- Recipes must be operational: no narrative or marketing language.
-- Use 8-12 ingredients and 5-8 steps per recipe.
-- Provide equipment, holding guidance, and likely failure points.
-- coursePlan must define purpose, portion, temperature, service duration, dependencies.
+- Use context fields directly for eventName, eventDate, location, guestCount, serviceStyle.
+- menuSummary must list every course in order.
+- coursePlan must define purpose, portion, temperature, duration, dependencies.
 - mealBalance.warnings must be empty if constraints are satisfied.
-- masterTimeline: 14-18 tasks with absolute time and offset.
-- roleViews: include all listed roles; each checklist is self-contained.
+- masterTimeline: 14-18 tasks with absolute time and offset from service time.
+- roleViews: include all listed roles; no empty arrays.
 - masterShoppingList: 6-8 categories, 4-8 items each, normalized units.
 - executionPacket: stripped steps only, one entry per course.
 - equipmentConstraints must flag conflicts and provide resolutions.
+- contingencies: 3-5 likely failures with concrete fixes.
 - cleanupReset must separate immediate vs later tasks.
-- archiveMetadata.notes must be empty.`;
+- No placeholders, no TBD.`;
 
-    const response = await withTimeout(
+    const recipesPrompt = `You are compiling the recipe and wine modules for a French-style multi-course dinner.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "chefOverview": "string",
+  "wineOverview": "string",
+  "recipes": [
+    {
+      "title": "string",
+      "serves": number,
+      "yield": "string",
+      "activeTime": "string",
+      "totalTime": "string",
+      "equipment": ["string", "..."],
+      "ingredients": ["string", "..."],
+      "steps": ["string", "..."],
+      "holding": "string",
+      "failurePoints": ["string", "..."]
+    }
+  ],
+  "wineTiers": [
+    {
+      "id": "value|classic|premium|splurge",
+      "label": "Value|Classic|Premium|Splurge",
+      "totalCost": "string",
+      "pairings": ["string", "..."]
+    }
+  ]
+}
+
+Rules:
+- Provide exactly 5 recipes in menu course order.
+- Recipes must be operational: no narrative or marketing language.
+- Use 8-12 ingredients and 5-8 steps per recipe.
+- Provide equipment, holding guidance, and likely failure points.
+- Provide exactly 4 wine tiers, each with 5 pairings in course order.
+- Pairings must include producer + vintage and end with " - reason" (max 10 words).
+- No placeholders, no TBD.
+- Provide chefOverview (2-3 sentences) and wineOverview (2-3 sentences) to explain course and wine logic.`;
+
+    const basePrompt = `Menu:\n${JSON.stringify(menu, null, 2)}\n\nContext:\n${JSON.stringify(context || {}, null, 2)}`;
+
+    const operationsResponse = await withTimeout(
       client.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: `Generate details for this menu and context:\n\nMenu:\n${JSON.stringify(menu, null, 2)}\n\nContext:\n${JSON.stringify(context || {}, null, 2)}`,
-          },
-        ],
+        max_tokens: 3600,
+        system: operationsPrompt,
+        messages: [{ role: "user", content: basePrompt }],
       }),
       REQUEST_TIMEOUTS_MS.details,
-      "Details generation"
+      "Details operations generation"
     );
 
-    const details = parseJsonPayload(response.content?.[0]?.text, "Details generation");
+    const recipesResponse = await withTimeout(
+      client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3600,
+        system: recipesPrompt,
+        messages: [{ role: "user", content: basePrompt }],
+      }),
+      REQUEST_TIMEOUTS_MS.details,
+      "Details recipe generation"
+    );
+
+    const operationalDetails = parseJsonPayload(operationsResponse.content?.[0]?.text, "Operational details");
+    const recipeDetails = parseJsonPayload(recipesResponse.content?.[0]?.text, "Recipe details");
+
+    const details = {
+      ...operationalDetails,
+      ...recipeDetails,
+    };
+
+    details.systemIndex = details.systemIndex || {};
+    details.systemIndex.eventName = details.systemIndex.eventName || context?.eventTitle || "Dinner Party";
+    details.systemIndex.eventDate = details.systemIndex.eventDate || context?.eventDate || "TBD";
+    details.systemIndex.location = details.systemIndex.location || context?.eventLocation || "TBD";
+    details.systemIndex.guestCount = details.systemIndex.guestCount || parseInt(context?.guestCount || "0", 10) || 0;
+    details.systemIndex.serviceStyle = details.systemIndex.serviceStyle || context?.serviceStyle || "plated";
+    details.systemIndex.menuSummary =
+      details.systemIndex.menuSummary?.length
+        ? details.systemIndex.menuSummary
+        : (menu?.courses || []).map((c) => `${c.type}: ${c.name}`);
+
+    details.archiveMetadata = details.archiveMetadata || {};
+    details.archiveMetadata.generatedAt = new Date().toISOString().split("T")[0];
+    details.archiveMetadata.parameters = details.archiveMetadata.parameters || {};
+    details.archiveMetadata.parameters.guestCount = details.archiveMetadata.parameters.guestCount || details.systemIndex.guestCount;
+    details.archiveMetadata.parameters.menuStyle = details.archiveMetadata.parameters.menuStyle || context?.menuStyle || "classic";
+    details.archiveMetadata.parameters.serviceStyle =
+      details.archiveMetadata.parameters.serviceStyle || details.systemIndex.serviceStyle;
+    details.archiveMetadata.notes = "";
+
     injectBondWineIntoDetails(details, menu, context);
+
+    const validationErrors = validateDetails(details, menu);
+    if (validationErrors.length) {
+      throw new Error(`Details incomplete: ${validationErrors.join("; ")}`);
+    }
+
     res.json(details);
   } catch (err) {
     console.error("Details generation error:", err);
