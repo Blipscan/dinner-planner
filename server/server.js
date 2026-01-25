@@ -14,7 +14,6 @@ const {
   STAFFING,
   AVERY_PRODUCTS,
   PERSONAS,
-  DEMO_MENUS,
   COOKBOOK_SECTIONS,
 } = require("./data");
  
@@ -69,7 +68,6 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
  
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
-const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "false").toLowerCase() === "true";
 const DEFAULT_TIMEOUTS_MS = {
   chat: 15000,
   menus: 45000,
@@ -92,38 +90,6 @@ function respondMissingApiKey(res, detail) {
     error: "Anthropic API key not configured.",
     detail: detail || "Set ANTHROPIC_API_KEY to enable AI generation.",
   });
-}
-
-function parseBudgetRange(value) {
-  if (!value) {
-    return { min: 80, max: 120 };
-  }
-
-  const rangeMatch = value.match(/(\d+)\s*-\s*(\d+)/);
-  if (rangeMatch) {
-    return { min: parseInt(rangeMatch[1], 10), max: parseInt(rangeMatch[2], 10) };
-  }
-
-  const plusMatch = value.match(/(\d+)\s*\+/);
-  if (plusMatch) {
-    const min = parseInt(plusMatch[1], 10);
-    return { min, max: Math.round(min * 1.5) };
-  }
-
-  const singleMatch = value.match(/(\d+)/);
-  if (singleMatch) {
-    const min = parseInt(singleMatch[1], 10);
-    return { min, max: Math.round(min * 1.4) };
-  }
-
-  return { min: 80, max: 120 };
-}
-
-function formatBudgetRange(min, max) {
-  if (!max || max <= min) {
-    return `$${min}+ total`;
-  }
-  return `$${min}-${max} total`;
 }
 
 function stripCodeFences(text) {
@@ -259,194 +225,6 @@ function formatDeployId(value) {
   return trimmed.length > 16 ? trimmed.slice(0, 16) : trimmed;
 }
 
-function buildDemoRecipes(menu, context) {
-  const guestCount = parseInt(context?.guestCount || "6", 10);
-  const timeByCourse = {
-    "Amuse-Bouche": { active: "20 min", total: "45 min" },
-    "First Course": { active: "30 min", total: "1 hour" },
-    "Second Course": { active: "25 min", total: "45 min" },
-    "Main Course": { active: "45 min", total: "1.5 hours" },
-    "Dessert": { active: "35 min", total: "1 hour" },
-  };
-
-  return (menu?.courses || []).map((course) => {
-    const timing = timeByCourse[course.type] || { active: "30 min", total: "1 hour" };
-    const title = course.name || course.type;
-    return {
-      title,
-      serves: guestCount,
-      activeTime: timing.active,
-      totalTime: timing.total,
-      ingredients: [
-        title,
-        "Kosher salt",
-        "Freshly ground black pepper",
-        "Olive oil or butter",
-        "Seasonal herbs",
-      ],
-      steps: [
-        `Prep ingredients for ${title}.`,
-        `Cook the core components of ${title} until perfectly done.`,
-        `Season, plate, and serve ${title}.`,
-      ],
-      notes: "Taste and adjust seasoning right before serving.",
-      makeAhead: "Most prep can be completed earlier in the day.",
-      whyItWorks: `Balances flavor, texture, and timing for ${title}.`,
-    };
-  });
-}
-
-function buildDemoWineTiers(menu, context) {
-  const baseRange = parseBudgetRange(context?.wineBudget || menu?.wineCost || "$80-120");
-  const basePairings = (menu?.courses || []).map((course) => {
-    return course.wine || `${course.type} pairing`;
-  });
-  const tiers = [
-    { id: "value", label: "Value", factor: 0.7 },
-    { id: "classic", label: "Classic", factor: 1 },
-    { id: "premium", label: "Premium", factor: 1.6 },
-    { id: "splurge", label: "Splurge", factor: 2.4 },
-  ];
-
-  return tiers.map((tier) => {
-    const min = Math.max(30, Math.round(baseRange.min * tier.factor));
-    const max = Math.max(min, Math.round(baseRange.max * tier.factor));
-    return {
-      id: tier.id,
-      label: tier.label,
-      totalCost: formatBudgetRange(min, max),
-      pairings: basePairings.map((pairing) => `${tier.label} pick: ${pairing}`),
-    };
-  });
-}
-
-function buildDemoDetails(menu, context) {
-  const courses = menu?.courses || [];
-  const guestCount = parseInt(context?.guestCount || "6", 10);
-  return {
-    recipes: buildDemoRecipes(menu, context),
-    wineTiers: buildDemoWineTiers(menu, context),
-    chefOverview: "Courses are balanced to build intensity and finish light. The progression moves from bright, delicate flavors toward richer mains, then finishes with a clean, aromatic dessert.",
-    wineOverview: "Pairings move from crisp, high-acid whites to more structured reds to match intensity. Each pick echoes the dominant flavor notes and resets the palate between courses.",
-    shoppingList: {
-      categories: [
-        { name: "Proteins", items: ["Main protein", "Secondary protein", "Optional shellfish", "Eggs"] },
-        { name: "Seafood", items: ["Shellfish or fish (if applicable)", "Fish stock or fumet"] },
-        { name: "Produce", items: ["Seasonal greens", "Citrus", "Alliums", "Fresh herbs"] },
-        { name: "Dairy & Eggs", items: ["Butter", "Cream", "Cheese", "Milk or creme fraiche"] },
-        { name: "Pantry", items: ["Olive oil", "Vinegar", "Kosher salt", "Black pepper"] },
-        { name: "Wine & Beverages", items: ["Sparkling wine", "White wine", "Red wine", "Dessert wine"] },
-      ],
-      notes: [
-        `Scale ingredients for ${guestCount} guests and plan one backup bottle.`,
-        "Shop produce closest to the event for peak freshness.",
-      ],
-    },
-    dayBeforePrep: [
-      "Review recipes and finalize shopping list.",
-      "Prep stocks, sauces, and reductions that improve overnight.",
-      "Wash and dry greens and herbs; store properly.",
-      "Portion proteins and season or marinate if needed.",
-      "Make dessert components that hold well (custards, pâte, sauces).",
-      "Set table, polish glassware, and stage serving platters.",
-      "Label containers and organize by course for smooth service.",
-      "Confirm cookware, plates, and tools for each course.",
-    ],
-    dayOfTimeline: [
-      { time: "-6 hours", task: "Final shopping and setup, chill whites." },
-      { time: "-4 hours", task: "Start long-cook elements and sauces." },
-      { time: "-3 hours", task: "Prep vegetables, garnishes, and dressings." },
-      { time: "-2 hours", task: "Temper proteins, set mise en place." },
-      { time: "-90 min", task: "Open reds, begin decanting if needed." },
-      { time: "-60 min", task: "Preheat ovens, warm plates, finalize dessert." },
-      { time: "-30 min", task: "Plate amuse, set first-course bowls." },
-      { time: "0", task: "Guests arrive; serve amuse-bouche." },
-      { time: "+20 min", task: "Serve first course." },
-      { time: "+45 min", task: "Serve second course." },
-      { time: "+75 min", task: "Serve main course." },
-      { time: "+110 min", task: "Serve dessert." },
-    ],
-    platingGuides: courses.map((course) => ({
-      courseType: course.type,
-      guidance: `Center ${course.name} as the focal point and use a contrasting garnish. Keep the plate clean, highlight sauce with a controlled pour, and finish with a fresh herb or citrus zest.`,
-    })),
-    tableSetting: {
-      placeSetting: [
-        "Charger or base plate",
-        "Dinner fork and salad fork",
-        "Dinner knife and soup spoon",
-        "Dessert spoon above plate",
-        "Water glass plus wine stems",
-        "Folded napkin and place card",
-      ],
-      centerpiece: "Low arrangement with candlelight to keep sight lines open.",
-      notes: [
-        "Keep centerpieces low to preserve conversation.",
-        "Stage serving pieces near the pass for quick access.",
-        "Lay out extra napkins and polishing cloths for service.",
-      ],
-    },
-    serviceNotes: {
-      pacing: [
-        "Aim for 15-20 minutes between courses.",
-        "Check guest pace before firing the next dish.",
-        "Hold the main if the table is still mid-course.",
-      ],
-      wineService: [
-        "Pour 4-5 oz for tasting pours.",
-        "Serve whites chilled, reds slightly cool.",
-        "Refresh glasses before each course when possible.",
-      ],
-      clearing: [
-        "Clear from the right once most guests finish.",
-        "Reset flatware between courses as needed.",
-        "Crumb the table before dessert.",
-      ],
-    },
-    ambianceGuide: {
-      lighting: [
-        "Dim overheads to 40-50%.",
-        "Use candles for flattering light.",
-        "Avoid scented candles near food.",
-      ],
-      music: [
-        "Arrival: upbeat jazz or bossa nova.",
-        "Dinner: soft jazz or classical.",
-        "Dessert: mellow instrumental.",
-      ],
-      temperature: [
-        "Set thermostat 2-3 degrees cooler than usual.",
-        "Ventilate the kitchen to keep dining room comfortable.",
-      ],
-    },
-    finalChecklist: {
-      weekBefore: [
-        "Confirm guest count and dietary needs.",
-        "Order specialty ingredients and wines.",
-        "Test any new techniques or recipes.",
-        "Plan plating and service flow.",
-      ],
-      dayBefore: [
-        "Complete make-ahead prep.",
-        "Set the table and chill wines.",
-        "Organize labeled containers by course.",
-        "Confirm timeline and equipment.",
-      ],
-      dayOf: [
-        "Stage ingredients and tools.",
-        "Warm plates for hot courses.",
-        "Taste and adjust seasoning.",
-        "Light candles and start music.",
-        "Take a breath before guests arrive.",
-      ],
-    },
-    imagePrompts: courses.map(
-      (course) =>
-        `Editorial food photo of ${course.name}, elegant plating, soft natural light, shallow depth of field`
-    ),
-  };
-}
-
 async function withTimeout(promise, timeoutMs, label) {
   let timeoutId;
   const timeoutPromise = new Promise((_, reject) => {
@@ -486,7 +264,6 @@ app.get("/api/data", (req, res) => {
     AVERY_PRODUCTS,
     COOKBOOK_SECTIONS,
     apiConfigured: !!ANTHROPIC_API_KEY,
-    allowDemoFallback: ALLOW_DEMO_FALLBACK,
     personas: Object.fromEntries(
       Object.entries(PERSONAS).map(([k, v]) => [
         k,
@@ -544,15 +321,6 @@ app.post("/api/chat", async (req, res) => {
   const { persona, messages, context } = req.body || {};
  
   if (!ANTHROPIC_API_KEY) {
-    if (ALLOW_DEMO_FALLBACK) {
-      const demoResponses = {
-        chef: "I love the direction you're thinking! For a dinner party this size, I'd suggest building around one show-stopping protein. What ingredients are you most excited about right now?",
-        sommelier: "Great question! For your menu style, I'd recommend starting with something crisp and refreshing, then building to fuller-bodied wines as the meal progresses. What's your comfort level with wine - do your guests tend toward adventure or familiar favorites?",
-        instructor: "Let's make sure you're set up for success. The key is doing as much as possible the day before. What's your biggest concern about the timing?",
-        all: "Chef: That sounds delicious!\n\nSommelier: I have some perfect pairing ideas.\n\nInstructor: And I can help you time everything perfectly.",
-      };
-      return res.json({ response: demoResponses[persona] || demoResponses.chef, demo: true });
-    }
     return respondMissingApiKey(res, "Set ANTHROPIC_API_KEY to enable AI chat.");
   }
  
@@ -613,9 +381,6 @@ app.post("/api/generate-menus", async (req, res) => {
   }
  
   if (!ANTHROPIC_API_KEY) {
-    if (ALLOW_DEMO_FALLBACK) {
-      return res.json({ menus: DEMO_MENUS, demo: true });
-    }
     return respondMissingApiKey(res);
   }
  
@@ -681,9 +446,6 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
       console.error("Raw response:", response.content?.[0]?.text);
-      if (ALLOW_DEMO_FALLBACK) {
-        return res.json({ menus: DEMO_MENUS, demo: true, warning: "AI response parsing failed." });
-      }
       return res.status(502).json({ error: "Menu generation failed.", detail: "AI returned invalid JSON." });
     }
  
@@ -691,9 +453,6 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
     res.json({ menus });
   } catch (err) {
     console.error("Menu generation error:", err);
-    if (ALLOW_DEMO_FALLBACK) {
-      return res.json({ menus: DEMO_MENUS, demo: true, warning: "AI request failed." });
-    }
     return res.status(502).json({ error: "Menu generation failed.", detail: err.message });
   }
 });
@@ -707,9 +466,6 @@ app.post("/api/generate-details", async (req, res) => {
   }
 
   if (!ANTHROPIC_API_KEY) {
-    if (ALLOW_DEMO_FALLBACK) {
-      return res.json({ ...buildDemoDetails(menu, context), demo: true });
-    }
     return respondMissingApiKey(res);
   }
 
@@ -818,9 +574,6 @@ Rules:
     res.json(details);
   } catch (err) {
     console.error("Details generation error:", err);
-    if (ALLOW_DEMO_FALLBACK) {
-      return res.json({ ...buildDemoDetails(menu, context), demo: true, warning: "AI request failed." });
-    }
     return res.status(502).json({ error: "Details generation failed.", detail: err.message });
   }
 });
@@ -880,6 +633,6 @@ app.post("/api/download-cookbook", async (req, res) => {
  
 app.listen(PORT, "0.0.0.0", () => {
   console.log(
-    `Dinner Planner ${APP_VERSION} listening on port ${PORT} (${ANTHROPIC_API_KEY ? "API key set" : "demo mode"})`
+    `Dinner Planner ${APP_VERSION} listening on port ${PORT} (${ANTHROPIC_API_KEY ? "API key set" : "API key missing"})`
   );
 });
