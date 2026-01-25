@@ -1049,6 +1049,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       menus: 30000,
       details: 20000
     };
+    const API_STATUS_REFRESH_MS = 30000;
     
     // ============================================================
     // INITIALIZATION
@@ -1071,6 +1072,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       initAveryProducts();
       initCookbookSections();
       loadApiStatus();
+      setInterval(loadApiStatus, API_STATUS_REFRESH_MS);
       
       // Set default date 2 weeks out
       const defaultDate = new Date();
@@ -1088,12 +1090,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // INIT HELPERS
     // ============================================================
-    function setApiStatus(isOnline, version) {
+    function setApiStatus(isOnline, version, isConfigured) {
       const statusEl = document.getElementById('apiStatus');
       const versionEl = document.getElementById('apiVersion');
       if (!statusEl || !versionEl) return;
 
-      statusEl.textContent = `API: ${isOnline ? 'Online' : 'Offline'}`;
+      const demoSuffix = isOnline && isConfigured === false ? ' (Demo)' : '';
+      statusEl.textContent = `API: ${isOnline ? 'Online' : 'Offline'}${demoSuffix}`;
       statusEl.classList.toggle('status-online', isOnline);
       statusEl.classList.toggle('status-offline', !isOnline);
       versionEl.textContent = version ? `Version: ${version}` : 'Version: —';
@@ -1106,7 +1109,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           throw new Error('Health check failed');
         }
         const data = await res.json();
-        setApiStatus(true, data?.version);
+        setApiStatus(true, data?.version, data?.apiConfigured);
       } catch (e) {
         setApiStatus(false);
       }
