@@ -43,6 +43,13 @@ app.get("/", (req, res) => {
 // ============================================================
 
 const PORT = process.env.PORT || 3000;
+const APP_VERSION = process.env.APP_VERSION || "3.0.0-cadillac";
+const SERVICE_VERSION =
+  process.env.RENDER_GIT_COMMIT ||
+  process.env.GIT_SHA ||
+  process.env.VERCEL_GIT_COMMIT_SHA ||
+  process.env.HEROKU_SLUG_COMMIT ||
+  "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const ADMIN_CODE = process.env.ADMIN_CODE || "ADMIN2024";
@@ -674,7 +681,8 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     apiConfigured: !!ANTHROPIC_API_KEY,
     betaExpiry: BETA_EXPIRY,
-    version: "3.0.0-cadillac",
+    version: APP_VERSION,
+    serviceVersion: SERVICE_VERSION || APP_VERSION,
   });
 });
 

@@ -46,6 +46,7 @@ let selectedWineTier = null;
 
 let cookbookId = null;
 let appOnline = navigator.onLine;
+let appServiceVersion = null;
 let detailsStatusTimer = null;
 let detailsWatchdogTimer = null;
 let detailsWatchdogTriggered = false;
@@ -669,6 +670,23 @@ function setOnlineStatus(online) {
   if (appStatus) {
     appStatus.textContent = label;
   }
+  updateServiceVersionLabel();
+}
+
+function formatServiceVersion(value) {
+  if (!value) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  if (/^[0-9a-f]{7,40}$/i.test(text)) {
+    return text.slice(0, 7);
+  }
+  return text;
+}
+
+function updateServiceVersionLabel() {
+  const appVersion = $("#appVersion");
+  if (!appVersion) return;
+  appVersion.textContent = appServiceVersion || "Unknown";
 }
 
 async function checkOnlineStatus() {
@@ -678,7 +696,13 @@ async function checkOnlineStatus() {
   }
   try {
     const res = await fetchWithTimeout("/api/health", {}, 5000);
-    setOnlineStatus(res.ok);
+    if (!res.ok) {
+      setOnlineStatus(false);
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    appServiceVersion = formatServiceVersion(data?.serviceVersion || data?.version);
+    setOnlineStatus(true);
   } catch (err) {
     setOnlineStatus(false);
   }
