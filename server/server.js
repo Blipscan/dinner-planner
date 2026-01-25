@@ -69,7 +69,7 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
  
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
-const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "").toLowerCase() === "true";
+const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "false").toLowerCase() === "true";
 const DEFAULT_TIMEOUTS_MS = {
   chat: 15000,
   menus: 45000,
@@ -87,6 +87,13 @@ const REQUEST_TIMEOUTS_MS = {
   details: parseTimeout(process.env.REQUEST_TIMEOUT_DETAILS_MS, DEFAULT_TIMEOUTS_MS.details),
 };
  
+function respondMissingApiKey(res, detail) {
+  return res.status(503).json({
+    error: "Anthropic API key not configured.",
+    detail: detail || "Set ANTHROPIC_API_KEY to enable AI generation.",
+  });
+}
+
 function parseBudgetRange(value) {
   if (!value) {
     return { min: 80, max: 120 };
@@ -335,13 +342,16 @@ app.post("/api/chat", async (req, res) => {
   const { persona, messages, context } = req.body || {};
  
   if (!ANTHROPIC_API_KEY) {
-    const demoResponses = {
-      chef: "I love the direction you're thinking! For a dinner party this size, I'd suggest building around one show-stopping protein. What ingredients are you most excited about right now?",
-      sommelier: "Great question! For your menu style, I'd recommend starting with something crisp and refreshing, then building to fuller-bodied wines as the meal progresses. What's your comfort level with wine - do your guests tend toward adventure or familiar favorites?",
-      instructor: "Let's make sure you're set up for success. The key is doing as much as possible the day before. What's your biggest concern about the timing?",
-      all: "Chef: That sounds delicious!\n\nSommelier: I have some perfect pairing ideas.\n\nInstructor: And I can help you time everything perfectly.",
-    };
-    return res.json({ response: demoResponses[persona] || demoResponses.chef });
+    if (ALLOW_DEMO_FALLBACK) {
+      const demoResponses = {
+        chef: "I love the direction you're thinking! For a dinner party this size, I'd suggest building around one show-stopping protein. What ingredients are you most excited about right now?",
+        sommelier: "Great question! For your menu style, I'd recommend starting with something crisp and refreshing, then building to fuller-bodied wines as the meal progresses. What's your comfort level with wine - do your guests tend toward adventure or familiar favorites?",
+        instructor: "Let's make sure you're set up for success. The key is doing as much as possible the day before. What's your biggest concern about the timing?",
+        all: "Chef: That sounds delicious!\n\nSommelier: I have some perfect pairing ideas.\n\nInstructor: And I can help you time everything perfectly.",
+      };
+      return res.json({ response: demoResponses[persona] || demoResponses.chef, demo: true });
+    }
+    return respondMissingApiKey(res, "Set ANTHROPIC_API_KEY to enable AI chat.");
   }
  
   try {
@@ -401,7 +411,10 @@ app.post("/api/generate-menus", async (req, res) => {
   }
  
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ menus: DEMO_MENUS, demo: true });
+    if (ALLOW_DEMO_FALLBACK) {
+      return res.json({ menus: DEMO_MENUS, demo: true });
+    }
+    return respondMissingApiKey(res);
   }
  
   try {
@@ -491,7 +504,10 @@ app.post("/api/generate-details", async (req, res) => {
   }
 
   if (!ANTHROPIC_API_KEY) {
-    return res.json({ ...buildDemoDetails(menu, context), demo: true });
+    if (ALLOW_DEMO_FALLBACK) {
+      return res.json({ ...buildDemoDetails(menu, context), demo: true });
+    }
+    return respondMissingApiKey(res);
   }
 
   try {

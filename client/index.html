@@ -1381,7 +1381,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
     function allowDemoFallback() {
       if (!DATA) return false;
-      return DATA.apiConfigured === false || DATA.allowDemoFallback === true;
+      return DATA.allowDemoFallback === true;
     }
 
     function renderRecipePreview(recipes) {
@@ -1907,8 +1907,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             context: getContext()
           })
         });
-        const data = await res.json();
-        
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.error) {
+          const message = data.detail || data.error || 'Chat failed. Please try again.';
+          chatHistory[chatHistory.length - 1] = { role: 'assistant', content: message };
+          renderChat();
+          return;
+        }
+
         chatHistory[chatHistory.length - 1] = { role: 'assistant', content: data.response || 'Please try again.' };
         renderChat();
       } catch (err) {
@@ -2107,8 +2114,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             context: getContext()
           })
         });
-        const data = await res.json();
-        
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.error) {
+          const message = data.detail || data.error || "I understand. Tell me more about what you're envisioning...";
+          rejectionHistory[rejectionHistory.length - 1] = { role: 'assistant', content: message };
+          renderRejectionChat();
+          return;
+        }
+
         rejectionHistory[rejectionHistory.length - 1] = { 
           role: 'assistant', 
           content: data.response || "I understand. Tell me more about what you're envisioning..." 
