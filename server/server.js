@@ -28,9 +28,18 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
  
 const CLIENT_DIR = path.join(__dirname, "..", "client");
-app.use(express.static(CLIENT_DIR));
+app.use(
+  express.static(CLIENT_DIR, {
+    setHeaders: (res, filePath) => {
+      if (path.extname(filePath).toLowerCase() === ".html") {
+        res.setHeader("Cache-Control", "no-store, max-age=0");
+      }
+    },
+  })
+);
  
 app.get("/", (req, res) => {
+  res.setHeader("Cache-Control", "no-store, max-age=0");
   res.sendFile(path.join(CLIENT_DIR, "index.html"));
 });
  
