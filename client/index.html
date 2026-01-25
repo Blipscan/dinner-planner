@@ -2407,12 +2407,19 @@ a { color: var(--navy); }
     // STEP 7: COOKBOOK
     // ============================================================
     async function generateCookbook() {
-      if (!selectedMenuDetails) {
-        await loadMenuDetails();
-      }
       goToStep(7);
       document.getElementById('cookbookLoading').classList.remove('hidden');
       document.getElementById('cookbookComplete').classList.add('hidden');
+
+      if (!selectedMenuDetails) {
+        const detailsResult = await loadMenuDetails();
+        if (!detailsResult) {
+          document.getElementById('cookbookLoading').classList.add('hidden');
+          document.getElementById('cookbookComplete').innerHTML = '<div class="error-msg">Cookbook details are incomplete. Please regenerate details and try again.</div>';
+          document.getElementById('cookbookComplete').classList.remove('hidden');
+          return;
+        }
+      }
       
       try {
         const res = await fetch('/api/generate-cookbook', {
