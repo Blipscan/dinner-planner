@@ -615,6 +615,31 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       font-weight: bold;
     }
     
+    /* ===== API STATUS ===== */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status-online {
+      background: var(--success-light);
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .status-offline {
+      background: var(--error-light);
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .footer-version {
+      margin-left: 0.6rem;
+      color: var(--text-light);
+      font-size: 0.85rem;
+    }
+
     /* ===== FOOTER ===== */
     footer {
       text-align: center;
@@ -985,6 +1010,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     <footer>
       <p>Dinner Party Planner &copy; 2025</p>
+      <p>
+        <span id="apiStatus" class="status-pill status-offline">API: Offline</span>
+        <span id="apiVersion" class="footer-version">Version: —</span>
+      </p>
       <p style="font-size:0.75rem;margin-top:0.35rem;opacity:0.7">AI-assisted recipe development. Recipes are original adaptations inspired by classic techniques.</p>
     </footer>
   </div>
@@ -1041,6 +1070,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       initStaffingOptions();
       initAveryProducts();
       initCookbookSections();
+      loadApiStatus();
       
       // Set default date 2 weeks out
       const defaultDate = new Date();
@@ -1058,6 +1088,30 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // INIT HELPERS
     // ============================================================
+    function setApiStatus(isOnline, version) {
+      const statusEl = document.getElementById('apiStatus');
+      const versionEl = document.getElementById('apiVersion');
+      if (!statusEl || !versionEl) return;
+
+      statusEl.textContent = `API: ${isOnline ? 'Online' : 'Offline'}`;
+      statusEl.classList.toggle('status-online', isOnline);
+      statusEl.classList.toggle('status-offline', !isOnline);
+      versionEl.textContent = version ? `Version: ${version}` : 'Version: —';
+    }
+
+    async function loadApiStatus() {
+      try {
+        const res = await fetch('/api/health', { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error('Health check failed');
+        }
+        const data = await res.json();
+        setApiStatus(true, data?.version);
+      } catch (e) {
+        setApiStatus(false);
+      }
+    }
+
     function initStyleGrid() {
       const grid = document.getElementById('styleGrid');
       if (!DATA.MENU_STYLES) return;
