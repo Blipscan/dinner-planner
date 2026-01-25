@@ -477,6 +477,14 @@ Rules:
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
   const { menu, context, staffing, recipes } = req.body || {};
+
+  if (!menu || !Array.isArray(menu.courses) || menu.courses.length === 0) {
+    return res.status(400).json({ error: "Menu data is required to generate a cookbook." });
+  }
+
+  if (!context || typeof context !== "object") {
+    return res.status(400).json({ error: "Event context is required to generate a cookbook." });
+  }
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
  
   global.cookbooks[cookbookId] = { menu, context, staffing, recipes: recipes || null };
@@ -492,6 +500,10 @@ app.post("/api/download-cookbook", async (req, res) => {
   }
  
   const { menu, context, staffing, recipes } = cookbookData;
+
+  if (!menu || !Array.isArray(menu.courses) || menu.courses.length === 0) {
+    return res.status(400).json({ error: "Cookbook data is incomplete. Please regenerate." });
+  }
  
   try {
     const buffer = await buildCookbook(menu, context, staffing, recipes);
@@ -503,7 +515,7 @@ app.post("/api/download-cookbook", async (req, res) => {
     res.send(buffer);
   } catch (err) {
     console.error("DOCX generation error:", err);
-    res.status(500).json({ error: "Error generating cookbook" });
+    res.status(500).json({ error: "Error generating cookbook", detail: err.message });
   }
 });
  

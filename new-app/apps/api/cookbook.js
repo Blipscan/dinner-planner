@@ -17,51 +17,93 @@ const COLORS = {
   textLight: '6b7c85'
 };
 
-function toText(value, fallback = '') {
-  if (value === null || value === undefined || value === '') {
-    return fallback;
+const ASCII_REPLACEMENTS = [
+  [/\u2019|\u2018/g, "'"],
+  [/\u201C|\u201D/g, '"'],
+  [/\u2013|\u2014/g, '-'],
+  [/\u2026/g, '...'],
+  [/\u00A0/g, ' ']
+];
+
+function toAsciiString(value) {
+  if (value === null || value === undefined) {
+    return value;
   }
-  return typeof value === 'string' ? value : String(value);
+  let text = String(value);
+  ASCII_REPLACEMENTS.forEach(([pattern, replacement]) => {
+    text = text.replace(pattern, replacement);
+  });
+  text = text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  return text.replace(/[^\x00-\x7F]/g, '');
 }
 
-function normalizeMenu(menu) {
-  const courses = Array.isArray(menu?.courses) ? menu.courses : [];
+function normalizeToAscii(value) {
+  if (typeof value === 'string') {
+    return toAsciiString(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeToAscii(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeToAscii(item)])
+    );
+  }
+  return value;
+}
+
+function normalizeWineTiers(wine) {
+  if (!wine) {
+    return {
+      worldwideTopRated: null,
+      domesticTopRated: null,
+      budgetTopRated: null,
+      bondPick: null
+    };
+  }
+
+  if (typeof wine === 'string') {
+    return {
+      worldwideTopRated: wine,
+      domesticTopRated: null,
+      budgetTopRated: null,
+      bondPick: null
+    };
+  }
+
   return {
-    title: toText(menu?.title, 'Dinner Party Menu'),
-    personality: toText(menu?.personality, ''),
-    foodCost: toText(menu?.foodCost, ''),
-    wineCost: toText(menu?.wineCost, ''),
-    courses: courses.map((course, idx) => ({
-      type: toText(course?.type, `Course ${idx + 1}`),
-      name: toText(course?.name, 'Course details pending'),
-      wine: toText(course?.wine, '')
-    }))
+    worldwideTopRated: wine.worldwideTopRated || wine.worldwide || null,
+    domesticTopRated: wine.domesticTopRated || wine.domestic || null,
+    budgetTopRated: wine.budgetTopRated || wine.budget || null,
+    bondPick: wine.bondPick || wine.bond || null
   };
 }
 
-function normalizeContext(context) {
-  return {
-    eventTitle: toText(context?.eventTitle, 'Dinner Party'),
-    eventDate: toText(context?.eventDate, 'Date TBD'),
-    guestCount: toText(context?.guestCount, '6'),
-    guestList: toText(context?.guestList, ''),
-    serviceTime: toText(context?.serviceTime, '7:00 PM'),
-    foodBudget: toText(context?.foodBudget, '$45-60'),
-    wineBudget: toText(context?.wineBudget, '$80-120'),
-    skillLevel: toText(context?.skillLevel, 'intermediate'),
-    inspiration: toText(context?.inspiration, 'chefs-tasting'),
-    cuisine: toText(context?.cuisine, 'any'),
-    subCuisine: toText(context?.subCuisine, '')
-  };
+function getWineTierEntries(wine) {
+  const normalized = normalizeWineTiers(wine);
+  return [
+    { label: 'Worldwide top rated', value: normalized.worldwideTopRated },
+    { label: 'Domestic top rated', value: normalized.domesticTopRated },
+    { label: 'Budget top rated', value: normalized.budgetTopRated },
+    { label: 'James Bond would select', value: normalized.bondPick }
+  ];
 }
 
 // Build complete cookbook document
-async function buildCookbook(menu, context, staffing, recipes) {
-  const safeMenu = normalizeMenu(menu);
-  const safeContext = normalizeContext(context);
-  const safeRecipes = Array.isArray(recipes) ? recipes : [];
+async function buildCookbook(menu, context, staffing, recipes, shoppingList, timeline, extras = {}) {
+  const safeMenu = normalizeToAscii(menu);
+  const safeContext = normalizeToAscii(context);
+  const safeRecipes = normalizeToAscii(recipes);
+  const safeShoppingList = normalizeToAscii(shoppingList);
+  const safeTimeline = normalizeToAscii(timeline);
+  const safeExtras = normalizeToAscii(extras);
   const staffingInfo = STAFFING.find(s => s.id === staffing) || STAFFING[0];
-  const guestNames = safeContext.guestList ? safeContext.guestList.split('\n').filter(n => n.trim()) : [];
+  const rawGuestList = safeContext?.guestList;
+  const guestNames = Array.isArray(rawGuestList)
+    ? rawGuestList.map((name) => String(name).trim()).filter(Boolean)
+    : typeof rawGuestList === 'string'
+      ? rawGuestList.split('\n').map((name) => name.trim()).filter(Boolean)
+      : [];
   
   const doc = new Document({
     styles: {
@@ -152,31 +194,31 @@ async function buildCookbook(menu, context, staffing, recipes) {
         ...buildRecipes(safeMenu, safeRecipes),
         
         // ========== SHOPPING LIST ==========
-        ...buildShoppingList(safeMenu, safeContext, safeRecipes),
+        ...buildShoppingList(safeMenu, safeContext, safeRecipes, safeShoppingList),
         
         // ========== DAY BEFORE PREP ==========
-        ...buildDayBeforePrep(safeMenu, staffingInfo),
+        ...buildDayBeforePrep(safeMenu, staffingInfo, safeExtras.dayBeforePrep),
         
         // ========== DAY OF TIMELINE ==========
-        ...buildDayOfTimeline(safeMenu, safeContext, staffingInfo),
+        ...buildDayOfTimeline(safeMenu, safeContext, staffingInfo, safeTimeline),
         
         // ========== PLATING GUIDES ==========
-        ...buildPlatingGuides(safeMenu),
+        ...buildPlatingGuides(safeMenu, safeExtras.platingGuides),
         
         // ========== TABLE SETTING ==========
-        ...buildTableSetting(safeMenu, safeContext, guestNames),
+        ...buildTableSetting(safeMenu, safeContext, guestNames, safeExtras.tableSetting),
         
         // ========== SERVICE NOTES ==========
-        ...buildServiceNotes(safeMenu, staffingInfo),
+        ...buildServiceNotes(safeMenu, staffingInfo, safeExtras.serviceNotes),
         
         // ========== AMBIANCE & MUSIC ==========
-        ...buildAmbianceGuide(safeMenu, safeContext),
+        ...buildAmbianceGuide(safeMenu, safeContext, safeExtras.ambianceGuide),
         
         // ========== FINAL CHECKLIST ==========
-        ...buildFinalChecklist(safeMenu, safeContext),
+        ...buildFinalChecklist(safeMenu, safeContext, safeExtras.finalChecklist),
         
         // ========== AI IMAGE PROMPTS ==========
-        ...buildImagePrompts(safeMenu, safeContext),
+        ...buildImagePrompts(safeMenu, safeContext, safeExtras.imagePrompts),
         
         // ========== NOTES PAGES ==========
         ...buildNotesPages(),
@@ -255,13 +297,16 @@ function buildMenuOverview(menu) {
         children: [new TextRun({ text: course.name, size: 28, font: 'Georgia', color: COLORS.navy })]
       })
     );
-    if (course.wine) {
+    const tierEntries = getWineTierEntries(course.wine);
+    const bondPick = tierEntries.find(entry => entry.label === 'James Bond would select' && entry.value);
+    const highlight = bondPick || tierEntries.find(entry => entry.value);
+    if (highlight?.value) {
       children.push(
         new Paragraph({
           spacing: { before: 50 },
           children: [
-            new TextRun({ text: 'Paired with: ', size: 22, italics: true, color: COLORS.textLight }),
-            new TextRun({ text: course.wine, size: 22, italics: true, color: COLORS.gold })
+            new TextRun({ text: 'Wine pairing highlight: ', size: 22, italics: true, color: COLORS.textLight }),
+            new TextRun({ text: `${highlight.label} — ${highlight.value}`, size: 22, italics: true, color: COLORS.gold })
           ]
         })
       );
@@ -273,7 +318,6 @@ function buildMenuOverview(menu) {
 }
 
 function buildWineProgram(menu, context) {
-  const wines = menu.courses.filter(c => c.wine);
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -285,17 +329,38 @@ function buildWineProgram(menu, context) {
     })
   ];
   
-  wines.forEach(course => {
+  menu.courses.forEach(course => {
+    const tierEntries = getWineTierEntries(course.wine);
+    const hasTiers = tierEntries.some(entry => entry.value);
+    if (!hasTiers) {
+      return;
+    }
+
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
         children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
       }),
       new Paragraph({
-        children: [new TextRun({ text: course.wine, size: 26, bold: true, color: COLORS.navy })]
-      }),
+        children: [new TextRun({ text: course.name, size: 24, bold: true, color: COLORS.navy })]
+      })
+    );
+
+    tierEntries.forEach(entry => {
+      if (!entry.value) {
+        return;
+      }
+      children.push(
+        new Paragraph({
+          numbering: { reference: 'bullets', level: 0 },
+          children: [new TextRun(`${entry.label}: ${entry.value}`)]
+        })
+      );
+    });
+
+    children.push(
       new Paragraph({
-        spacing: { before: 100 },
+        spacing: { before: 100, after: 200 },
         children: [new TextRun({ text: `Pairs with: ${course.name}`, size: 22, italics: true, color: COLORS.textLight })]
       }),
       new Paragraph({
@@ -339,24 +404,13 @@ function buildRecipes(menu, recipes) {
     
     // If we have AI-generated recipes, use them; otherwise placeholder
     if (recipes && recipes[idx]) {
-      const recipe = recipes[idx] || {};
-      const serves = recipe.serves || 6;
-      const activeTime = toText(recipe.activeTime, '30 min');
-      const totalTime = toText(recipe.totalTime, '1 hour');
-      const ingredients = Array.isArray(recipe.ingredients)
-        ? recipe.ingredients.map((ing) => toText(ing)).filter(Boolean)
-        : [];
-      const steps = Array.isArray(recipe.steps)
-        ? recipe.steps.map((step) => toText(step)).filter(Boolean)
-        : [];
-      const notes = toText(recipe.notes, '');
-      const makeAhead = toText(recipe.makeAhead, '');
+      const recipe = recipes[idx];
       
       // Yield and timing
       children.push(
         new Paragraph({
           spacing: { before: 100 },
-          children: [new TextRun({ text: `Serves: ${serves} | Active: ${activeTime} | Total: ${totalTime}`, size: 20, italics: true, color: COLORS.textLight })]
+          children: [new TextRun({ text: `Serves: ${recipe.serves || 6} | Active: ${recipe.activeTime || '30 min'} | Total: ${recipe.totalTime || '1 hour'}`, size: 20, italics: true, color: COLORS.textLight })]
         })
       );
       
@@ -368,8 +422,8 @@ function buildRecipes(menu, recipes) {
         })
       );
       
-      if (ingredients.length) {
-        ingredients.forEach(ing => {
+      if (recipe.ingredients && recipe.ingredients.length) {
+        recipe.ingredients.forEach(ing => {
           children.push(
             new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(ing)] })
           );
@@ -378,6 +432,36 @@ function buildRecipes(menu, recipes) {
         children.push(
           new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Ingredients will be generated based on your selections')] })
         );
+      }
+
+      // Equipment
+      if (recipe.equipment && recipe.equipment.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Equipment', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.equipment.forEach(item => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(item)] })
+          );
+        });
+      }
+
+      // Techniques
+      if (recipe.techniques && recipe.techniques.length) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: 'Techniques', size: 26, bold: true, color: COLORS.gold })]
+          })
+        );
+        recipe.techniques.forEach(item => {
+          children.push(
+            new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(item)] })
+          );
+        });
       }
       
       // Method
@@ -388,8 +472,8 @@ function buildRecipes(menu, recipes) {
         })
       );
       
-      if (steps.length) {
-        steps.forEach((step, i) => {
+      if (recipe.steps && recipe.steps.length) {
+        recipe.steps.forEach((step, i) => {
           children.push(
             new Paragraph({ numbering: { reference: 'numbers', level: 0 }, children: [new TextRun(step)] })
           );
@@ -399,29 +483,44 @@ function buildRecipes(menu, recipes) {
           new Paragraph({ numbering: { reference: 'numbers', level: 0 }, children: [new TextRun('Step-by-step instructions will be generated')] })
         );
       }
+
+      // Why the chef chose it + meal fit
+      if (recipe.whyItWorks) {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [
+              new TextRun({ text: "Why the chef chose it and how it works in the meal", size: 26, bold: true, color: COLORS.gold })
+            ]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: recipe.whyItWorks, color: COLORS.text })]
+          })
+        );
+      }
       
       // Chef's Notes
-      if (notes) {
+      if (recipe.notes) {
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
             children: [new TextRun({ text: "Chef's Notes", size: 26, bold: true, color: COLORS.gold })]
           }),
           new Paragraph({
-            children: [new TextRun({ text: notes, italics: true, color: COLORS.textLight })]
+            children: [new TextRun({ text: recipe.notes, italics: true, color: COLORS.textLight })]
           })
         );
       }
       
       // Make Ahead
-      if (makeAhead) {
+      if (recipe.makeAhead) {
         children.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_3,
             children: [new TextRun({ text: 'Make Ahead', size: 26, bold: true, color: COLORS.gold })]
           }),
           new Paragraph({
-            children: [new TextRun({ text: makeAhead, color: COLORS.text })]
+            children: [new TextRun({ text: recipe.makeAhead, color: COLORS.text })]
           })
         );
       }
@@ -440,7 +539,7 @@ function buildRecipes(menu, recipes) {
   return children;
 }
 
-function buildShoppingList(menu, context, recipes) {
+function buildShoppingList(menu, context, recipes, shoppingList) {
   const guestCount = parseInt(context.guestCount) || 6;
   
   const children = [
@@ -454,19 +553,43 @@ function buildShoppingList(menu, context, recipes) {
     })
   ];
   
-  const categories = ['Proteins', 'Seafood', 'Produce', 'Dairy & Eggs', 'Pantry', 'Wine & Beverages', 'Special Ingredients'];
-  
-  categories.forEach(cat => {
-    children.push(
-      new Paragraph({
-        heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text: cat, size: 26, bold: true, color: COLORS.gold })]
-      }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Items based on your menu')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] })
+  if (shoppingList?.categories?.length) {
+    const order = ['Proteins', 'Produce', 'Dairy', 'Pantry', 'Wine', 'Misc'];
+    const categories = [...shoppingList.categories].sort(
+      (a, b) => order.indexOf(a.name) - order.indexOf(b.name)
     );
-  });
+
+    categories.forEach(cat => {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun({ text: cat.name, size: 26, bold: true, color: COLORS.gold })]
+        })
+      );
+
+      (cat.items || []).forEach(item => {
+        const quantities = [item.quantityUS, item.quantityMetric].filter(Boolean);
+        const qtyText = quantities.length ? ` — ${quantities.join(' / ')}` : '';
+        const notes = item.notes ? ` (${item.notes})` : '';
+        const line = `${item.item}${qtyText}${notes}`;
+        children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(line)] }));
+      });
+    });
+  } else {
+    const categories = ['Proteins', 'Produce', 'Dairy', 'Pantry', 'Wine', 'Misc'];
+
+    categories.forEach(cat => {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun({ text: cat, size: 26, bold: true, color: COLORS.gold })]
+        }),
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Items based on your menu')] }),
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] }),
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] })
+      );
+    });
+  }
   
   children.push(
     new Paragraph({
@@ -483,7 +606,7 @@ function buildShoppingList(menu, context, recipes) {
   return children;
 }
 
-function buildDayBeforePrep(menu, staffingInfo) {
+function buildDayBeforePrep(menu, staffingInfo, prepTasks) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -494,8 +617,8 @@ function buildDayBeforePrep(menu, staffingInfo) {
       children: [new TextRun({ text: `Staffing: ${staffingInfo.name}`, size: 24, italics: true, color: COLORS.textLight })]
     })
   ];
-  
-  const tasks = [
+
+  const tasks = Array.isArray(prepTasks) && prepTasks.length ? prepTasks : [
     'Review all recipes and confirm you have all ingredients',
     'Prep stocks and sauces that improve overnight',
     'Marinate proteins as needed',
@@ -518,8 +641,50 @@ function buildDayBeforePrep(menu, staffingInfo) {
   return children;
 }
 
-function buildDayOfTimeline(menu, context, staffingInfo) {
+function parseServiceTime(serviceTime) {
+  if (!serviceTime) return null;
+  const trimmed = String(serviceTime).trim();
+  const match = trimmed.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem) {
+    hours = hours % 12;
+    if (meridiem === 'PM') hours += 12;
+  }
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+}
+
+function formatTime(date) {
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${minutes} ${ampm}`;
+}
+
+function formatOffsetLabel(offsetMinutes) {
+  if (!Number.isFinite(offsetMinutes)) return '';
+  if (offsetMinutes === 0) return 'T0';
+  const sign = offsetMinutes < 0 ? '-' : '+';
+  const total = Math.abs(offsetMinutes);
+  const days = Math.floor(total / 1440);
+  const hours = Math.floor((total % 1440) / 60);
+  const minutes = total % 60;
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes || (!days && !hours)) parts.push(`${minutes}m`);
+  return `T${sign}${parts.join(' ')}`;
+}
+
+function buildDayOfTimeline(menu, context, staffingInfo, timeline) {
   const serviceTime = context.serviceTime || '7:00 PM';
+  const baseTime = parseServiceTime(serviceTime);
   
   const children = [
     new Paragraph({ 
@@ -531,9 +696,46 @@ function buildDayOfTimeline(menu, context, staffingInfo) {
       children: [new TextRun({ text: `Service Time: ${serviceTime} | Your active time: ~${staffingInfo.activeMin} minutes`, size: 24, italics: true, color: COLORS.textLight })]
     })
   ];
+
+  if (timeline?.items?.length) {
+    const cadence = Number.isFinite(timeline.cadenceMinutes)
+      ? `Cadence: every ${timeline.cadenceMinutes} minutes`
+      : null;
+    if (cadence) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 200 },
+          children: [new TextRun({ text: cadence, size: 22, italics: true, color: COLORS.textLight })]
+        })
+      );
+    }
+
+    const items = [...timeline.items].sort((a, b) => a.offsetMinutes - b.offsetMinutes);
+    items.forEach(item => {
+      const relative = formatOffsetLabel(item.offsetMinutes);
+      const absolute = baseTime
+        ? formatTime(new Date(baseTime.getTime() + item.offsetMinutes * 60000))
+        : '';
+      const timeLabel = absolute ? `${absolute} (${relative})` : relative;
+      const duration = item.durationMinutes ? ` — ${item.durationMinutes} min` : '';
+      const label = `${item.label}${duration}`;
+      children.push(
+        new Paragraph({
+          spacing: { before: 100 },
+          children: [
+            new TextRun({ text: timeLabel.padEnd(18), bold: true, color: COLORS.gold, size: 22 }),
+            new TextRun({ text: label, size: 22 })
+          ]
+        })
+      );
+    });
+
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    return children;
+  }
   
   // Work backwards from service time
-  const timeline = [
+  const fallbackTimeline = [
     { time: '-6 hours', task: 'Final shopping for any last-minute items' },
     { time: '-5 hours', task: 'Begin slow-cooking items (braises, stocks)' },
     { time: '-4 hours', task: 'Prep remaining vegetables and garnishes' },
@@ -553,7 +755,7 @@ function buildDayOfTimeline(menu, context, staffingInfo) {
     { time: '+130 min', task: 'Serve dessert and dessert wine' }
   ];
   
-  timeline.forEach(item => {
+  fallbackTimeline.forEach(item => {
     children.push(
       new Paragraph({
         spacing: { before: 100 },
@@ -569,45 +771,74 @@ function buildDayOfTimeline(menu, context, staffingInfo) {
   return children;
 }
 
-function buildPlatingGuides(menu) {
+function buildPlatingGuides(menu, platingGuides) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
       children: [new TextRun({ text: 'Plating Guides', size: 48, bold: true, color: COLORS.navy })] 
     })
   ];
-  
-  menu.courses.forEach(course => {
-    children.push(
-      new Paragraph({
-        heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
-      }),
-      new Paragraph({
-        children: [new TextRun({ text: course.name, bold: true, size: 24, color: COLORS.navy })]
-      }),
-      new Paragraph({
-        spacing: { before: 100 },
-        children: [new TextRun({ text: 'Plate: Choose appropriate size for portion', size: 20, color: COLORS.textLight })]
-      }),
-      new Paragraph({
-        children: [new TextRun({ text: 'Placement: Center the protein, sauce underneath or alongside', size: 20, color: COLORS.textLight })]
-      }),
-      new Paragraph({
-        children: [new TextRun({ text: 'Garnish: Fresh herbs, microgreens, or edible flowers', size: 20, color: COLORS.textLight })]
-      }),
-      new Paragraph({
-        spacing: { after: 200 },
-        children: [new TextRun({ text: 'Temperature: Warm plates for hot courses, chilled for cold', size: 20, color: COLORS.textLight })]
-      })
-    );
-  });
+
+  if (Array.isArray(platingGuides) && platingGuides.length) {
+    if (platingGuides.length === menu.courses.length) {
+      menu.courses.forEach((course, index) => {
+        children.push(
+          new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: course.name, bold: true, size: 24, color: COLORS.navy })]
+          }),
+          new Paragraph({
+            spacing: { before: 100, after: 200 },
+            children: [new TextRun({ text: platingGuides[index], size: 20, color: COLORS.textLight })]
+          })
+        );
+      });
+    } else {
+      platingGuides.forEach((guide) => {
+        children.push(
+          new Paragraph({
+            numbering: { reference: 'bullets', level: 0 },
+            children: [new TextRun(guide)]
+          })
+        );
+      });
+    }
+  } else {
+    menu.courses.forEach(course => {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: course.name, bold: true, size: 24, color: COLORS.navy })]
+        }),
+        new Paragraph({
+          spacing: { before: 100 },
+          children: [new TextRun({ text: 'Plate: Choose appropriate size for portion', size: 20, color: COLORS.textLight })]
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: 'Placement: Center the protein, sauce underneath or alongside', size: 20, color: COLORS.textLight })]
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: 'Garnish: Fresh herbs, microgreens, or edible flowers', size: 20, color: COLORS.textLight })]
+        }),
+        new Paragraph({
+          spacing: { after: 200 },
+          children: [new TextRun({ text: 'Temperature: Warm plates for hot courses, chilled for cold', size: 20, color: COLORS.textLight })]
+        })
+      );
+    });
+  }
   
   children.push(new Paragraph({ children: [new PageBreak()] }));
   return children;
 }
 
-function buildTableSetting(menu, context, guestNames) {
+function buildTableSetting(menu, context, guestNames, tableSettingNotes) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -644,16 +875,43 @@ function buildTableSetting(menu, context, guestNames) {
     });
   }
   
+  if (Array.isArray(tableSettingNotes) && tableSettingNotes.length) {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Table Notes', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    tableSettingNotes.forEach((note) => {
+      children.push(
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] })
+      );
+    });
+  }
+  
   children.push(new Paragraph({ children: [new PageBreak()] }));
   return children;
 }
 
-function buildServiceNotes(menu, staffingInfo) {
+function buildServiceNotes(menu, staffingInfo, serviceNotes) {
+  const heading = new Paragraph({ 
+    heading: HeadingLevel.HEADING_1, 
+    children: [new TextRun({ text: 'Service Notes', size: 48, bold: true, color: COLORS.navy })] 
+  });
+
+  if (Array.isArray(serviceNotes) && serviceNotes.length) {
+    const children = [heading];
+    serviceNotes.forEach((note) => {
+      children.push(
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] })
+      );
+    });
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    return children;
+  }
+
   const children = [
-    new Paragraph({ 
-      heading: HeadingLevel.HEADING_1, 
-      children: [new TextRun({ text: 'Service Notes', size: 48, bold: true, color: COLORS.navy })] 
-    }),
+    heading,
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Pacing', size: 26, bold: true, color: COLORS.gold })]
@@ -681,12 +939,25 @@ function buildServiceNotes(menu, staffingInfo) {
   return children;
 }
 
-function buildAmbianceGuide(menu, context) {
+function buildAmbianceGuide(menu, context, ambianceGuide) {
+  const heading = new Paragraph({ 
+    heading: HeadingLevel.HEADING_1, 
+    children: [new TextRun({ text: 'Ambiance & Music', size: 48, bold: true, color: COLORS.navy })] 
+  });
+
+  if (Array.isArray(ambianceGuide) && ambianceGuide.length) {
+    const children = [heading];
+    ambianceGuide.forEach((note) => {
+      children.push(
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] })
+      );
+    });
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    return children;
+  }
+
   const children = [
-    new Paragraph({ 
-      heading: HeadingLevel.HEADING_1, 
-      children: [new TextRun({ text: 'Ambiance & Music', size: 48, bold: true, color: COLORS.navy })] 
-    }),
+    heading,
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Lighting', size: 26, bold: true, color: COLORS.gold })]
@@ -714,12 +985,26 @@ function buildAmbianceGuide(menu, context) {
   return children;
 }
 
-function buildFinalChecklist(menu, context) {
+function buildFinalChecklist(menu, context, finalChecklist) {
+  const heading = new Paragraph({ 
+    heading: HeadingLevel.HEADING_1, 
+    children: [new TextRun({ text: 'Final Checklist', size: 48, bold: true, color: COLORS.navy })] 
+  });
+
+  if (Array.isArray(finalChecklist) && finalChecklist.length) {
+    const children = [heading];
+    finalChecklist.forEach((note) => {
+      const text = note.startsWith('□') ? note : `□  ${note}`;
+      children.push(
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(text)] })
+      );
+    });
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    return children;
+  }
+
   const children = [
-    new Paragraph({ 
-      heading: HeadingLevel.HEADING_1, 
-      children: [new TextRun({ text: 'Final Checklist', size: 48, bold: true, color: COLORS.navy })] 
-    }),
+    heading,
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'One Week Before', size: 26, bold: true, color: COLORS.gold })]
@@ -751,7 +1036,7 @@ function buildFinalChecklist(menu, context) {
   return children;
 }
 
-function buildImagePrompts(menu, context) {
+function buildImagePrompts(menu, context, imagePrompts) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -763,21 +1048,40 @@ function buildImagePrompts(menu, context) {
     })
   ];
   
-  menu.courses.forEach(course => {
-    const prompt = `Professional food photography of ${course.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
-    
-    children.push(
-      new Paragraph({
-        heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
-      }),
-      new Paragraph({
-        shading: { fill: 'f5f5f5', type: ShadingType.CLEAR },
-        spacing: { after: 200 },
-        children: [new TextRun({ text: prompt, size: 20, font: 'Courier New' })]
-      })
-    );
-  });
+  const diningSpace = context?.diningSpace ? ` in the host's dining space (${context.diningSpace})` : '';
+  if (Array.isArray(imagePrompts) && imagePrompts.length) {
+    imagePrompts.forEach((prompt, index) => {
+      const course = menu.courses[index];
+      const heading = course?.type || `Course ${index + 1}`;
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun({ text: heading, size: 26, bold: true, color: COLORS.gold })]
+        }),
+        new Paragraph({
+          shading: { fill: 'f5f5f5', type: ShadingType.CLEAR },
+          spacing: { after: 200 },
+          children: [new TextRun({ text: prompt, size: 20, font: 'Courier New' })]
+        })
+      );
+    });
+  } else {
+    menu.courses.forEach(course => {
+      const prompt = `Professional food photography of ${course.name}${diningSpace}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
+      
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
+        }),
+        new Paragraph({
+          shading: { fill: 'f5f5f5', type: ShadingType.CLEAR },
+          spacing: { after: 200 },
+          children: [new TextRun({ text: prompt, size: 20, font: 'Courier New' })]
+        })
+      );
+    });
+  }
   
   children.push(new Paragraph({ children: [new PageBreak()] }));
   return children;
