@@ -53,10 +53,21 @@ const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 1
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
 const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "").toLowerCase() === "true";
-const REQUEST_TIMEOUTS_MS = {
+const DEFAULT_TIMEOUTS_MS = {
   chat: 15000,
-  menus: 25000,
-  details: 20000,
+  menus: 45000,
+  details: 30000,
+};
+
+function parseTimeout(value, fallback) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const REQUEST_TIMEOUTS_MS = {
+  chat: parseTimeout(process.env.REQUEST_TIMEOUT_CHAT_MS, DEFAULT_TIMEOUTS_MS.chat),
+  menus: parseTimeout(process.env.REQUEST_TIMEOUT_MENUS_MS, DEFAULT_TIMEOUTS_MS.menus),
+  details: parseTimeout(process.env.REQUEST_TIMEOUT_DETAILS_MS, DEFAULT_TIMEOUTS_MS.details),
 };
  
 function parseBudgetRange(value) {
