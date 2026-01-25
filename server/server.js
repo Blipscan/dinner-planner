@@ -674,7 +674,7 @@ app.post("/api/generate-details", async (req, res) => {
 
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    const operationsPrompt = `You are compiling a master operational cookbook for a French-style multi-course dinner.
+    const operationsCorePrompt = `You are compiling the operational core for a French-style multi-course dinner.
 
 Return ONLY valid JSON with this exact shape:
 {
@@ -705,8 +705,6 @@ Return ONLY valid JSON with this exact shape:
     "warnings": ["string", "..."],
     "overridesRequired": boolean
   },
-  "chefOverview": "string",
-  "wineOverview": "string",
   "masterTimeline": [
     {
       "time": "HH:MM",
@@ -719,59 +717,6 @@ Return ONLY valid JSON with this exact shape:
       "parallel": boolean
     }
   ],
-  "roleViews": [
-    {
-      "role": "Host|Kitchen|Service|Bar|Shopping|Prep|Day-Of Execution|Cleanup",
-      "startTime": "string",
-      "endTime": "string",
-      "reportsTo": "string",
-      "setup": ["string", "..."],
-      "courseTasks": [
-        { "courseType": "string", "tasks": ["string", "..."] }
-      ],
-      "transitions": ["string", "..."],
-      "endOfNight": ["string", "..."]
-    }
-  ],
-  "masterShoppingList": {
-    "categories": [
-      {
-        "name": "string",
-        "items": [
-          {
-            "item": "string",
-            "quantity": number,
-            "unit": "string",
-            "metricQuantity": number,
-            "metricUnit": "string"
-          }
-        ]
-      }
-    ]
-  },
-  "executionPacket": [
-    {
-      "courseType": "string",
-      "title": "string",
-      "steps": ["string", "..."]
-    }
-  ],
-  "equipmentConstraints": {
-    "stationsRequired": number,
-    "burnersRequired": number,
-    "ovenConflicts": ["string", "..."],
-    "fridgeConstraints": ["string", "..."],
-    "holdingWindows": ["string", "..."],
-    "resolutions": ["string", "..."]
-  },
-  "contingencies": [
-    { "issue": "string", "fix": "string" }
-  ],
-  "cleanupReset": {
-    "immediate": ["string", "..."],
-    "later": ["string", "..."],
-    "leftovers": ["string", "..."]
-  },
   "archiveMetadata": {
     "version": "string",
     "generatedAt": "YYYY-MM-DD",
@@ -790,12 +735,107 @@ Rules:
 - coursePlan must define purpose, portion, temperature, duration, dependencies.
 - mealBalance.warnings must be empty if constraints are satisfied.
 - masterTimeline: 14-18 tasks with absolute time and offset from service time.
-- roleViews: include all listed roles; no empty arrays.
-- masterShoppingList: 6-8 categories, 4-8 items each, normalized units.
-- executionPacket: stripped steps only, one entry per course.
-- equipmentConstraints must flag conflicts and provide resolutions.
-- contingencies: 3-5 likely failures with concrete fixes.
-- cleanupReset must separate immediate vs later tasks.
+- No placeholders, no TBD.`;
+
+    const roleViewsPrompt = `You are compiling assistant checklists for a French-style multi-course dinner.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "roleViews": [
+    {
+      "role": "Host|Kitchen|Service|Bar|Shopping|Prep|Day-Of Execution|Cleanup",
+      "startTime": "string",
+      "endTime": "string",
+      "reportsTo": "string",
+      "setup": ["string", "..."],
+      "courseTasks": [
+        { "courseType": "string", "tasks": ["string", "..."] }
+      ],
+      "transitions": ["string", "..."],
+      "endOfNight": ["string", "..."]
+    }
+  ]
+}
+
+Rules:
+- Include ALL roles: Host, Kitchen, Service, Bar, Shopping, Prep, Day-Of Execution, Cleanup.
+- setup, transitions, endOfNight must each have 3-8 tasks.
+- courseTasks must include every course in order.
+- Tasks must be imperative and time-triggered when possible.
+- No placeholders, no TBD.`;
+
+    const shoppingPrompt = `You are compiling the master shopping list for a French-style multi-course dinner.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "masterShoppingList": {
+    "categories": [
+      {
+        "name": "string",
+        "items": [
+          {
+            "item": "string",
+            "quantity": number,
+            "unit": "string",
+            "metricQuantity": number,
+            "metricUnit": "string"
+          }
+        ]
+      }
+    ]
+  }
+}
+
+Rules:
+- 6-8 categories, each 4-8 items.
+- Quantities must be aggregated for guest count.
+- Units must be normalized; include both US and metric.
+- No placeholders, no TBD.`;
+
+    const executionPrompt = `You are compiling the day-of execution packet.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "executionPacket": [
+    {
+      "courseType": "string",
+      "title": "string",
+      "steps": ["string", "..."]
+    }
+  ]
+}
+
+Rules:
+- One entry per course, in order.
+- Steps must be stripped, imperative, and minimal.
+- No narrative, no placeholders, no TBD.`;
+
+    const constraintsPrompt = `You are compiling equipment constraints, contingencies, and cleanup.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "equipmentConstraints": {
+    "stationsRequired": number,
+    "burnersRequired": number,
+    "ovenConflicts": ["string", "..."],
+    "fridgeConstraints": ["string", "..."],
+    "holdingWindows": ["string", "..."],
+    "resolutions": ["string", "..."]
+  },
+  "contingencies": [
+    { "issue": "string", "fix": "string" }
+  ],
+  "cleanupReset": {
+    "immediate": ["string", "..."],
+    "later": ["string", "..."],
+    "leftovers": ["string", "..."]
+  }
+}
+
+Rules:
+- Provide concrete conflict resolutions.
+- Provide 3-5 contingencies with actionable fixes.
+- cleanupReset must include 3-6 items in each list.
 - No placeholders, no TBD.`;
 
     const recipesPrompt = `You are compiling the recipe and wine modules for a French-style multi-course dinner.
@@ -840,16 +880,58 @@ Rules:
 
     const basePrompt = `Menu:\n${JSON.stringify(menu, null, 2)}\n\nContext:\n${JSON.stringify(context || {}, null, 2)}`;
 
-    const operationsResponse = await withTimeout(
-      client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 3600,
-        system: operationsPrompt,
-        messages: [{ role: "user", content: basePrompt }],
-      }),
-      REQUEST_TIMEOUTS_MS.details,
-      "Details operations generation"
-    );
+    const [operationsResponse, roleViewsResponse, shoppingResponse, executionResponse, constraintsResponse] = await Promise.all([
+      withTimeout(
+        client.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2400,
+          system: operationsCorePrompt,
+          messages: [{ role: "user", content: basePrompt }],
+        }),
+        REQUEST_TIMEOUTS_MS.details,
+        "Details operations core generation"
+      ),
+      withTimeout(
+        client.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2800,
+          system: roleViewsPrompt,
+          messages: [{ role: "user", content: basePrompt }],
+        }),
+        REQUEST_TIMEOUTS_MS.details,
+        "Details role views generation"
+      ),
+      withTimeout(
+        client.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          system: shoppingPrompt,
+          messages: [{ role: "user", content: basePrompt }],
+        }),
+        REQUEST_TIMEOUTS_MS.details,
+        "Details shopping list generation"
+      ),
+      withTimeout(
+        client.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          system: executionPrompt,
+          messages: [{ role: "user", content: basePrompt }],
+        }),
+        REQUEST_TIMEOUTS_MS.details,
+        "Details execution packet generation"
+      ),
+      withTimeout(
+        client.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          system: constraintsPrompt,
+          messages: [{ role: "user", content: basePrompt }],
+        }),
+        REQUEST_TIMEOUTS_MS.details,
+        "Details constraints generation"
+      ),
+    ]);
 
     const recipesResponse = await withTimeout(
       client.messages.create({
@@ -862,8 +944,17 @@ Rules:
       "Details recipe generation"
     );
 
-    let operationalDetails = parseJsonPayload(operationsResponse.content?.[0]?.text, "Operational details");
+    const operationsCore = parseJsonPayload(operationsResponse.content?.[0]?.text, "Operational core");
+    const roleViewsDetails = parseJsonPayload(roleViewsResponse.content?.[0]?.text, "Role views");
+    const shoppingDetails = parseJsonPayload(shoppingResponse.content?.[0]?.text, "Shopping list");
+    const executionDetails = parseJsonPayload(executionResponse.content?.[0]?.text, "Execution packet");
+    const constraintsDetails = parseJsonPayload(constraintsResponse.content?.[0]?.text, "Constraints");
     let recipeDetails = parseJsonPayload(recipesResponse.content?.[0]?.text, "Recipe details");
+
+    let operationalDetails = mergeDetails(operationsCore, roleViewsDetails);
+    operationalDetails = mergeDetails(operationalDetails, shoppingDetails);
+    operationalDetails = mergeDetails(operationalDetails, executionDetails);
+    operationalDetails = mergeDetails(operationalDetails, constraintsDetails);
 
     let details = mergeDetails(operationalDetails, recipeDetails);
 
