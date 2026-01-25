@@ -321,11 +321,129 @@ function buildDemoWineTiers(menu, context) {
 }
 
 function buildDemoDetails(menu, context) {
+  const courses = menu?.courses || [];
+  const guestCount = parseInt(context?.guestCount || "6", 10);
   return {
     recipes: buildDemoRecipes(menu, context),
     wineTiers: buildDemoWineTiers(menu, context),
-    chefOverview: "Courses are balanced to build intensity and finish light.",
-    wineOverview: "Pairings progress from crisp to fuller-bodied for a smooth arc.",
+    chefOverview: "Courses are balanced to build intensity and finish light. The progression moves from bright, delicate flavors toward richer mains, then finishes with a clean, aromatic dessert.",
+    wineOverview: "Pairings move from crisp, high-acid whites to more structured reds to match intensity. Each pick echoes the dominant flavor notes and resets the palate between courses.",
+    shoppingList: {
+      categories: [
+        { name: "Proteins", items: ["Main protein", "Secondary protein", "Optional shellfish", "Eggs"] },
+        { name: "Seafood", items: ["Shellfish or fish (if applicable)", "Fish stock or fumet"] },
+        { name: "Produce", items: ["Seasonal greens", "Citrus", "Alliums", "Fresh herbs"] },
+        { name: "Dairy & Eggs", items: ["Butter", "Cream", "Cheese", "Milk or creme fraiche"] },
+        { name: "Pantry", items: ["Olive oil", "Vinegar", "Kosher salt", "Black pepper"] },
+        { name: "Wine & Beverages", items: ["Sparkling wine", "White wine", "Red wine", "Dessert wine"] },
+      ],
+      notes: [
+        `Scale ingredients for ${guestCount} guests and plan one backup bottle.`,
+        "Shop produce closest to the event for peak freshness.",
+      ],
+    },
+    dayBeforePrep: [
+      "Review recipes and finalize shopping list.",
+      "Prep stocks, sauces, and reductions that improve overnight.",
+      "Wash and dry greens and herbs; store properly.",
+      "Portion proteins and season or marinate if needed.",
+      "Make dessert components that hold well (custards, pâte, sauces).",
+      "Set table, polish glassware, and stage serving platters.",
+      "Label containers and organize by course for smooth service.",
+      "Confirm cookware, plates, and tools for each course.",
+    ],
+    dayOfTimeline: [
+      { time: "-6 hours", task: "Final shopping and setup, chill whites." },
+      { time: "-4 hours", task: "Start long-cook elements and sauces." },
+      { time: "-3 hours", task: "Prep vegetables, garnishes, and dressings." },
+      { time: "-2 hours", task: "Temper proteins, set mise en place." },
+      { time: "-90 min", task: "Open reds, begin decanting if needed." },
+      { time: "-60 min", task: "Preheat ovens, warm plates, finalize dessert." },
+      { time: "-30 min", task: "Plate amuse, set first-course bowls." },
+      { time: "0", task: "Guests arrive; serve amuse-bouche." },
+      { time: "+20 min", task: "Serve first course." },
+      { time: "+45 min", task: "Serve second course." },
+      { time: "+75 min", task: "Serve main course." },
+      { time: "+110 min", task: "Serve dessert." },
+    ],
+    platingGuides: courses.map((course) => ({
+      courseType: course.type,
+      guidance: `Center ${course.name} as the focal point and use a contrasting garnish. Keep the plate clean, highlight sauce with a controlled pour, and finish with a fresh herb or citrus zest.`,
+    })),
+    tableSetting: {
+      placeSetting: [
+        "Charger or base plate",
+        "Dinner fork and salad fork",
+        "Dinner knife and soup spoon",
+        "Dessert spoon above plate",
+        "Water glass plus wine stems",
+        "Folded napkin and place card",
+      ],
+      centerpiece: "Low arrangement with candlelight to keep sight lines open.",
+      notes: [
+        "Keep centerpieces low to preserve conversation.",
+        "Stage serving pieces near the pass for quick access.",
+        "Lay out extra napkins and polishing cloths for service.",
+      ],
+    },
+    serviceNotes: {
+      pacing: [
+        "Aim for 15-20 minutes between courses.",
+        "Check guest pace before firing the next dish.",
+        "Hold the main if the table is still mid-course.",
+      ],
+      wineService: [
+        "Pour 4-5 oz for tasting pours.",
+        "Serve whites chilled, reds slightly cool.",
+        "Refresh glasses before each course when possible.",
+      ],
+      clearing: [
+        "Clear from the right once most guests finish.",
+        "Reset flatware between courses as needed.",
+        "Crumb the table before dessert.",
+      ],
+    },
+    ambianceGuide: {
+      lighting: [
+        "Dim overheads to 40-50%.",
+        "Use candles for flattering light.",
+        "Avoid scented candles near food.",
+      ],
+      music: [
+        "Arrival: upbeat jazz or bossa nova.",
+        "Dinner: soft jazz or classical.",
+        "Dessert: mellow instrumental.",
+      ],
+      temperature: [
+        "Set thermostat 2-3 degrees cooler than usual.",
+        "Ventilate the kitchen to keep dining room comfortable.",
+      ],
+    },
+    finalChecklist: {
+      weekBefore: [
+        "Confirm guest count and dietary needs.",
+        "Order specialty ingredients and wines.",
+        "Test any new techniques or recipes.",
+        "Plan plating and service flow.",
+      ],
+      dayBefore: [
+        "Complete make-ahead prep.",
+        "Set the table and chill wines.",
+        "Organize labeled containers by course.",
+        "Confirm timeline and equipment.",
+      ],
+      dayOf: [
+        "Stage ingredients and tools.",
+        "Warm plates for hot courses.",
+        "Taste and adjust seasoning.",
+        "Light candles and start music.",
+        "Take a breath before guests arrive.",
+      ],
+    },
+    imagePrompts: courses.map(
+      (course) =>
+        `Editorial food photo of ${course.name}, elegant plating, soft natural light, shallow depth of field`
+    ),
   };
 }
 
@@ -597,7 +715,7 @@ app.post("/api/generate-details", async (req, res) => {
 
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-    const systemPrompt = `You are an expert culinary team creating detailed recipe previews and tiered wine pairings.
+    const systemPrompt = `You are an expert culinary team creating detailed recipe previews, wine pairings, and cookbook guidance.
 
 Return ONLY valid JSON with this exact shape:
 {
@@ -623,18 +741,61 @@ Return ONLY valid JSON with this exact shape:
       "totalCost": "string",
       "pairings": ["string", "..."]
     }
-  ]
+  ],
+  "shoppingList": {
+    "categories": [
+      { "name": "string", "items": ["string", "..."] }
+    ],
+    "notes": ["string", "..."]
+  },
+  "dayBeforePrep": ["string", "..."],
+  "dayOfTimeline": [
+    { "time": "string", "task": "string" }
+  ],
+  "platingGuides": [
+    { "courseType": "string", "guidance": "string" }
+  ],
+  "tableSetting": {
+    "placeSetting": ["string", "..."],
+    "centerpiece": "string",
+    "notes": ["string", "..."]
+  },
+  "serviceNotes": {
+    "pacing": ["string", "..."],
+    "wineService": ["string", "..."],
+    "clearing": ["string", "..."]
+  },
+  "ambianceGuide": {
+    "lighting": ["string", "..."],
+    "music": ["string", "..."],
+    "temperature": ["string", "..."]
+  },
+  "finalChecklist": {
+    "weekBefore": ["string", "..."],
+    "dayBefore": ["string", "..."],
+    "dayOf": ["string", "..."]
+  },
+  "imagePrompts": ["string", "..."]
 }
 
 Rules:
 - Provide exactly 5 recipes, in the same order as the menu courses.
 - Provide exactly 4 wine tiers, each with 5 pairings in course order.
 - Pairings should be specific bottles with producer + vintage when possible.
-- For each pairing, append a short reason after an em dash (max 10 words).
-- Use 10-14 ingredients and 6-10 steps per recipe.
+- For each pairing, append a short reason after " - " (max 10 words).
+- Use 8-12 ingredients and 5-8 steps per recipe.
 - Notes, make-ahead guidance, and why-it-works can be 1-2 sentences each.
 - chefOverview should explain the course progression (2-3 sentences).
-- wineOverview should explain pairing logic and progression (2-3 sentences).`;
+- wineOverview should explain pairing logic and progression (2-3 sentences).
+- shoppingList.categories: 6 categories, each 4-6 items.
+- dayBeforePrep: 8-10 tasks.
+- dayOfTimeline: 10-12 time-stamped items.
+- platingGuides: 5 entries, 2-3 sentences each.
+- tableSetting.placeSetting: 6-8 items; centerpiece 1 sentence; notes 3 bullets.
+- serviceNotes: 3-5 bullets per section.
+- ambianceGuide: 3 bullets per section.
+- finalChecklist: 4-6 items per section.
+- imagePrompts: 6 prompts (5 courses + 1 tablescape).`;
 
     const response = await withTimeout(
       client.messages.create({
@@ -666,19 +827,25 @@ Rules:
 
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
-  const { menu, context, staffing, recipes } = req.body || {};
+  const { menu, context, staffing, recipes, details } = req.body || {};
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
  
-  global.cookbooks[cookbookId] = { menu, context, staffing, recipes: recipes || null };
+  global.cookbooks[cookbookId] = {
+    menu,
+    context,
+    staffing,
+    recipes: recipes || null,
+    details: details || null,
+  };
   res.json({ success: true, cookbookId });
 });
  
 app.post("/api/download-cookbook", async (req, res) => {
-  const { cookbookId, menu, context, staffing, recipes } = req.body || {};
+  const { cookbookId, menu, context, staffing, recipes, details } = req.body || {};
   let cookbookData = cookbookId ? global.cookbooks?.[cookbookId] : null;
 
   if (!cookbookData && menu && context) {
-    cookbookData = { menu, context, staffing, recipes };
+    cookbookData = { menu, context, staffing, recipes, details };
   }
 
   if (!cookbookData || !cookbookData.menu || !cookbookData.menu.courses) {
@@ -688,7 +855,13 @@ app.post("/api/download-cookbook", async (req, res) => {
   const payload = cookbookData;
 
   try {
-    const buffer = await buildCookbook(payload.menu, payload.context, payload.staffing, payload.recipes);
+    const buffer = await buildCookbook(
+      payload.menu,
+      payload.context,
+      payload.staffing,
+      payload.recipes,
+      payload.details
+    );
     const filename =
       (payload.context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
 

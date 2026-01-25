@@ -49,7 +49,7 @@ function buildWineRationale(course) {
 }
 
 // Build complete cookbook document
-async function buildCookbook(menu, context, staffing, recipes) {
+async function buildCookbook(menu, context, staffing, recipes, details) {
   const staffingInfo = STAFFING.find(s => s.id === staffing) || STAFFING[0];
   const guestNames = context.guestList ? context.guestList.split('\n').filter(n => n.trim()) : [];
   
@@ -133,40 +133,40 @@ async function buildCookbook(menu, context, staffing, recipes) {
         ...buildCoverPage(menu, context),
         
         // ========== MENU OVERVIEW ==========
-        ...buildMenuOverview(menu),
+        ...buildMenuOverview(menu, details),
         
         // ========== WINE PROGRAM ==========
-        ...buildWineProgram(menu, context),
+        ...buildWineProgram(menu, context, details),
         
         // ========== RECIPES ==========
         ...buildRecipes(menu, recipes),
         
         // ========== SHOPPING LIST ==========
-        ...buildShoppingList(menu, context, recipes),
+        ...buildShoppingList(menu, context, recipes, details),
         
         // ========== DAY BEFORE PREP ==========
-        ...buildDayBeforePrep(menu, staffingInfo),
+        ...buildDayBeforePrep(menu, staffingInfo, details),
         
         // ========== DAY OF TIMELINE ==========
-        ...buildDayOfTimeline(menu, context, staffingInfo),
+        ...buildDayOfTimeline(menu, context, staffingInfo, details),
         
         // ========== PLATING GUIDES ==========
-        ...buildPlatingGuides(menu),
+        ...buildPlatingGuides(menu, details),
         
         // ========== TABLE SETTING ==========
-        ...buildTableSetting(menu, context, guestNames),
+        ...buildTableSetting(menu, context, guestNames, details),
         
         // ========== SERVICE NOTES ==========
-        ...buildServiceNotes(menu, staffingInfo),
+        ...buildServiceNotes(menu, staffingInfo, details),
         
         // ========== AMBIANCE & MUSIC ==========
-        ...buildAmbianceGuide(menu, context),
+        ...buildAmbianceGuide(menu, context, details),
         
         // ========== FINAL CHECKLIST ==========
-        ...buildFinalChecklist(menu, context),
+        ...buildFinalChecklist(menu, context, details),
         
         // ========== AI IMAGE PROMPTS ==========
-        ...buildImagePrompts(menu, context),
+        ...buildImagePrompts(menu, context, details),
         
         // ========== NOTES PAGES ==========
         ...buildNotesPages(),
@@ -225,7 +225,7 @@ function buildCoverPage(menu, context) {
   ];
 }
 
-function buildMenuOverview(menu) {
+function buildMenuOverview(menu, details) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -233,6 +233,15 @@ function buildMenuOverview(menu) {
     }),
     new Paragraph({ spacing: { after: 300 }, children: [] })
   ];
+
+  if (details?.chefOverview) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 250 },
+        children: [new TextRun({ text: details.chefOverview, size: 22, italics: true, color: COLORS.textLight })]
+      })
+    );
+  }
   
   menu.courses.forEach(course => {
     children.push(
@@ -262,7 +271,7 @@ function buildMenuOverview(menu) {
   return children;
 }
 
-function buildWineProgram(menu, context) {
+function buildWineProgram(menu, context, details) {
   const wines = menu.courses.filter(c => c.wine);
   const children = [
     new Paragraph({ 
@@ -274,6 +283,15 @@ function buildWineProgram(menu, context) {
       children: [new TextRun({ text: `Budget: ${context.wineBudget || '$80-120'}`, size: 24, italics: true, color: COLORS.textLight })]
     })
   ];
+
+  if (details?.wineOverview) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 220 },
+        children: [new TextRun({ text: details.wineOverview, size: 22, italics: true, color: COLORS.textLight })]
+      })
+    );
+  }
   
   wines.forEach(course => {
     const rationale = buildWineRationale(course);
@@ -437,7 +455,7 @@ function buildRecipes(menu, recipes) {
   return children;
 }
 
-function buildShoppingList(menu, context, recipes) {
+function buildShoppingList(menu, context, recipes, details) {
   const guestCount = parseInt(context.guestCount) || 6;
   
   const children = [
@@ -450,37 +468,59 @@ function buildShoppingList(menu, context, recipes) {
       children: [new TextRun({ text: `For ${guestCount} guests`, size: 24, italics: true, color: COLORS.textLight })]
     })
   ];
-  
-  const categories = ['Proteins', 'Seafood', 'Produce', 'Dairy & Eggs', 'Pantry', 'Wine & Beverages', 'Special Ingredients'];
+
+  const detailCategories = Array.isArray(details?.shoppingList?.categories)
+    ? details.shoppingList.categories
+    : null;
+
+  const fallbackCategories = ['Proteins', 'Seafood', 'Produce', 'Dairy & Eggs', 'Pantry', 'Wine & Beverages', 'Special Ingredients'];
+
+  const categories = detailCategories?.length ? detailCategories : fallbackCategories.map(name => ({ name }));
   
   categories.forEach(cat => {
+    const items = Array.isArray(cat.items) && cat.items.length ? cat.items : ['□  Items based on your menu'];
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text: cat, size: 26, bold: true, color: COLORS.gold })]
-      }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Items based on your menu')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] }),
-      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  ')] })
+        children: [new TextRun({ text: cat.name || 'Category', size: 26, bold: true, color: COLORS.gold })]
+      })
     );
+    items.forEach(item => {
+      const text = item.startsWith('□') ? item : `□  ${item}`;
+      children.push(
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(text)] })
+      );
+    });
   });
   
+  const notes = Array.isArray(details?.shoppingList?.notes) ? details.shoppingList.notes : null;
+
   children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_2,
       spacing: { before: 400 },
       children: [new TextRun({ text: 'Shopping Notes', size: 32, bold: true, color: COLORS.navy })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Shop for proteins and seafood 1-2 days before')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Buy produce day-before for peak freshness')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Wine can be purchased a week ahead')] }),
-    new Paragraph({ children: [new PageBreak()] })
+    })
   );
+
+  if (notes?.length) {
+    notes.forEach(note => {
+      children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] }));
+    });
+  } else {
+    children.push(
+      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Shop for proteins and seafood 1-2 days before')] }),
+      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Buy produce day-before for peak freshness')] }),
+      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Wine can be purchased a week ahead')] })
+    );
+  }
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
   
   return children;
 }
 
-function buildDayBeforePrep(menu, staffingInfo) {
+function buildDayBeforePrep(menu, staffingInfo, details) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -492,18 +532,20 @@ function buildDayBeforePrep(menu, staffingInfo) {
     })
   ];
   
-  const tasks = [
-    'Review all recipes and confirm you have all ingredients',
-    'Prep stocks and sauces that improve overnight',
-    'Marinate proteins as needed',
-    'Wash and prep vegetables (store properly)',
-    'Make dessert components that hold well',
-    'Set the table completely',
-    'Chill wine and set out serving pieces',
-    'Write out your day-of timeline',
-    'Prep any garnishes that hold',
-    'Do a final equipment check'
-  ];
+  const tasks = Array.isArray(details?.dayBeforePrep) && details.dayBeforePrep.length
+    ? details.dayBeforePrep
+    : [
+        'Review all recipes and confirm you have all ingredients',
+        'Prep stocks and sauces that improve overnight',
+        'Marinate proteins as needed',
+        'Wash and prep vegetables (store properly)',
+        'Make dessert components that hold well',
+        'Set the table completely',
+        'Chill wine and set out serving pieces',
+        'Write out your day-of timeline',
+        'Prep any garnishes that hold',
+        'Do a final equipment check'
+      ];
   
   tasks.forEach(task => {
     children.push(
@@ -515,7 +557,7 @@ function buildDayBeforePrep(menu, staffingInfo) {
   return children;
 }
 
-function buildDayOfTimeline(menu, context, staffingInfo) {
+function buildDayOfTimeline(menu, context, staffingInfo, details) {
   const serviceTime = context.serviceTime || '7:00 PM';
   
   const children = [
@@ -530,33 +572,37 @@ function buildDayOfTimeline(menu, context, staffingInfo) {
   ];
   
   // Work backwards from service time
-  const timeline = [
-    { time: '-6 hours', task: 'Final shopping for any last-minute items' },
-    { time: '-5 hours', task: 'Begin slow-cooking items (braises, stocks)' },
-    { time: '-4 hours', task: 'Prep remaining vegetables and garnishes' },
-    { time: '-3 hours', task: 'Start sauces and reductions' },
-    { time: '-2 hours', task: 'Set out cheese and butter to temper' },
-    { time: '-90 min', task: 'Open and decant red wines' },
-    { time: '-1 hour', task: 'Final protein prep, bring to room temp' },
-    { time: '-45 min', task: 'Preheat oven, warm plates' },
-    { time: '-30 min', task: 'Light candles, start music, final touches' },
-    { time: '-15 min', task: 'Plate amuse-bouche, pour welcome drinks' },
-    { time: '0', task: '🍽️ GUESTS ARRIVE — Service begins' },
-    { time: '+15 min', task: 'Serve amuse-bouche' },
-    { time: '+30 min', task: 'Fire first course' },
-    { time: '+50 min', task: 'Clear, serve second course' },
-    { time: '+80 min', task: 'Fire main course' },
-    { time: '+110 min', task: 'Clear, prepare dessert' },
-    { time: '+130 min', task: 'Serve dessert and dessert wine' }
-  ];
+  const timeline = Array.isArray(details?.dayOfTimeline) && details.dayOfTimeline.length
+    ? details.dayOfTimeline
+    : [
+        { time: '-6 hours', task: 'Final shopping for any last-minute items' },
+        { time: '-5 hours', task: 'Begin slow-cooking items (braises, stocks)' },
+        { time: '-4 hours', task: 'Prep remaining vegetables and garnishes' },
+        { time: '-3 hours', task: 'Start sauces and reductions' },
+        { time: '-2 hours', task: 'Set out cheese and butter to temper' },
+        { time: '-90 min', task: 'Open and decant red wines' },
+        { time: '-1 hour', task: 'Final protein prep, bring to room temp' },
+        { time: '-45 min', task: 'Preheat oven, warm plates' },
+        { time: '-30 min', task: 'Light candles, start music, final touches' },
+        { time: '-15 min', task: 'Plate amuse-bouche, pour welcome drinks' },
+        { time: '0', task: 'Guests arrive — service begins' },
+        { time: '+15 min', task: 'Serve amuse-bouche' },
+        { time: '+30 min', task: 'Fire first course' },
+        { time: '+50 min', task: 'Clear, serve second course' },
+        { time: '+80 min', task: 'Fire main course' },
+        { time: '+110 min', task: 'Clear, prepare dessert' },
+        { time: '+130 min', task: 'Serve dessert and dessert wine' }
+      ];
   
   timeline.forEach(item => {
+    const timeLabel = item.time || item.offset || item.label || '';
+    const taskLabel = item.task || item.description || item.label || item;
     children.push(
       new Paragraph({
         spacing: { before: 100 },
         children: [
-          new TextRun({ text: item.time.padEnd(12), bold: true, color: COLORS.gold, size: 22 }),
-          new TextRun({ text: item.task, size: 22 })
+          new TextRun({ text: String(timeLabel).padEnd(12), bold: true, color: COLORS.gold, size: 22 }),
+          new TextRun({ text: String(taskLabel), size: 22 })
         ]
       })
     );
@@ -566,36 +612,41 @@ function buildDayOfTimeline(menu, context, staffingInfo) {
   return children;
 }
 
-function buildPlatingGuides(menu) {
+function buildPlatingGuides(menu, details) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
       children: [new TextRun({ text: 'Plating Guides', size: 48, bold: true, color: COLORS.navy })] 
     })
   ];
+
+  const guides = Array.isArray(details?.platingGuides) && details.platingGuides.length
+    ? details.platingGuides
+    : (menu.courses || []).map(course => ({
+        courseType: course.type,
+        guidance: `Plate ${course.name} as the focal point, add a clean sauce accent, and finish with a fresh garnish.`
+      }));
   
-  menu.courses.forEach(course => {
+  guides.forEach((guide, idx) => {
+    const courseLabel = guide.courseType || menu.courses?.[idx]?.type || 'Course';
+    const courseName = guide.courseName || menu.courses?.[idx]?.name;
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
-      }),
+        children: [new TextRun({ text: courseLabel, size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    if (courseName) {
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: courseName, bold: true, size: 24, color: COLORS.navy })]
+        })
+      );
+    }
+    children.push(
       new Paragraph({
-        children: [new TextRun({ text: course.name, bold: true, size: 24, color: COLORS.navy })]
-      }),
-      new Paragraph({
-        spacing: { before: 100 },
-        children: [new TextRun({ text: 'Plate: Choose appropriate size for portion', size: 20, color: COLORS.textLight })]
-      }),
-      new Paragraph({
-        children: [new TextRun({ text: 'Placement: Center the protein, sauce underneath or alongside', size: 20, color: COLORS.textLight })]
-      }),
-      new Paragraph({
-        children: [new TextRun({ text: 'Garnish: Fresh herbs, microgreens, or edible flowers', size: 20, color: COLORS.textLight })]
-      }),
-      new Paragraph({
-        spacing: { after: 200 },
-        children: [new TextRun({ text: 'Temperature: Warm plates for hot courses, chilled for cold', size: 20, color: COLORS.textLight })]
+        spacing: { before: 100, after: 200 },
+        children: [new TextRun({ text: guide.guidance || 'Keep plating clean, balanced, and purposeful.', size: 20, color: COLORS.textLight })]
       })
     );
   });
@@ -604,7 +655,7 @@ function buildPlatingGuides(menu) {
   return children;
 }
 
-function buildTableSetting(menu, context, guestNames) {
+function buildTableSetting(menu, context, guestNames, details) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -618,14 +669,52 @@ function buildTableSetting(menu, context, guestNames) {
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Per Place Setting', size: 26, bold: true, color: COLORS.gold })]
     }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Charger plate (remove before main)')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Dinner fork, salad fork (outside in)')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Dinner knife, soup spoon')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Dessert spoon above plate')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Water glass, white wine glass, red wine glass')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Cloth napkin, folded or in ring')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Place card')] })
   ];
+
+  const setting = details?.tableSetting || {};
+  const placeSettingItems = Array.isArray(setting.placeSetting) && setting.placeSetting.length
+    ? setting.placeSetting
+    : [
+        'Charger plate (remove before main)',
+        'Dinner fork, salad fork (outside in)',
+        'Dinner knife, soup spoon',
+        'Dessert spoon above plate',
+        'Water glass, white wine glass, red wine glass',
+        'Cloth napkin, folded or in ring',
+        'Place card'
+      ];
+
+  placeSettingItems.forEach(item => {
+    children.push(
+      new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(item)] })
+    );
+  });
+
+  if (setting.centerpiece) {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Centerpiece', size: 26, bold: true, color: COLORS.gold })]
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: setting.centerpiece, size: 22, color: COLORS.textLight })]
+      })
+    );
+  }
+
+  if (Array.isArray(setting.notes) && setting.notes.length) {
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: 'Table Notes', size: 26, bold: true, color: COLORS.gold })]
+      })
+    );
+    setting.notes.forEach(note => {
+      children.push(
+        new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] })
+      );
+    });
+  }
   
   if (guestNames.length > 0) {
     children.push(
@@ -645,7 +734,7 @@ function buildTableSetting(menu, context, guestNames) {
   return children;
 }
 
-function buildServiceNotes(menu, staffingInfo) {
+function buildServiceNotes(menu, staffingInfo, details) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -654,31 +743,49 @@ function buildServiceNotes(menu, staffingInfo) {
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Pacing', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Allow 15-20 minutes between courses')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Watch for guests finishing — clear when 80% done')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Never rush; better to slow down than speed up')] }),
+    })
+  ];
+
+  const serviceNotes = details?.serviceNotes || {};
+  const pacing = Array.isArray(serviceNotes.pacing) && serviceNotes.pacing.length
+    ? serviceNotes.pacing
+    : ['Allow 15-20 minutes between courses', 'Watch for guests finishing — clear when 80% done', 'Never rush; better to slow down than speed up'];
+  pacing.forEach(note => {
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] }));
+  });
+
+  children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Wine Service', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Pour from guest\'s right side')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Fill glasses 1/3 to 1/2 full')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Offer water throughout')] }),
+    })
+  );
+  const wineService = Array.isArray(serviceNotes.wineService) && serviceNotes.wineService.length
+    ? serviceNotes.wineService
+    : ['Pour from guest\'s right side', 'Fill glasses 1/3 to 1/2 full', 'Offer water throughout'];
+  wineService.forEach(note => {
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] }));
+  });
+
+  children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Clearing', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Clear from right, serve from left')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Remove all plates before bringing next course')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Crumb table before dessert')] }),
-    new Paragraph({ children: [new PageBreak()] })
-  ];
-  
+    })
+  );
+  const clearing = Array.isArray(serviceNotes.clearing) && serviceNotes.clearing.length
+    ? serviceNotes.clearing
+    : ['Clear from right, serve from left', 'Remove all plates before bringing next course', 'Crumb table before dessert'];
+  clearing.forEach(note => {
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] }));
+  });
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
   return children;
 }
 
-function buildAmbianceGuide(menu, context) {
+function buildAmbianceGuide(menu, context, details) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -687,31 +794,49 @@ function buildAmbianceGuide(menu, context) {
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Lighting', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Dim overhead lights to 40-50%')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Use candles as primary table lighting')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Unscented candles only near food')] }),
+    })
+  ];
+
+  const ambiance = details?.ambianceGuide || {};
+  const lighting = Array.isArray(ambiance.lighting) && ambiance.lighting.length
+    ? ambiance.lighting
+    : ['Dim overhead lights to 40-50%', 'Use candles as primary table lighting', 'Unscented candles only near food'];
+  lighting.forEach(note => {
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] }));
+  });
+
+  children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Music Suggestions', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Arrival: Upbeat jazz or bossa nova')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Dinner: Soft jazz, classical, or acoustic')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Dessert: Slightly more energy, still conversational')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Volume: Background only — guests should never strain to talk')] }),
+    })
+  );
+  const music = Array.isArray(ambiance.music) && ambiance.music.length
+    ? ambiance.music
+    : ['Arrival: Upbeat jazz or bossa nova', 'Dinner: Soft jazz, classical, or acoustic', 'Dessert: Slightly more energy, still conversational', 'Volume: Background only — guests should never strain to talk'];
+  music.forEach(note => {
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] }));
+  });
+
+  children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Temperature', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Set thermostat 2-3° cooler than normal')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('Room will warm with guests and cooking')] }),
-    new Paragraph({ children: [new PageBreak()] })
-  ];
-  
+    })
+  );
+  const temperature = Array.isArray(ambiance.temperature) && ambiance.temperature.length
+    ? ambiance.temperature
+    : ['Set thermostat 2-3° cooler than normal', 'Room will warm with guests and cooking'];
+  temperature.forEach(note => {
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(note)] }));
+  });
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
   return children;
 }
 
-function buildFinalChecklist(menu, context) {
+function buildFinalChecklist(menu, context, details) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -720,35 +845,52 @@ function buildFinalChecklist(menu, context) {
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'One Week Before', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Confirm guest count and dietary restrictions')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Order specialty ingredients')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Purchase wines')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Test any new recipes')] }),
+    })
+  ];
+
+  const checklist = details?.finalChecklist || {};
+  const weekBefore = Array.isArray(checklist.weekBefore) && checklist.weekBefore.length
+    ? checklist.weekBefore
+    : ['Confirm guest count and dietary restrictions', 'Order specialty ingredients', 'Purchase wines', 'Test any new recipes'];
+  weekBefore.forEach(item => {
+    const text = item.startsWith('□') ? item : `□  ${item}`;
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(text)] }));
+  });
+
+  children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Day Before', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Complete all make-ahead prep')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Set table completely')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Chill white wines')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Clean kitchen and clear workspace')] }),
+    })
+  );
+  const dayBefore = Array.isArray(checklist.dayBefore) && checklist.dayBefore.length
+    ? checklist.dayBefore
+    : ['Complete all make-ahead prep', 'Set table completely', 'Chill white wines', 'Clean kitchen and clear workspace'];
+  dayBefore.forEach(item => {
+    const text = item.startsWith('□') ? item : `□  ${item}`;
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(text)] }));
+  });
+
+  children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_3,
       children: [new TextRun({ text: 'Day Of', size: 26, bold: true, color: COLORS.gold })]
-    }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Follow timeline')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Final taste and season all dishes')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Light candles 10 minutes before arrival')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Start music')] }),
-    new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun('□  Take a breath — you\'ve got this!')] }),
-    new Paragraph({ children: [new PageBreak()] })
-  ];
-  
+    })
+  );
+  const dayOf = Array.isArray(checklist.dayOf) && checklist.dayOf.length
+    ? checklist.dayOf
+    : ['Follow timeline', 'Final taste and season all dishes', 'Light candles 10 minutes before arrival', 'Start music', 'Take a breath — you\'ve got this!'];
+  dayOf.forEach(item => {
+    const text = item.startsWith('□') ? item : `□  ${item}`;
+    children.push(new Paragraph({ numbering: { reference: 'bullets', level: 0 }, children: [new TextRun(text)] }));
+  });
+
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+
   return children;
 }
 
-function buildImagePrompts(menu, context) {
+function buildImagePrompts(menu, context, details) {
   const children = [
     new Paragraph({ 
       heading: HeadingLevel.HEADING_1, 
@@ -760,13 +902,18 @@ function buildImagePrompts(menu, context) {
     })
   ];
   
-  menu.courses.forEach(course => {
-    const prompt = `Professional food photography of ${course.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens, Michelin star quality --ar 4:3 --v 6`;
-    
+  const prompts = Array.isArray(details?.imagePrompts) && details.imagePrompts.length
+    ? details.imagePrompts
+    : (menu.courses || []).map(course =>
+        `Professional food photography of ${course.name}, elegant plating on white porcelain, soft natural lighting, shallow depth of field, fine dining presentation, 85mm lens`
+      );
+
+  prompts.forEach((prompt, idx) => {
+    const courseLabel = menu.courses?.[idx]?.type || (idx === prompts.length - 1 ? 'Tablescape' : `Course ${idx + 1}`);
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text: course.type, size: 26, bold: true, color: COLORS.gold })]
+        children: [new TextRun({ text: courseLabel, size: 26, bold: true, color: COLORS.gold })]
       }),
       new Paragraph({
         shading: { fill: 'f5f5f5', type: ShadingType.CLEAR },

@@ -1896,7 +1896,9 @@ a { color: var(--navy); }
     function buildFallbackDetails(menu) {
       return {
         recipes: buildFallbackRecipes(menu),
-        wineTiers: buildFallbackWineTiers(menu)
+        wineTiers: buildFallbackWineTiers(menu),
+        chefOverview: 'Courses are paced to build flavor and end with a clean finish.',
+        wineOverview: 'Pairings progress from crisp to fuller-bodied to mirror the menu arc.'
       };
     }
 
@@ -2510,7 +2512,8 @@ a { color: var(--navy); }
             context: getContext(),
             staffing: selectedStaffing,
             chatHistory: chatHistory,
-            recipes: selectedMenuDetails?.recipes || null
+            recipes: selectedMenuDetails?.recipes || null,
+            details: selectedMenuDetails || null
           })
         });
         const data = await res.json();
@@ -2542,7 +2545,8 @@ a { color: var(--navy); }
             menu: menus[selectedMenu],
             context: getContext(),
             staffing: selectedStaffing,
-            recipes: selectedMenuDetails?.recipes || null
+            recipes: selectedMenuDetails?.recipes || null,
+            details: selectedMenuDetails || null
           })
         });
         
