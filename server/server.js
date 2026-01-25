@@ -73,7 +73,7 @@ const ALLOW_DEMO_FALLBACK = (process.env.ALLOW_DEMO_FALLBACK || "false").toLower
 const DEFAULT_TIMEOUTS_MS = {
   chat: 15000,
   menus: 45000,
-  details: 180000,
+  details: 300000,
 };
 
 function parseTimeout(value, fallback) {
