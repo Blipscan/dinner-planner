@@ -17,6 +17,41 @@ const COLORS = {
   textLight: '6b7c85'
 };
 
+const ASCII_REPLACEMENTS = [
+  [/\u2019|\u2018/g, "'"],
+  [/\u201C|\u201D/g, '"'],
+  [/\u2013|\u2014/g, '-'],
+  [/\u2026/g, '...'],
+  [/\u00A0/g, ' ']
+];
+
+function toAsciiString(value) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  let text = String(value);
+  ASCII_REPLACEMENTS.forEach(([pattern, replacement]) => {
+    text = text.replace(pattern, replacement);
+  });
+  text = text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  return text.replace(/[^\x00-\x7F]/g, '');
+}
+
+function normalizeToAscii(value) {
+  if (typeof value === 'string') {
+    return toAsciiString(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeToAscii(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeToAscii(item)])
+    );
+  }
+  return value;
+}
+
 function normalizeWineTiers(wine) {
   if (!wine) {
     return {
@@ -56,8 +91,14 @@ function getWineTierEntries(wine) {
 
 // Build complete cookbook document
 async function buildCookbook(menu, context, staffing, recipes, shoppingList, timeline, extras = {}) {
+  const safeMenu = normalizeToAscii(menu);
+  const safeContext = normalizeToAscii(context);
+  const safeRecipes = normalizeToAscii(recipes);
+  const safeShoppingList = normalizeToAscii(shoppingList);
+  const safeTimeline = normalizeToAscii(timeline);
+  const safeExtras = normalizeToAscii(extras);
   const staffingInfo = STAFFING.find(s => s.id === staffing) || STAFFING[0];
-  const rawGuestList = context?.guestList;
+  const rawGuestList = safeContext?.guestList;
   const guestNames = Array.isArray(rawGuestList)
     ? rawGuestList.map((name) => String(name).trim()).filter(Boolean)
     : typeof rawGuestList === 'string'
@@ -141,49 +182,49 @@ async function buildCookbook(menu, context, staffing, recipes, shoppingList, tim
       },
       children: [
         // ========== COVER PAGE ==========
-        ...buildCoverPage(menu, context),
+        ...buildCoverPage(safeMenu, safeContext),
         
         // ========== MENU OVERVIEW ==========
-        ...buildMenuOverview(menu),
+        ...buildMenuOverview(safeMenu),
         
         // ========== WINE PROGRAM ==========
-        ...buildWineProgram(menu, context),
+        ...buildWineProgram(safeMenu, safeContext),
         
         // ========== RECIPES ==========
-        ...buildRecipes(menu, recipes),
+        ...buildRecipes(safeMenu, safeRecipes),
         
         // ========== SHOPPING LIST ==========
-        ...buildShoppingList(menu, context, recipes, shoppingList),
+        ...buildShoppingList(safeMenu, safeContext, safeRecipes, safeShoppingList),
         
         // ========== DAY BEFORE PREP ==========
-        ...buildDayBeforePrep(menu, staffingInfo, extras.dayBeforePrep),
+        ...buildDayBeforePrep(safeMenu, staffingInfo, safeExtras.dayBeforePrep),
         
         // ========== DAY OF TIMELINE ==========
-        ...buildDayOfTimeline(menu, context, staffingInfo, timeline),
+        ...buildDayOfTimeline(safeMenu, safeContext, staffingInfo, safeTimeline),
         
         // ========== PLATING GUIDES ==========
-        ...buildPlatingGuides(menu, extras.platingGuides),
+        ...buildPlatingGuides(safeMenu, safeExtras.platingGuides),
         
         // ========== TABLE SETTING ==========
-        ...buildTableSetting(menu, context, guestNames, extras.tableSetting),
+        ...buildTableSetting(safeMenu, safeContext, guestNames, safeExtras.tableSetting),
         
         // ========== SERVICE NOTES ==========
-        ...buildServiceNotes(menu, staffingInfo, extras.serviceNotes),
+        ...buildServiceNotes(safeMenu, staffingInfo, safeExtras.serviceNotes),
         
         // ========== AMBIANCE & MUSIC ==========
-        ...buildAmbianceGuide(menu, context, extras.ambianceGuide),
+        ...buildAmbianceGuide(safeMenu, safeContext, safeExtras.ambianceGuide),
         
         // ========== FINAL CHECKLIST ==========
-        ...buildFinalChecklist(menu, context, extras.finalChecklist),
+        ...buildFinalChecklist(safeMenu, safeContext, safeExtras.finalChecklist),
         
         // ========== AI IMAGE PROMPTS ==========
-        ...buildImagePrompts(menu, context, extras.imagePrompts),
+        ...buildImagePrompts(safeMenu, safeContext, safeExtras.imagePrompts),
         
         // ========== NOTES PAGES ==========
         ...buildNotesPages(),
         
         // ========== COPYRIGHT ==========
-        ...buildCopyright(context)
+        ...buildCopyright(safeContext)
       ]
     }]
   });
