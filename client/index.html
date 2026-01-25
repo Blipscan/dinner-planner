@@ -512,6 +512,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       font-size: 1.1rem;
       font-style: italic;
     }
+    .loading .loading-subtext {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-light);
+      font-style: normal;
+    }
     
     /* ===== MESSAGES ===== */
     .success-msg {
@@ -944,7 +950,8 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
       <div id="detailsLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Preparing recipes, wine tiers, and timeline...</p>
+        <p id="detailsLoadingMessage">Preparing recipes, wine tiers, and timeline...</p>
+        <p id="detailsLoadingTimer" class="loading-subtext">Elapsed 0:00 • Typical time: up to 2:00</p>
       </div>
 
       <div class="card">
@@ -1054,9 +1061,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let selectedMenuDetails = null;
     let preferencesVisited = false;
     let preferencesCompleted = false;
+    let detailsLoadingTimer = null;
+    let detailsLoadingStart = null;
     const FETCH_TIMEOUTS_MS = {
       menus: 60000,
-      details: 70000
+      details: 120000
     };
     const API_STATUS_REFRESH_MS = 30000;
     
@@ -1323,8 +1332,54 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
     function showDetailsLoading(show) {
       const loading = document.getElementById('detailsLoading');
+      const messageEl = document.getElementById('detailsLoadingMessage');
+      const timerEl = document.getElementById('detailsLoadingTimer');
       if (!loading) return;
       loading.classList.toggle('hidden', !show);
+
+      if (!show) {
+        if (detailsLoadingTimer) {
+          clearInterval(detailsLoadingTimer);
+        }
+        detailsLoadingTimer = null;
+        detailsLoadingStart = null;
+        return;
+      }
+
+      detailsLoadingStart = Date.now();
+      updateDetailsLoadingStatus(messageEl, timerEl);
+      if (detailsLoadingTimer) {
+        clearInterval(detailsLoadingTimer);
+      }
+      detailsLoadingTimer = setInterval(() => updateDetailsLoadingStatus(messageEl, timerEl), 1000);
+    }
+
+    function formatDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = String(totalSeconds % 60).padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    }
+
+    function updateDetailsLoadingStatus(messageEl, timerEl) {
+      if (!detailsLoadingStart) return;
+      const elapsedMs = Date.now() - detailsLoadingStart;
+      const elapsedLabel = formatDuration(elapsedMs);
+      const maxLabel = formatDuration(FETCH_TIMEOUTS_MS.details);
+
+      if (messageEl) {
+        if (elapsedMs < 30000) {
+          messageEl.textContent = 'Generating recipes and wine tiers...';
+        } else if (elapsedMs < 60000) {
+          messageEl.textContent = 'Still working on detailed recipes...';
+        } else {
+          messageEl.textContent = 'Finalizing wine pairings and prep guidance...';
+        }
+      }
+
+      if (timerEl) {
+        timerEl.textContent = `Elapsed ${elapsedLabel} • Typical time: up to ${maxLabel}`;
+      }
     }
 
     async function fetchWithTimeout(url, options, timeoutMs) {
