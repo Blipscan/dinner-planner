@@ -228,6 +228,55 @@ function validateDetails(details, menu) {
   return errors;
 }
 
+function scanForPlaceholders(details) {
+  const errors = [];
+  const placeholderPattern = /\b(TBD|TBA|TO BE DETERMINED|TODO)\b/i;
+
+  function walk(node, path = []) {
+    if (node === null || node === undefined) {
+      return;
+    }
+    if (typeof node === "string") {
+      const trimmed = node.trim();
+      if (!trimmed && !path.includes("notes")) {
+        errors.push(`Empty string at ${path.join(".")}`);
+      }
+      if (placeholderPattern.test(node)) {
+        errors.push(`Placeholder text at ${path.join(".")}`);
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((value, index) => walk(value, path.concat(String(index))));
+      return;
+    }
+    if (typeof node === "object") {
+      Object.entries(node).forEach(([key, value]) => {
+        if (key === "notes" && path.includes("archiveMetadata")) {
+          return;
+        }
+        walk(value, path.concat(key));
+      });
+    }
+  }
+
+  walk(details, []);
+  return errors;
+}
+
+function runCookbookQualityCheck(details, menu) {
+  const errors = [];
+  errors.push(...validateDetails(details, menu));
+
+  if (details?.mealBalance?.overridesRequired) {
+    errors.push("mealBalance override required");
+  }
+
+  errors.push(...scanForPlaceholders(details));
+
+  return errors;
+}
+
 function isBondTheme(context) {
   const haystack = [
     context?.eventTitle,
@@ -804,6 +853,23 @@ app.post("/api/generate-cookbook", async (req, res) => {
   const { menu, context, staffing, recipes, details } = req.body || {};
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
  
+  if (details) {
+    const qualityErrors = runCookbookQualityCheck(details, menu);
+    if (qualityErrors.length) {
+      return res.status(422).json({
+        success: false,
+        message: "Quality check failed.",
+        errors: qualityErrors,
+      });
+    }
+  } else {
+    return res.status(422).json({
+      success: false,
+      message: "Quality check failed.",
+      errors: ["details payload missing"],
+    });
+  }
+
   global.cookbooks[cookbookId] = {
     menu,
     context,
@@ -827,6 +893,14 @@ app.post("/api/download-cookbook", async (req, res) => {
   }
 
   const payload = cookbookData;
+
+  const qualityErrors = runCookbookQualityCheck(payload.details, payload.menu);
+  if (qualityErrors.length) {
+    return res.status(422).json({
+      error: "Quality check failed.",
+      detail: qualityErrors.join("; "),
+    });
+  }
 
   try {
     const buffer = await buildCookbook(

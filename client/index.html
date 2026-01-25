@@ -2436,7 +2436,9 @@ a { color: var(--navy); }
           cookbookId = data.cookbookId;
           document.getElementById('cookbookComplete').classList.remove('hidden');
         } else {
-          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
+          const errorItems = Array.isArray(data.errors) ? data.errors.map(e => `<li>${e}</li>`).join('') : '';
+          const errorList = errorItems ? `<ul style="margin:0.5rem 0 0 1.2rem">${errorItems}</ul>` : '';
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}${errorList}</div>`;
           document.getElementById('cookbookComplete').classList.remove('hidden');
         }
       } catch (err) {
@@ -2479,6 +2481,8 @@ a { color: var(--navy); }
             const data = await res.json();
             if (data?.error) {
               message = data.detail ? `${data.error}: ${data.detail}` : data.error;
+            } else if (data?.message) {
+              message = data.message;
             }
           } catch (err) {
             // ignore JSON parse errors
