@@ -5,6 +5,7 @@
 const express = require("express");
 const path = require("path");
 const Anthropic = require("@anthropic-ai/sdk");
+const { jsonrepair } = require("jsonrepair");
  
 const {
   CUISINES,
@@ -116,6 +117,44 @@ function formatBudgetRange(min, max) {
     return `$${min}+ total`;
   }
   return `$${min}-${max} total`;
+}
+
+function stripCodeFences(text) {
+  return String(text || "")
+    .replace(/^```json?\n?/i, "")
+    .replace(/\n?```$/i, "")
+    .trim();
+}
+
+function extractJsonPayload(text) {
+  const cleaned = stripCodeFences(text);
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  const firstBracket = cleaned.indexOf("[");
+  const lastBracket = cleaned.lastIndexOf("]");
+
+  if (firstBracket !== -1 && lastBracket !== -1 && (firstBracket < firstBrace || firstBrace === -1)) {
+    return cleaned.slice(firstBracket, lastBracket + 1);
+  }
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    return cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
+}
+
+function parseJsonPayload(text, label) {
+  const candidate = extractJsonPayload(text);
+  try {
+    return JSON.parse(candidate);
+  } catch (err) {
+    try {
+      return JSON.parse(jsonrepair(candidate));
+    } catch (repairErr) {
+      const error = new Error(`${label} JSON parse failed: ${repairErr.message}`);
+      error.cause = repairErr;
+      throw error;
+    }
+  }
 }
 
 function formatDeployId(value) {
@@ -420,12 +459,13 @@ RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
  
     let menus;
     try {
-      const text = response.content[0].text.trim();
-      const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
-      menus = JSON.parse(jsonText);
+      menus = parseJsonPayload(response.content?.[0]?.text, "Menu generation");
+      if (!Array.isArray(menus)) {
+        throw new Error("Menu generation JSON was not an array.");
+      }
     } catch (parseErr) {
       console.error("JSON parse error:", parseErr);
-      console.error("Raw response:", response.content[0].text);
+      console.error("Raw response:", response.content?.[0]?.text);
       if (ALLOW_DEMO_FALLBACK) {
         return res.json({ menus: DEMO_MENUS, demo: true, warning: "AI response parsing failed." });
       }
@@ -506,9 +546,7 @@ Rules:
       "Details generation"
     );
 
-    const text = response.content[0].text.trim();
-    const jsonText = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
-    const details = JSON.parse(jsonText);
+    const details = parseJsonPayload(response.content?.[0]?.text, "Details generation");
     res.json(details);
   } catch (err) {
     console.error("Details generation error:", err);

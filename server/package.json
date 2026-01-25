@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
     "docx": "^9.5.1",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "jsonrepair": "^3.13.2"
   }
 }
