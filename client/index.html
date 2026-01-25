@@ -1262,6 +1262,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       }
       const isStepChange = step !== currentStep;
 
+      if (step <= 3) {
+        preferencesCompleted = false;
+      }
+
       // Update max reached
       if (step > maxStepReached) maxStepReached = step;
       
