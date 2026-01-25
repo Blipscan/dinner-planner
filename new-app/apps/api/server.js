@@ -908,6 +908,8 @@ Generate exactly 5 distinct menu options as a JSON array. Each menu must have:
     - budgetTopRated
     - bondPick
     Use null for tiers when a pairing should be omitted.
+    bondPick is the best overall pairing for the dish, chosen for quality and harmony,
+    even if it is not the most expensive option.
 
 RESPOND WITH ONLY VALID JSON - no markdown, no explanation, just the array.`;
 
@@ -1075,6 +1077,7 @@ Rules:
 - ServiceNotes must reference pacing between named courses.
 - Provide exactly 5 winePairings, in the same order as the menu courses.
 - Pairings should be specific bottles with producer + vintage when possible.
+- bondPick must be the best overall pairing for the dish (quality + harmony), even if not the most expensive.
 - Steps must mention technique where applicable and remain practical for a skilled home cook.${compactGuidance}`;
 
     const response = await withTimeout(
