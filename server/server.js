@@ -644,6 +644,126 @@ function mergeRoleViews(existing = [], patch = []) {
   return Array.from(merged.values());
 }
 
+function buildFallbackRoleView(role, menu, context) {
+  const courseTypes = (menu?.courses || []).map((course) => course.type);
+  const serviceTime = context?.serviceTime || "Service Start";
+
+  const courseTasks = courseTypes.map((courseType) => {
+    const tasksByRole = {
+      Host: [
+        `Announce ${courseType} and confirm guests are ready`,
+        `Check pacing after ${courseType} and cue next course`,
+        `Confirm dietary needs before ${courseType} is served`,
+      ],
+      Kitchen: [
+        `Stage components for ${courseType}`,
+        `Cook/finish ${courseType} course`,
+        `Plate ${courseType} for service`,
+      ],
+      Service: [
+        `Serve ${courseType} within 5 minutes of call`,
+        `Clear ${courseType} once 80% finished`,
+        `Reset cutlery and glassware after ${courseType}`,
+      ],
+      Bar: [
+        `Pour pairing for ${courseType}`,
+        `Refresh water before ${courseType}`,
+        `Reset wine glasses after ${courseType}`,
+      ],
+      Shopping: [
+        `Confirm all ingredients for ${courseType} are on hand`,
+        `Purchase missing items for ${courseType}`,
+        `Verify specialty items for ${courseType}`,
+      ],
+      Prep: [
+        `Prep garnishes for ${courseType}`,
+        `Portion components for ${courseType}`,
+        `Label containers for ${courseType}`,
+      ],
+      "Day-Of Execution": [
+        `Call fire time for ${courseType}`,
+        `Confirm pass readiness for ${courseType}`,
+        `Coordinate handoff for ${courseType}`,
+      ],
+      Cleanup: [
+        `Collect plates and utensils from ${courseType}`,
+        `Run dishwasher load after ${courseType}`,
+        `Wipe surfaces after ${courseType}`,
+      ],
+    };
+    return {
+      courseType,
+      tasks: tasksByRole[role] || [`Execute ${courseType} tasks`, `Support ${courseType} service`, `Reset after ${courseType}`],
+    };
+  });
+
+  const setupByRole = {
+    Host: ["Confirm guest count and seating plan", "Set lighting and music levels", "Review master timeline"],
+    Kitchen: ["Stage ingredients by course", "Preheat ovens and warm plates", "Label containers and stations"],
+    Service: ["Set pass and serving trays", "Polish glassware and flatware", "Stage water and wine service"],
+    Bar: ["Chill whites and sparkling", "Prep welcome drinks", "Set wine service tools"],
+    Shopping: ["Purchase all ingredients", "Pick up wines and specialty items", "Verify quantities and units"],
+    Prep: ["Wash and prep produce", "Portion proteins and components", "Prepare stocks and sauces"],
+    "Day-Of Execution": ["Review course order and cues", "Confirm station readiness", "Set communication plan"],
+    Cleanup: ["Set soak station and bins", "Lay out storage containers", "Stage towels and sanitizers"],
+  };
+
+  const transitions = [
+    "Clear previous course",
+    "Reset cutlery and glassware",
+    "Confirm next course timing",
+  ];
+
+  const endOfNight = {
+    Host: ["Thank guests and close service", "Confirm leftovers plan", "Log notes for reuse"],
+    Kitchen: ["Label leftovers and cool safely", "Break down stations", "Clean key equipment"],
+    Service: ["Clear dining area", "Polish and store serviceware", "Reset tables"],
+    Bar: ["Seal open bottles", "Store glassware", "Dispose of ice and garnishes"],
+    Shopping: ["Store receipts and notes", "Log missing items", "Check pantry inventory"],
+    Prep: ["Discard prep waste", "Store remaining prepped items", "Clean prep surfaces"],
+    "Day-Of Execution": ["Confirm completion of all courses", "Close out timeline", "Assist cleanup as needed"],
+    Cleanup: ["Run final dishwasher cycle", "Wipe counters and floors", "Empty trash and recycling"],
+  };
+
+  return {
+    role,
+    startTime: role === "Shopping" ? "T-48h" : "T-3h",
+    endTime: role === "Cleanup" ? "T+2h" : serviceTime,
+    reportsTo: "Host",
+    setup: setupByRole[role] || ["Review tasks", "Stage supplies", "Confirm timing"],
+    courseTasks,
+    transitions,
+    endOfNight: endOfNight[role] || ["Close out tasks", "Clean area", "Store equipment"],
+  };
+}
+
+function applyFallbackRoleViews(details, menu, context, roles) {
+  const roleViews = Array.isArray(details.roleViews) ? details.roleViews : [];
+  const fallbackViews = roles.map((role) => buildFallbackRoleView(role, menu, context));
+  details.roleViews = mergeRoleViews(roleViews, fallbackViews);
+}
+
+function getRoleFixTargets(errors) {
+  const roles = new Set();
+  errors.forEach((err) => {
+    const missingMatch = err.match(/^roleViews missing (.+)$/);
+    if (missingMatch) {
+      roles.add(missingMatch[1]);
+      return;
+    }
+    const roleDetailMatch = err.match(/^roleViews\.([^\.]+)\./);
+    if (roleDetailMatch) {
+      roles.add(roleDetailMatch[1]);
+    }
+  });
+
+  if (errors.some((err) => err.includes("roleViews missing roles")) && roles.size === 0) {
+    REQUIRED_ROLES.forEach((role) => roles.add(role));
+  }
+
+  return Array.from(roles);
+}
+
 async function requestSingleRoleView(client, basePrompt, role, courseTypes) {
   const prompt = `You are generating a single assistant checklist.
 
@@ -1478,6 +1598,19 @@ Rules:
 
     if (validationErrors.length) {
       throw new Error(`Details incomplete: ${validationErrors.join("; ")}`);
+    }
+
+    const postFixErrors = validateDetails(details, menu);
+    if (postFixErrors.length) {
+      const rolesToFix = getRoleFixTargets(postFixErrors);
+      if (rolesToFix.length) {
+        applyFallbackRoleViews(details, menu, context, rolesToFix);
+      }
+    }
+
+    const finalErrors = validateDetails(details, menu);
+    if (finalErrors.length) {
+      throw new Error(`Details incomplete: ${finalErrors.join("; ")}`);
     }
 
     const detailsId = details.detailsId || Date.now().toString(36) + Math.random().toString(36).slice(2);
