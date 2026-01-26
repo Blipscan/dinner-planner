@@ -4,6 +4,8 @@
  
 const express = require("express");
 const path = require("path");
+const os = require("os");
+const fs = require("fs/promises");
 const Anthropic = require("@anthropic-ai/sdk");
 const { jsonrepair } = require("jsonrepair");
  
@@ -62,12 +64,19 @@ const ADMIN_CODE = process.env.ADMIN_CODE || "ADMIN2024";
 const ACCESS_CODES = (process.env.ACCESS_CODES || "BETA001,BETA002,BETA003")
   .split(",")
   .map((c) => c.trim());
+const ACCESS_CODE_SET = new Set(ACCESS_CODES.map((code) => code.toUpperCase()));
  
 const BETA_EXPIRY = process.env.BETA_EXPIRY || "2026-03-01";
 const MAX_GENERATIONS = parseInt(process.env.MAX_GENERATIONS_PER_CODE || "50", 10);
  
 const usageStats = {};
 global.cookbooks = global.cookbooks || {};
+global.cookbookFiles = global.cookbookFiles || {};
+
+const COOKBOOK_STORAGE_DIR =
+  process.env.COOKBOOK_STORAGE_DIR || path.join(os.tmpdir(), "dinner-planner-cookbooks");
+const MAX_COOKBOOK_FILES = parseInt(process.env.MAX_COOKBOOK_FILES || "30", 10);
+const MAX_COOKBOOK_DOWNLOADS = parseInt(process.env.MAX_COOKBOOK_DOWNLOADS || "2", 10);
 const DEFAULT_TIMEOUTS_MS = {
   chat: 15000,
   menus: 45000,
@@ -85,11 +94,77 @@ const REQUEST_TIMEOUTS_MS = {
   details: parseTimeout(process.env.REQUEST_TIMEOUT_DETAILS_MS, DEFAULT_TIMEOUTS_MS.details),
 };
  
+async function ensureCookbookStorageDir() {
+  try {
+    await fs.mkdir(COOKBOOK_STORAGE_DIR, { recursive: true });
+  } catch (err) {
+    console.error("Failed to create cookbook storage directory:", err);
+  }
+}
+
+ensureCookbookStorageDir();
+
 function respondMissingApiKey(res, detail) {
   return res.status(503).json({
     error: "Anthropic API key not configured.",
     detail: detail || "Set ANTHROPIC_API_KEY to enable AI generation.",
   });
+}
+
+function validateAccessCode(code) {
+  if (!code) {
+    return { ok: false, status: 401, message: "Access code required." };
+  }
+
+  const upperCode = code.trim().toUpperCase();
+  if (!upperCode) {
+    return { ok: false, status: 401, message: "Access code required." };
+  }
+
+  if (upperCode === ADMIN_CODE.toUpperCase()) {
+    return { ok: true, isAdmin: true };
+  }
+
+  if (new Date() > new Date(BETA_EXPIRY)) {
+    return { ok: false, status: 403, message: "Beta period has ended." };
+  }
+
+  if (!ACCESS_CODE_SET.has(upperCode)) {
+    return { ok: false, status: 403, message: "Invalid access code." };
+  }
+
+  return { ok: true, isAdmin: false, code: upperCode };
+}
+
+async function pruneStoredCookbooks() {
+  const entries = Object.values(global.cookbookFiles || {});
+  if (entries.length <= MAX_COOKBOOK_FILES) {
+    return;
+  }
+
+  const sorted = entries.sort((a, b) => a.createdAt - b.createdAt);
+  const toRemove = sorted.slice(0, Math.max(0, sorted.length - MAX_COOKBOOK_FILES));
+
+  for (const record of toRemove) {
+    try {
+      await fs.unlink(record.filePath);
+    } catch (err) {
+      // ignore
+    }
+    delete global.cookbookFiles[record.id];
+  }
+}
+
+async function removeCookbookFile(record) {
+  if (!record) {
+    return;
+  }
+  try {
+    await fs.unlink(record.filePath);
+  } catch (err) {
+    // ignore
+  }
+  delete global.cookbookFiles[record.id];
 }
 
 function stripCodeFences(text) {
@@ -1145,9 +1220,14 @@ Rules:
 
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
-  const { menu, context, staffing, recipes, details } = req.body || {};
+  const { code, menu, context, staffing, recipes, details } = req.body || {};
+  const accessResult = validateAccessCode(code);
+  if (!accessResult.ok) {
+    return res.status(accessResult.status).json({ success: false, message: accessResult.message });
+  }
+
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
- 
+
   if (details) {
     const qualityErrors = runCookbookQualityCheck(details, menu);
     if (qualityErrors.length) {
@@ -1165,56 +1245,71 @@ app.post("/api/generate-cookbook", async (req, res) => {
     });
   }
 
-  global.cookbooks[cookbookId] = {
-    menu,
-    context,
-    staffing,
-    recipes: recipes || null,
-    details: details || null,
-  };
-  res.json({ success: true, cookbookId });
+  try {
+    const buffer = await buildCookbook(menu, context, staffing, recipes, details);
+    const filePath = path.join(COOKBOOK_STORAGE_DIR, `${cookbookId}.docx`);
+    const filename =
+      (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
+
+    await fs.writeFile(filePath, buffer);
+    global.cookbookFiles[cookbookId] = {
+      id: cookbookId,
+      filePath,
+      filename,
+      createdAt: Date.now(),
+      downloads: 0,
+    };
+
+    await pruneStoredCookbooks();
+
+    res.json({
+      success: true,
+      cookbookId,
+      downloadsRemaining: MAX_COOKBOOK_DOWNLOADS,
+    });
+  } catch (err) {
+    console.error("Cookbook storage error:", err);
+    res.status(500).json({ success: false, message: "Failed to store cookbook." });
+  }
 });
  
 app.post("/api/download-cookbook", async (req, res) => {
-  const { cookbookId, menu, context, staffing, recipes, details } = req.body || {};
-  let cookbookData = cookbookId ? global.cookbooks?.[cookbookId] : null;
-
-  if (!cookbookData && menu && context) {
-    cookbookData = { menu, context, staffing, recipes, details };
+  const { code, cookbookId } = req.body || {};
+  const accessResult = validateAccessCode(code);
+  if (!accessResult.ok) {
+    return res.status(accessResult.status).json({ error: accessResult.message });
   }
 
-  if (!cookbookData || !cookbookData.menu || !cookbookData.menu.courses) {
-    return res.status(404).json({ error: "Cookbook not found" });
-  }
-
-  const payload = cookbookData;
-
-  const qualityErrors = runCookbookQualityCheck(payload.details, payload.menu);
-  if (qualityErrors.length) {
-    return res.status(422).json({
-      error: "Quality check failed.",
-      detail: qualityErrors.join("; "),
-    });
+  const record = cookbookId ? global.cookbookFiles?.[cookbookId] : null;
+  if (!record) {
+    return res.status(404).json({ error: "Cookbook not found or expired." });
   }
 
   try {
-    const buffer = await buildCookbook(
-      payload.menu,
-      payload.context,
-      payload.staffing,
-      payload.recipes,
-      payload.details
-    );
-    const filename =
-      (payload.context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
-
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.send(buffer);
+    await fs.access(record.filePath);
   } catch (err) {
-    console.error("DOCX generation error:", err);
-    res.status(500).json({ error: "Error generating cookbook", detail: err.message });
+    await removeCookbookFile(record);
+    return res.status(404).json({ error: "Cookbook not found or expired." });
   }
+
+  record.downloads += 1;
+  const shouldDelete = record.downloads >= MAX_COOKBOOK_DOWNLOADS;
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
+  res.setHeader("Content-Disposition", `attachment; filename="${record.filename || "Cookbook.docx"}"`);
+
+  res.sendFile(record.filePath, (err) => {
+    if (err) {
+      console.error("DOCX send error:", err);
+      return;
+    }
+    if (shouldDelete) {
+      removeCookbookFile(record);
+    }
+  });
 });
  
 // ============================================================
