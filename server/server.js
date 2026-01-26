@@ -137,7 +137,7 @@ function validateAccessCode(code) {
 }
 
 async function pruneStoredCookbooks() {
-  const entries = Object.values(global.cookbookFiles || {});
+  const entries = Object.values(global.cookbookFiles || {}).filter((record) => record?.status === "ready");
   if (entries.length <= MAX_COOKBOOK_FILES) {
     return;
   }
@@ -1245,32 +1245,48 @@ app.post("/api/generate-cookbook", async (req, res) => {
     });
   }
 
-  try {
-    const buffer = await buildCookbook(menu, context, staffing, recipes, details);
-    const filePath = path.join(COOKBOOK_STORAGE_DIR, `${cookbookId}.docx`);
-    const filename =
-      (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
+  const filename =
+    (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
 
-    await fs.writeFile(filePath, buffer);
-    global.cookbookFiles[cookbookId] = {
-      id: cookbookId,
-      filePath,
-      filename,
-      createdAt: Date.now(),
-      downloads: 0,
-    };
+  global.cookbookFiles[cookbookId] = {
+    id: cookbookId,
+    status: "pending",
+    filePath: null,
+    filename,
+    createdAt: Date.now(),
+    downloads: 0,
+    error: null,
+  };
 
-    await pruneStoredCookbooks();
+  setImmediate(async () => {
+    try {
+      const buffer = await buildCookbook(menu, context, staffing, recipes, details);
+      const filePath = path.join(COOKBOOK_STORAGE_DIR, `${cookbookId}.docx`);
+      await fs.writeFile(filePath, buffer);
 
-    res.json({
-      success: true,
-      cookbookId,
-      downloadsRemaining: MAX_COOKBOOK_DOWNLOADS,
-    });
-  } catch (err) {
-    console.error("Cookbook storage error:", err);
-    res.status(500).json({ success: false, message: "Failed to store cookbook." });
-  }
+      global.cookbookFiles[cookbookId] = {
+        ...global.cookbookFiles[cookbookId],
+        status: "ready",
+        filePath,
+      };
+
+      await pruneStoredCookbooks();
+    } catch (err) {
+      console.error("Cookbook storage error:", err);
+      global.cookbookFiles[cookbookId] = {
+        ...global.cookbookFiles[cookbookId],
+        status: "failed",
+        error: err.message || "Cookbook generation failed.",
+      };
+    }
+  });
+
+  res.json({
+    success: true,
+    status: "pending",
+    cookbookId,
+    downloadsRemaining: MAX_COOKBOOK_DOWNLOADS,
+  });
 });
  
 app.post("/api/download-cookbook", async (req, res) => {
@@ -1283,6 +1299,14 @@ app.post("/api/download-cookbook", async (req, res) => {
   const record = cookbookId ? global.cookbookFiles?.[cookbookId] : null;
   if (!record) {
     return res.status(404).json({ error: "Cookbook not found or expired." });
+  }
+
+  if (record.status === "pending") {
+    return res.status(202).json({ status: "pending", message: "Cookbook is still compiling." });
+  }
+
+  if (record.status === "failed") {
+    return res.status(500).json({ status: "failed", message: record.error || "Cookbook generation failed." });
   }
 
   try {
@@ -1309,6 +1333,33 @@ app.post("/api/download-cookbook", async (req, res) => {
     if (shouldDelete) {
       removeCookbookFile(record);
     }
+  });
+});
+
+app.post("/api/cookbook-status", async (req, res) => {
+  const { code, cookbookId } = req.body || {};
+  const accessResult = validateAccessCode(code);
+  if (!accessResult.ok) {
+    return res.status(accessResult.status).json({ error: accessResult.message });
+  }
+
+  const record = cookbookId ? global.cookbookFiles?.[cookbookId] : null;
+  if (!record) {
+    return res.status(404).json({ status: "missing", message: "Cookbook not found or expired." });
+  }
+
+  if (record.status === "pending") {
+    return res.json({ status: "pending" });
+  }
+
+  if (record.status === "failed") {
+    return res.status(500).json({ status: "failed", message: record.error || "Cookbook generation failed." });
+  }
+
+  return res.json({
+    status: "ready",
+    downloadsRemaining: Math.max(0, MAX_COOKBOOK_DOWNLOADS - record.downloads),
+    filename: record.filename,
   });
 });
  

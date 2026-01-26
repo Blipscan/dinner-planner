@@ -1231,6 +1231,7 @@ a { color: var(--navy); }
         <div class="spinner"></div>
         <p id="cookbookLoadingMessage">Validating details and quality checks...</p>
         <p id="cookbookLoadingTimer" class="loading-subtext">Time remaining: 5:00</p>
+        <p id="cookbookLoadingNote" class="loading-subtext"></p>
       </div>
       
       <div id="cookbookComplete" class="hidden">
@@ -1317,6 +1318,7 @@ a { color: var(--navy); }
     let detailsLoadingStart = null;
     let cookbookLoadingTimer = null;
     let cookbookLoadingStart = null;
+    let cookbookStatusTimer = null;
     const FETCH_TIMEOUTS_MS = {
       menus: 60000,
       details: 300000,
@@ -1613,6 +1615,7 @@ a { color: var(--navy); }
       const loading = document.getElementById('cookbookLoading');
       const messageEl = document.getElementById('cookbookLoadingMessage');
       const timerEl = document.getElementById('cookbookLoadingTimer');
+      const noteEl = document.getElementById('cookbookLoadingNote');
       if (!loading) return;
       loading.classList.toggle('hidden', !show);
 
@@ -1626,6 +1629,9 @@ a { color: var(--navy); }
       }
 
       cookbookLoadingStart = Date.now();
+      if (noteEl) {
+        noteEl.textContent = '';
+      }
       updateCookbookLoadingStatus(messageEl, timerEl);
       if (cookbookLoadingTimer) {
         clearInterval(cookbookLoadingTimer);
@@ -2493,6 +2499,7 @@ a { color: var(--navy); }
       goToStep(7);
       showCookbookLoading(true);
       document.getElementById('cookbookComplete').classList.add('hidden');
+      stopCookbookStatusPolling();
 
       if (!selectedMenuDetails) {
         const detailsResult = await loadMenuDetails();
@@ -2518,10 +2525,20 @@ a { color: var(--navy); }
             details: selectedMenuDetails || null
           })
         }, FETCH_TIMEOUTS_MS.cookbook);
-        const data = await res.json();
-        
+        const data = await res.json().catch(() => ({}));
+
+        if (data.success && data.status === 'pending') {
+          cookbookId = data.cookbookId;
+          const noteEl = document.getElementById('cookbookLoadingNote');
+          if (noteEl) {
+            noteEl.textContent = `Cookbook ID ${cookbookId}. Still compiling — you can come back later.`;
+          }
+          startCookbookStatusPolling(cookbookId);
+          return;
+        }
+
         showCookbookLoading(false);
-        
+
         if (data.success) {
           cookbookId = data.cookbookId;
           document.getElementById('cookbookComplete').classList.remove('hidden');
@@ -2538,6 +2555,55 @@ a { color: var(--navy); }
           : 'Connection error. Please try again.';
         document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${detailMessage}</div>`;
         document.getElementById('cookbookComplete').classList.remove('hidden');
+      }
+    }
+
+    function startCookbookStatusPolling(id) {
+      stopCookbookStatusPolling();
+      if (!id) return;
+      pollCookbookStatus(id);
+      cookbookStatusTimer = setInterval(() => pollCookbookStatus(id), 10000);
+    }
+
+    function stopCookbookStatusPolling() {
+      if (cookbookStatusTimer) {
+        clearInterval(cookbookStatusTimer);
+        cookbookStatusTimer = null;
+      }
+    }
+
+    async function pollCookbookStatus(id) {
+      try {
+        const res = await fetchWithTimeout('/api/cookbook-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: accessCode, cookbookId: id })
+        }, 15000);
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (data?.message) {
+            const noteEl = document.getElementById('cookbookLoadingNote');
+            if (noteEl) noteEl.textContent = data.message;
+          }
+          return;
+        }
+
+        if (data.status === 'ready') {
+          stopCookbookStatusPolling();
+          showCookbookLoading(false);
+          document.getElementById('cookbookComplete').classList.remove('hidden');
+          return;
+        }
+
+        if (data.status === 'failed') {
+          stopCookbookStatusPolling();
+          showCookbookLoading(false);
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Cookbook generation failed.'}</div>`;
+          document.getElementById('cookbookComplete').classList.remove('hidden');
+        }
+      } catch (err) {
+        // keep polling
       }
     }
     
@@ -2568,6 +2634,14 @@ a { color: var(--navy); }
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
+        } else if (res.status === 202) {
+          const noteEl = document.getElementById('cookbookLoadingNote');
+          const data = await res.json().catch(() => ({}));
+          if (noteEl) {
+            noteEl.textContent = data?.message || 'Cookbook is still compiling.';
+          }
+          showCookbookLoading(true);
+          startCookbookStatusPolling(cookbookId);
         } else {
           let message = 'Error downloading cookbook. Please try again.';
           try {
