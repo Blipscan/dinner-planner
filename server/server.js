@@ -93,6 +93,8 @@ const REQUEST_TIMEOUTS_MS = {
   menus: parseTimeout(process.env.REQUEST_TIMEOUT_MENUS_MS, DEFAULT_TIMEOUTS_MS.menus),
   details: parseTimeout(process.env.REQUEST_TIMEOUT_DETAILS_MS, DEFAULT_TIMEOUTS_MS.details),
 };
+
+const REQUIRED_ROLES = ["Host", "Kitchen", "Service", "Bar", "Shopping", "Prep", "Day-Of Execution", "Cleanup"];
  
 async function ensureCookbookStorageDir() {
   try {
@@ -212,8 +214,6 @@ function validateDetails(details, menu) {
   }
 
   const courseCount = menu?.courses?.length || 0;
-  const requiredRoles = ["Host", "Kitchen", "Service", "Bar", "Shopping", "Prep", "Day-Of Execution", "Cleanup"];
-
   if (!details.systemIndex) {
     errors.push("systemIndex missing");
   } else {
@@ -243,7 +243,7 @@ function validateDetails(details, menu) {
 
   const roleViewsArray = Array.isArray(details.roleViews) ? details.roleViews : [];
   const rolesPresent = new Set(roleViewsArray.map((r) => r.role));
-  requiredRoles.forEach((role) => {
+  REQUIRED_ROLES.forEach((role) => {
     if (!rolesPresent.has(role)) {
       errors.push(`roleViews missing ${role}`);
     }
@@ -1202,7 +1202,7 @@ Rules:
         const courseTypes = (menu?.courses || []).map((course) => course.type);
         const roleViews = operationalDetails?.roleViews || [];
 
-        if (missingRoles.length >= requiredRoles.length) {
+        if (missingRoles.length >= REQUIRED_ROLES.length) {
           const patch = await withTimeout(
             requestRoleViewsPatch(client, basePrompt, validationErrors),
             REQUEST_TIMEOUTS_MS.details,
