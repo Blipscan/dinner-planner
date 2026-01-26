@@ -1213,7 +1213,7 @@ a { color: var(--navy); }
       <div id="detailsLoading" class="loading hidden">
         <div class="spinner"></div>
         <p id="detailsLoadingMessage">Preparing recipes, wine tiers, and timeline...</p>
-        <p id="detailsLoadingTimer" class="loading-subtext">Elapsed 0:00 • Typical time: up to 5:00</p>
+        <p id="detailsLoadingTimer" class="loading-subtext">Elapsed 0:00 • Typical time: up to 10:00</p>
       </div>
 
       <div class="card hidden" id="expertGuidanceCard">
@@ -1345,7 +1345,7 @@ a { color: var(--navy); }
     let lastDetailsErrorMessage = '';
     const FETCH_TIMEOUTS_MS = {
       menus: 60000,
-      details: 300000,
+      details: 600000,
       cookbook: 300000
     };
     const API_STATUS_REFRESH_MS = 30000;

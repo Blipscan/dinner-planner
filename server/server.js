@@ -80,7 +80,7 @@ const MAX_COOKBOOK_DOWNLOADS = parseInt(process.env.MAX_COOKBOOK_DOWNLOADS || "2
 const DEFAULT_TIMEOUTS_MS = {
   chat: 15000,
   menus: 45000,
-  details: 300000,
+  details: 600000,
 };
 
 function parseTimeout(value, fallback) {
