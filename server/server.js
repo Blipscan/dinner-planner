@@ -1640,10 +1640,6 @@ Rules:
       validationErrors = validateDetails(details, menu);
     }
 
-    if (validationErrors.length) {
-      throw new Error(`Details incomplete: ${validationErrors.join("; ")}`);
-    }
-
     const postFixErrors = validateDetails(details, menu);
     if (postFixErrors.length) {
       const rolesToFix = getRoleFixTargets(postFixErrors);
