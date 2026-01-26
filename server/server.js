@@ -6,6 +6,14 @@ const express = require("express");
 const path = require("path");
 const os = require("os");
 const fs = require("fs/promises");
+const {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
+} = require("@aws-sdk/client-s3");
 const Anthropic = require("@anthropic-ai/sdk");
 const { jsonrepair } = require("jsonrepair");
  
@@ -77,6 +85,12 @@ const COOKBOOK_STORAGE_DIR =
   process.env.COOKBOOK_STORAGE_DIR || path.join(os.tmpdir(), "dinner-planner-cookbooks");
 const MAX_COOKBOOK_FILES = parseInt(process.env.MAX_COOKBOOK_FILES || "30", 10);
 const MAX_COOKBOOK_DOWNLOADS = parseInt(process.env.MAX_COOKBOOK_DOWNLOADS || "2", 10);
+const COOKBOOK_BUCKET = process.env.COOKBOOK_S3_BUCKET || "";
+const COOKBOOK_REGION = process.env.COOKBOOK_S3_REGION || process.env.AWS_REGION || "";
+const COOKBOOK_PREFIX = process.env.COOKBOOK_S3_PREFIX || "cookbooks";
+const DETAILS_PREFIX = process.env.DETAILS_S3_PREFIX || "details";
+const STORAGE_MODE = COOKBOOK_BUCKET && COOKBOOK_REGION ? "s3" : "disk";
+const s3Client = STORAGE_MODE === "s3" ? new S3Client({ region: COOKBOOK_REGION }) : null;
 const DEFAULT_TIMEOUTS_MS = {
   chat: 15000,
   menus: 45000,
@@ -104,7 +118,127 @@ async function ensureCookbookStorageDir() {
   }
 }
 
-ensureCookbookStorageDir();
+if (STORAGE_MODE === "disk") {
+  ensureCookbookStorageDir();
+}
+
+function getCookbookKeys(id) {
+  return {
+    manifestKey: `${COOKBOOK_PREFIX}/${id}/manifest.json`,
+    docKey: `${COOKBOOK_PREFIX}/${id}/cookbook.docx`,
+    detailsKey: `${COOKBOOK_PREFIX}/${id}/details.json`,
+  };
+}
+
+function getDetailsKey(id) {
+  return `${DETAILS_PREFIX}/${id}.json`;
+}
+
+async function storagePut(key, body, contentType) {
+  if (STORAGE_MODE === "s3") {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: COOKBOOK_BUCKET,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      })
+    );
+    return;
+  }
+  const filePath = path.join(COOKBOOK_STORAGE_DIR, key);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, body);
+}
+
+async function storageGet(key) {
+  if (STORAGE_MODE === "s3") {
+    const response = await s3Client.send(
+      new GetObjectCommand({
+        Bucket: COOKBOOK_BUCKET,
+        Key: key,
+      })
+    );
+    const chunks = [];
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  }
+  const filePath = path.join(COOKBOOK_STORAGE_DIR, key);
+  return fs.readFile(filePath);
+}
+
+async function storageExists(key) {
+  if (STORAGE_MODE === "s3") {
+    try {
+      await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: COOKBOOK_BUCKET,
+          Key: key,
+        })
+      );
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+  try {
+    await fs.access(path.join(COOKBOOK_STORAGE_DIR, key));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+async function storageDelete(key) {
+  if (STORAGE_MODE === "s3") {
+    try {
+      await s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: COOKBOOK_BUCKET,
+          Key: key,
+        })
+      );
+    } catch (err) {
+      // ignore
+    }
+    return;
+  }
+  try {
+    await fs.unlink(path.join(COOKBOOK_STORAGE_DIR, key));
+  } catch (err) {
+    // ignore
+  }
+}
+
+async function writeManifest(id, manifest) {
+  const { manifestKey } = getCookbookKeys(id);
+  await storagePut(manifestKey, JSON.stringify(manifest, null, 2), "application/json");
+}
+
+async function readManifest(id) {
+  const { manifestKey } = getCookbookKeys(id);
+  if (!(await storageExists(manifestKey))) {
+    return null;
+  }
+  const buffer = await storageGet(manifestKey);
+  return JSON.parse(buffer.toString("utf8"));
+}
+
+async function writeDetails(id, details) {
+  const key = getDetailsKey(id);
+  await storagePut(key, JSON.stringify(details, null, 2), "application/json");
+}
+
+async function readDetails(id) {
+  const key = getDetailsKey(id);
+  if (!(await storageExists(key))) {
+    return null;
+  }
+  const buffer = await storageGet(key);
+  return JSON.parse(buffer.toString("utf8"));
+}
 
 function respondMissingApiKey(res, detail) {
   return res.status(503).json({
@@ -138,7 +272,52 @@ function validateAccessCode(code) {
   return { ok: true, isAdmin: false, code: upperCode };
 }
 
+async function getCookbookRecord(id) {
+  if (!id) {
+    return null;
+  }
+  if (global.cookbookFiles?.[id]) {
+    return global.cookbookFiles[id];
+  }
+  const manifest = await readManifest(id);
+  if (!manifest) {
+    return null;
+  }
+  global.cookbookFiles[id] = manifest;
+  return manifest;
+}
+
 async function pruneStoredCookbooks() {
+  if (STORAGE_MODE === "s3") {
+    try {
+      const listResponse = await s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: COOKBOOK_BUCKET,
+          Prefix: `${COOKBOOK_PREFIX}/`,
+        })
+      );
+      const manifestObjects = (listResponse.Contents || []).filter((obj) => obj.Key.endsWith("manifest.json"));
+      if (manifestObjects.length <= MAX_COOKBOOK_FILES) {
+        return;
+      }
+      const sorted = manifestObjects.sort((a, b) => new Date(a.LastModified) - new Date(b.LastModified));
+      const toRemove = sorted.slice(0, Math.max(0, sorted.length - MAX_COOKBOOK_FILES));
+      for (const manifest of toRemove) {
+        const match = manifest.Key.match(/cookbooks\/([^/]+)\//);
+        if (!match) continue;
+        const id = match[1];
+        const keys = getCookbookKeys(id);
+        await storageDelete(keys.manifestKey);
+        await storageDelete(keys.docKey);
+        await storageDelete(keys.detailsKey);
+        delete global.cookbookFiles[id];
+      }
+    } catch (err) {
+      console.error("Failed to prune S3 cookbooks:", err);
+    }
+    return;
+  }
+
   const entries = Object.values(global.cookbookFiles || {}).filter((record) => record?.status === "ready");
   if (entries.length <= MAX_COOKBOOK_FILES) {
     return;
@@ -148,10 +327,11 @@ async function pruneStoredCookbooks() {
   const toRemove = sorted.slice(0, Math.max(0, sorted.length - MAX_COOKBOOK_FILES));
 
   for (const record of toRemove) {
-    try {
-      await fs.unlink(record.filePath);
-    } catch (err) {
-      // ignore
+    if (record?.docKey) {
+      await storageDelete(record.docKey);
+    }
+    if (record?.manifestKey) {
+      await storageDelete(record.manifestKey);
     }
     delete global.cookbookFiles[record.id];
   }
@@ -161,10 +341,10 @@ async function removeCookbookFile(record) {
   if (!record) {
     return;
   }
-  try {
-    await fs.unlink(record.filePath);
-  } catch (err) {
-    // ignore
+  if (record.id) {
+    const keys = getCookbookKeys(record.id);
+    await storageDelete(keys.docKey);
+    await storageDelete(keys.manifestKey);
   }
   delete global.cookbookFiles[record.id];
 }
@@ -1200,7 +1380,6 @@ Rules:
       if (shouldRetryRoleViews(validationErrors)) {
         const missingRoles = getMissingRoles(validationErrors);
         const courseTypes = (menu?.courses || []).map((course) => course.type);
-        const roleViews = operationalDetails?.roleViews || [];
 
         if (missingRoles.length >= REQUIRED_ROLES.length) {
           const patch = await withTimeout(
@@ -1217,8 +1396,9 @@ Rules:
               `Details role view repair ${role}`
             );
             const patchViews = patch?.roleViews || [];
+            const currentViews = operationalDetails?.roleViews || [];
             operationalDetails = mergeDetails(operationalDetails, {
-              roleViews: mergeRoleViews(roleViews, patchViews),
+              roleViews: mergeRoleViews(currentViews, patchViews),
             });
           }
         } else {
@@ -1300,6 +1480,15 @@ Rules:
       throw new Error(`Details incomplete: ${validationErrors.join("; ")}`);
     }
 
+    const detailsId = details.detailsId || Date.now().toString(36) + Math.random().toString(36).slice(2);
+    details.detailsId = detailsId;
+    try {
+      await writeDetails(detailsId, details);
+    } catch (err) {
+      console.error("Failed to persist details:", err);
+      throw new Error("Details storage failed.");
+    }
+
     res.json(details);
   } catch (err) {
     console.error("Details generation error:", err);
@@ -1309,16 +1498,25 @@ Rules:
 
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
-  const { code, menu, context, staffing, recipes, details } = req.body || {};
+  const { code, menu, context, staffing, recipes, details, detailsId: requestDetailsId } = req.body || {};
   const accessResult = validateAccessCode(code);
   if (!accessResult.ok) {
     return res.status(accessResult.status).json({ success: false, message: accessResult.message });
   }
 
   const cookbookId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  let detailsPayload = details || null;
+  let detailsId = requestDetailsId || details?.detailsId || null;
 
-  if (details) {
-    const qualityErrors = runCookbookQualityCheck(details, menu);
+  if (!detailsPayload && detailsId) {
+    detailsPayload = await readDetails(detailsId);
+    if (!detailsPayload) {
+      return res.status(404).json({ success: false, message: "Details not found for cookbook." });
+    }
+  }
+
+  if (detailsPayload) {
+    const qualityErrors = runCookbookQualityCheck(detailsPayload, menu);
     if (qualityErrors.length) {
       return res.status(422).json({
         success: false,
@@ -1334,30 +1532,45 @@ app.post("/api/generate-cookbook", async (req, res) => {
     });
   }
 
+  if (!detailsId) {
+    detailsId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+    detailsPayload.detailsId = detailsId;
+    try {
+      await writeDetails(detailsId, detailsPayload);
+    } catch (err) {
+      console.error("Failed to persist details:", err);
+      return res.status(500).json({ success: false, message: "Failed to store details." });
+    }
+  }
+
   const filename =
     (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
+  const keys = getCookbookKeys(cookbookId);
 
-  global.cookbookFiles[cookbookId] = {
+  const manifest = {
     id: cookbookId,
     status: "pending",
-    filePath: null,
     filename,
     createdAt: Date.now(),
     downloads: 0,
     error: null,
+    detailsId,
+    docKey: keys.docKey,
+    manifestKey: keys.manifestKey,
   };
+  global.cookbookFiles[cookbookId] = manifest;
+  await writeManifest(cookbookId, manifest);
 
   setImmediate(async () => {
     try {
-      const buffer = await buildCookbook(menu, context, staffing, recipes, details);
-      const filePath = path.join(COOKBOOK_STORAGE_DIR, `${cookbookId}.docx`);
-      await fs.writeFile(filePath, buffer);
+      const buffer = await buildCookbook(menu, context, staffing, recipes, detailsPayload);
+      await storagePut(keys.docKey, buffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
       global.cookbookFiles[cookbookId] = {
         ...global.cookbookFiles[cookbookId],
         status: "ready",
-        filePath,
       };
+      await writeManifest(cookbookId, global.cookbookFiles[cookbookId]);
 
       await pruneStoredCookbooks();
     } catch (err) {
@@ -1367,6 +1580,7 @@ app.post("/api/generate-cookbook", async (req, res) => {
         status: "failed",
         error: err.message || "Cookbook generation failed.",
       };
+      await writeManifest(cookbookId, global.cookbookFiles[cookbookId]);
     }
   });
 
@@ -1385,7 +1599,7 @@ app.post("/api/download-cookbook", async (req, res) => {
     return res.status(accessResult.status).json({ error: accessResult.message });
   }
 
-  const record = cookbookId ? global.cookbookFiles?.[cookbookId] : null;
+  const record = await getCookbookRecord(cookbookId);
   if (!record) {
     return res.status(404).json({ error: "Cookbook not found or expired." });
   }
@@ -1398,31 +1612,31 @@ app.post("/api/download-cookbook", async (req, res) => {
     return res.status(500).json({ status: "failed", message: record.error || "Cookbook generation failed." });
   }
 
-  try {
-    await fs.access(record.filePath);
-  } catch (err) {
+  const exists = await storageExists(record.docKey);
+  if (!exists) {
     await removeCookbookFile(record);
     return res.status(404).json({ error: "Cookbook not found or expired." });
   }
 
   record.downloads += 1;
   const shouldDelete = record.downloads >= MAX_COOKBOOK_DOWNLOADS;
+  await writeManifest(record.id, record);
 
   res.setHeader(
     "Content-Type",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   );
   res.setHeader("Content-Disposition", `attachment; filename="${record.filename || "Cookbook.docx"}"`);
-
-  res.sendFile(record.filePath, (err) => {
-    if (err) {
-      console.error("DOCX send error:", err);
-      return;
-    }
+  try {
+    const buffer = await storageGet(record.docKey);
+    res.send(buffer);
     if (shouldDelete) {
       removeCookbookFile(record);
     }
-  });
+  } catch (err) {
+    console.error("DOCX send error:", err);
+    return res.status(500).json({ error: "Error sending cookbook." });
+  }
 });
 
 app.post("/api/cookbook-status", async (req, res) => {
@@ -1432,7 +1646,7 @@ app.post("/api/cookbook-status", async (req, res) => {
     return res.status(accessResult.status).json({ error: accessResult.message });
   }
 
-  const record = cookbookId ? global.cookbookFiles?.[cookbookId] : null;
+  const record = await getCookbookRecord(cookbookId);
   if (!record) {
     return res.status(404).json({ status: "missing", message: "Cookbook not found or expired." });
   }

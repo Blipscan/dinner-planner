@@ -2609,7 +2609,8 @@ a { color: var(--navy); }
             staffing: selectedStaffing,
             chatHistory: chatHistory,
             recipes: selectedMenuDetails?.recipes || null,
-            details: selectedMenuDetails || null
+            details: selectedMenuDetails || null,
+            detailsId: selectedMenuDetails?.detailsId || null
           })
         }, FETCH_TIMEOUTS_MS.cookbook);
         const data = await res.json().catch(() => ({}));
@@ -2758,7 +2759,8 @@ a { color: var(--navy); }
             context: getContext(),
             staffing: selectedStaffing,
             recipes: selectedMenuDetails?.recipes || null,
-            details: selectedMenuDetails || null
+            details: selectedMenuDetails || null,
+            detailsId: selectedMenuDetails?.detailsId || null
           })
         });
         
