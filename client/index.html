@@ -1701,13 +1701,20 @@ a { color: var(--navy); }
 
       cookbookLoadingStart = Date.now();
       if (noteEl) {
-        noteEl.textContent = '';
+        noteEl.textContent = 'Starting cookbook job...';
       }
       updateCookbookLoadingStatus(messageEl, timerEl);
       if (cookbookLoadingTimer) {
         clearInterval(cookbookLoadingTimer);
       }
       cookbookLoadingTimer = setInterval(() => updateCookbookLoadingStatus(messageEl, timerEl), 1000);
+    }
+
+    function setCookbookNote(message) {
+      const noteEl = document.getElementById('cookbookLoadingNote');
+      if (noteEl) {
+        noteEl.textContent = message || '';
+      }
     }
 
     function formatDuration(ms) {
@@ -2611,10 +2618,7 @@ a { color: var(--navy); }
           cookbookId = data.cookbookId;
           pendingCookbookId = cookbookId;
           window.localStorage.setItem('pendingCookbookId', cookbookId);
-          const noteEl = document.getElementById('cookbookLoadingNote');
-          if (noteEl) {
-            noteEl.textContent = `Cookbook ID ${cookbookId}. Still compiling — you can come back later.`;
-          }
+          setCookbookNote(`Cookbook ID ${cookbookId}. Still compiling — you can come back later.`);
           showCookbookBanner('pending', `Cookbook ID ${cookbookId}. You can return to download later.`);
           startCookbookStatusPolling(cookbookId);
           return;
@@ -2711,6 +2715,7 @@ a { color: var(--navy); }
 
     function leaveCookbook() {
       showCookbookLoading(false);
+      stopCookbookStatusPolling();
       goToStep(6);
     }
 
@@ -2724,7 +2729,10 @@ a { color: var(--navy); }
 
     function checkCookbookStatus() {
       const id = pendingCookbookId || cookbookId;
-      if (!id) return;
+      if (!id) {
+        setCookbookNote('Cookbook ID not assigned yet. Please wait a moment.');
+        return;
+      }
       pollCookbookStatus(id);
     }
 
