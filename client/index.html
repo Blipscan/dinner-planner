@@ -873,6 +873,22 @@ a { color: var(--navy); }
       text-shadow: 0 2px 6px rgba(0,0,0,0.25);
     }
 
+    .status-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(30,58,95,0.12);
+      background: white;
+      box-shadow: var(--shadow-soft);
+      margin: 1.2rem 0 1.5rem;
+    }
+    .status-banner strong { color: var(--navy); }
+    .status-banner .actions { margin: 0; }
+
     /* ===== FOOTER ===== */
     footer {
       text-align: center;
@@ -920,6 +936,7 @@ a { color: var(--navy); }
   </header>
   
   <div class="container">
+    <div id="cookbookStatusBanner" class="status-banner hidden"></div>
     <!-- Progress -->
     <div class="progress">
       <div class="progress-step active" id="dot1" onclick="jumpToStep(1)">1</div>
@@ -1232,6 +1249,11 @@ a { color: var(--navy); }
         <p id="cookbookLoadingMessage">Validating details and quality checks...</p>
         <p id="cookbookLoadingTimer" class="loading-subtext">Time remaining: 5:00</p>
         <p id="cookbookLoadingNote" class="loading-subtext"></p>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-secondary" onclick="leaveCookbook()">Continue Planning</button>
+          <button class="btn btn-outline" onclick="copyCookbookId()">Copy Cookbook ID</button>
+          <button class="btn btn-primary" onclick="checkCookbookStatus()">Check Status</button>
+        </div>
       </div>
       
       <div id="cookbookComplete" class="hidden">
@@ -1319,6 +1341,8 @@ a { color: var(--navy); }
     let cookbookLoadingTimer = null;
     let cookbookLoadingStart = null;
     let cookbookStatusTimer = null;
+    let pendingCookbookId = null;
+    let lastDetailsErrorMessage = '';
     const FETCH_TIMEOUTS_MS = {
       menus: 60000,
       details: 300000,
@@ -1348,6 +1372,7 @@ a { color: var(--navy); }
       initCookbookSections();
       loadApiStatus();
       setInterval(loadApiStatus, API_STATUS_REFRESH_MS);
+      restorePendingCookbook();
       
       // Set default date 2 weeks out
       const defaultDate = new Date();
@@ -1382,6 +1407,52 @@ a { color: var(--navy); }
       const deployEl = document.getElementById('deployInfo');
       if (!deployEl) return;
       deployEl.textContent = deployId ? `Deploy: ${deployId}` : 'Deploy: —';
+    }
+
+    function showCookbookBanner(state, message) {
+      const banner = document.getElementById('cookbookStatusBanner');
+      if (!banner) return;
+      if (!state) {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+        return;
+      }
+
+      const title = state === 'ready'
+        ? 'Cookbook ready'
+        : state === 'failed'
+          ? 'Cookbook failed'
+          : 'Cookbook compiling';
+
+      const text = message || (state === 'ready'
+        ? 'Your cookbook is ready to download.'
+        : state === 'failed'
+          ? 'Cookbook generation failed.'
+          : 'You can leave this page and return later.');
+
+      const actions = state === 'ready'
+        ? `
+          <div class="actions">
+            <button class="btn btn-primary" onclick="resumeCookbook()">Download</button>
+          </div>`
+        : `
+          <div class="actions">
+            <button class="btn btn-outline" onclick="resumeCookbook()">Resume</button>
+          </div>`;
+
+      banner.innerHTML = `
+        <div><strong>${title}:</strong> ${text}</div>
+        ${actions}
+      `;
+      banner.classList.remove('hidden');
+    }
+
+    function restorePendingCookbook() {
+      const storedId = window.localStorage.getItem('pendingCookbookId');
+      if (!storedId) return;
+      pendingCookbookId = storedId;
+      showCookbookBanner('pending', `Cookbook ID ${storedId}. You can resume anytime.`);
+      startCookbookStatusPolling(storedId);
     }
 
     async function loadApiStatus() {
@@ -1745,6 +1816,7 @@ a { color: var(--navy); }
       if (guidanceContainer) guidanceContainer.innerHTML = markup;
       const guidanceCard = document.getElementById('expertGuidanceCard');
       if (guidanceCard) guidanceCard.classList.remove('hidden');
+      lastDetailsErrorMessage = detail ? `${message} ${detail}` : message;
     }
 
     function renderRecipePreview(recipes) {
@@ -1969,6 +2041,7 @@ a { color: var(--navy); }
         renderExpertGuidance(selectedMenuDetails);
         renderTimelinePreview(selectedMenuDetails);
         setDetailCardsVisible(true);
+        lastDetailsErrorMessage = '';
       } catch (err) {
         const detailMessage = err?.name === 'AbortError'
           ? 'Request timed out. Please try again.'
@@ -2505,7 +2578,14 @@ a { color: var(--navy); }
         const detailsResult = await loadMenuDetails();
         if (!detailsResult) {
           showCookbookLoading(false);
-          document.getElementById('cookbookComplete').innerHTML = '<div class="error-msg">Cookbook details are incomplete. Please regenerate details and try again.</div>';
+          const reason = lastDetailsErrorMessage ? `<div style="margin-top:0.5rem;font-size:0.85rem;color:#6b7280">${lastDetailsErrorMessage}</div>` : '';
+          const actions = `
+            <div class="actions" style="margin-top:1rem">
+              <button class="btn btn-primary" onclick="retryDetailsForCookbook()">Retry Details</button>
+              <button class="btn btn-secondary" onclick="goToStep(6)">Back to Details</button>
+            </div>
+          `;
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">Cookbook details are incomplete. Please regenerate details and try again.${reason}${actions}</div>`;
           document.getElementById('cookbookComplete').classList.remove('hidden');
           return;
         }
@@ -2529,10 +2609,13 @@ a { color: var(--navy); }
 
         if (data.success && data.status === 'pending') {
           cookbookId = data.cookbookId;
+          pendingCookbookId = cookbookId;
+          window.localStorage.setItem('pendingCookbookId', cookbookId);
           const noteEl = document.getElementById('cookbookLoadingNote');
           if (noteEl) {
             noteEl.textContent = `Cookbook ID ${cookbookId}. Still compiling — you can come back later.`;
           }
+          showCookbookBanner('pending', `Cookbook ID ${cookbookId}. You can return to download later.`);
           startCookbookStatusPolling(cookbookId);
           return;
         }
@@ -2541,6 +2624,9 @@ a { color: var(--navy); }
 
         if (data.success) {
           cookbookId = data.cookbookId;
+          pendingCookbookId = null;
+          window.localStorage.removeItem('pendingCookbookId');
+          showCookbookBanner('ready', 'Cookbook is ready to download.');
           document.getElementById('cookbookComplete').classList.remove('hidden');
         } else {
           const errorItems = Array.isArray(data.errors) ? data.errors.map(e => `<li>${e}</li>`).join('') : '';
@@ -2593,6 +2679,9 @@ a { color: var(--navy); }
           stopCookbookStatusPolling();
           showCookbookLoading(false);
           document.getElementById('cookbookComplete').classList.remove('hidden');
+          showCookbookBanner('ready', 'Cookbook is ready to download.');
+          pendingCookbookId = null;
+          window.localStorage.removeItem('pendingCookbookId');
           return;
         }
 
@@ -2601,10 +2690,52 @@ a { color: var(--navy); }
           showCookbookLoading(false);
           document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Cookbook generation failed.'}</div>`;
           document.getElementById('cookbookComplete').classList.remove('hidden');
+          showCookbookBanner('failed', data.message || 'Cookbook generation failed.');
+          pendingCookbookId = null;
+          window.localStorage.removeItem('pendingCookbookId');
         }
       } catch (err) {
         // keep polling
       }
+    }
+
+    function resumeCookbook() {
+      if (!pendingCookbookId && cookbookId) {
+        pendingCookbookId = cookbookId;
+      }
+      if (!pendingCookbookId) return;
+      goToStep(7);
+      showCookbookLoading(true);
+      startCookbookStatusPolling(pendingCookbookId);
+    }
+
+    function leaveCookbook() {
+      showCookbookLoading(false);
+      goToStep(6);
+    }
+
+    function copyCookbookId() {
+      const id = pendingCookbookId || cookbookId;
+      if (!id) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(id).catch(() => {});
+      }
+    }
+
+    function checkCookbookStatus() {
+      const id = pendingCookbookId || cookbookId;
+      if (!id) return;
+      pollCookbookStatus(id);
+    }
+
+    async function retryDetailsForCookbook() {
+      showCookbookLoading(true);
+      const result = await loadMenuDetails();
+      if (!result) {
+        showCookbookLoading(false);
+        return;
+      }
+      await generateCookbook();
     }
     
     async function downloadCookbook() {
@@ -2641,6 +2772,7 @@ a { color: var(--navy); }
             noteEl.textContent = data?.message || 'Cookbook is still compiling.';
           }
           showCookbookLoading(true);
+          showCookbookBanner('pending', data?.message || 'Cookbook is still compiling.');
           startCookbookStatusPolling(cookbookId);
         } else {
           let message = 'Error downloading cookbook. Please try again.';
