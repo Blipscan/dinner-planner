@@ -349,6 +349,50 @@ async function removeCookbookFile(record) {
   delete global.cookbookFiles[record.id];
 }
 
+async function buildCookbookFromDetails({ cookbookId, menu, context, staffing, recipes, details, detailsId }) {
+  const filename =
+    (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
+  const keys = getCookbookKeys(cookbookId);
+  const manifest = {
+    id: cookbookId,
+    status: "pending",
+    filename,
+    createdAt: Date.now(),
+    downloads: 0,
+    error: null,
+    detailsId,
+    docKey: keys.docKey,
+    manifestKey: keys.manifestKey,
+  };
+  global.cookbookFiles[cookbookId] = manifest;
+  await writeManifest(cookbookId, manifest);
+
+  setImmediate(async () => {
+    try {
+      const buffer = await buildCookbook(menu, context, staffing, recipes, details);
+      await storagePut(keys.docKey, buffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+
+      global.cookbookFiles[cookbookId] = {
+        ...global.cookbookFiles[cookbookId],
+        status: "ready",
+      };
+      await writeManifest(cookbookId, global.cookbookFiles[cookbookId]);
+
+      await pruneStoredCookbooks();
+    } catch (err) {
+      console.error("Cookbook storage error:", err);
+      global.cookbookFiles[cookbookId] = {
+        ...global.cookbookFiles[cookbookId],
+        status: "failed",
+        error: err.message || "Cookbook generation failed.",
+      };
+      await writeManifest(cookbookId, global.cookbookFiles[cookbookId]);
+    }
+  });
+
+  return manifest;
+}
+
 function stripCodeFences(text) {
   return String(text || "")
     .replace(/^```json?\n?/i, "")
@@ -1676,45 +1720,14 @@ app.post("/api/generate-cookbook", async (req, res) => {
     }
   }
 
-  const filename =
-    (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
-  const keys = getCookbookKeys(cookbookId);
-
-  const manifest = {
-    id: cookbookId,
-    status: "pending",
-    filename,
-    createdAt: Date.now(),
-    downloads: 0,
-    error: null,
+  await buildCookbookFromDetails({
+    cookbookId,
+    menu,
+    context,
+    staffing,
+    recipes,
+    details: detailsPayload,
     detailsId,
-    docKey: keys.docKey,
-    manifestKey: keys.manifestKey,
-  };
-  global.cookbookFiles[cookbookId] = manifest;
-  await writeManifest(cookbookId, manifest);
-
-  setImmediate(async () => {
-    try {
-      const buffer = await buildCookbook(menu, context, staffing, recipes, detailsPayload);
-      await storagePut(keys.docKey, buffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-
-      global.cookbookFiles[cookbookId] = {
-        ...global.cookbookFiles[cookbookId],
-        status: "ready",
-      };
-      await writeManifest(cookbookId, global.cookbookFiles[cookbookId]);
-
-      await pruneStoredCookbooks();
-    } catch (err) {
-      console.error("Cookbook storage error:", err);
-      global.cookbookFiles[cookbookId] = {
-        ...global.cookbookFiles[cookbookId],
-        status: "failed",
-        error: err.message || "Cookbook generation failed.",
-      };
-      await writeManifest(cookbookId, global.cookbookFiles[cookbookId]);
-    }
   });
 
   res.json({
@@ -1827,6 +1840,58 @@ app.post("/api/cookbook-details", async (req, res) => {
   }
 
   res.json({ detailsId: resolvedDetailsId, details });
+});
+
+app.post("/api/cookbook-resume", async (req, res) => {
+  const { code, cookbookId, detailsId } = req.body || {};
+  const accessResult = validateAccessCode(code);
+  if (!accessResult.ok) {
+    return res.status(accessResult.status).json({ error: accessResult.message });
+  }
+
+  let resolvedDetailsId = detailsId;
+  let record = null;
+  if (cookbookId) {
+    record = await getCookbookRecord(cookbookId);
+    if (record?.detailsId) {
+      resolvedDetailsId = record.detailsId;
+    }
+  }
+
+  if (!resolvedDetailsId) {
+    return res.status(404).json({ error: "Details not found for resume." });
+  }
+
+  const details = await readDetails(resolvedDetailsId);
+  if (!details) {
+    return res.status(404).json({ error: "Details not found." });
+  }
+
+  if (record && record.status === "ready") {
+    return res.json({
+      status: "ready",
+      cookbookId: record.id,
+      downloadsRemaining: Math.max(0, MAX_COOKBOOK_DOWNLOADS - record.downloads),
+    });
+  }
+
+  const cookbookIdToUse = record?.id || Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+  await buildCookbookFromDetails({
+    cookbookId: cookbookIdToUse,
+    menu: details.menu || req.body.menu,
+    context: details.context || req.body.context,
+    staffing: req.body.staffing || "solo",
+    recipes: details.recipes,
+    details,
+    detailsId: resolvedDetailsId,
+  });
+
+  res.json({
+    status: "pending",
+    cookbookId: cookbookIdToUse,
+    downloadsRemaining: MAX_COOKBOOK_DOWNLOADS,
+  });
 });
  
 // ============================================================
