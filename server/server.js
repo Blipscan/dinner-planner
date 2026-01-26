@@ -241,7 +241,7 @@ function validateDetails(details, menu) {
     errors.push("masterTimeline incomplete");
   }
 
-  if (!Array.isArray(details.roleViews) || details.roleViews.length < requiredRoles.length) {
+  if (!Array.isArray(details.roleViews) || details.roleViews.length === 0) {
     errors.push("roleViews missing roles");
   } else {
     const rolesPresent = new Set(details.roleViews.map((r) => r.role));
@@ -434,6 +434,70 @@ async function requestRoleViewsPatch(client, basePrompt, errors) {
     messages: [{ role: "user", content: basePrompt }],
   });
   return parseJsonPayload(response.content?.[0]?.text, "Role views patch");
+}
+
+function getMissingRoles(errors) {
+  return errors
+    .map((err) => {
+      const match = err.match(/^roleViews missing (.+)$/);
+      return match ? match[1] : null;
+    })
+    .filter(Boolean);
+}
+
+function mergeRoleViews(existing = [], patch = []) {
+  const merged = new Map();
+  if (Array.isArray(existing)) {
+    existing.forEach((view) => {
+      if (view?.role) {
+        merged.set(view.role, view);
+      }
+    });
+  }
+  if (Array.isArray(patch)) {
+    patch.forEach((view) => {
+      if (view?.role) {
+        merged.set(view.role, view);
+      }
+    });
+  }
+  return Array.from(merged.values());
+}
+
+async function requestSingleRoleView(client, basePrompt, role, courseTypes) {
+  const prompt = `You are generating a single assistant checklist.
+
+Return ONLY valid JSON with this exact shape:
+{
+  "roleViews": [
+    {
+      "role": "${role}",
+      "startTime": "string",
+      "endTime": "string",
+      "reportsTo": "string",
+      "setup": ["string", "..."],
+      "courseTasks": [
+        { "courseType": "string", "tasks": ["string", "..."] }
+      ],
+      "transitions": ["string", "..."],
+      "endOfNight": ["string", "..."]
+    }
+  ]
+}
+
+Rules:
+- Provide courseTasks for EACH course: ${courseTypes.join(", ")}.
+- Each list must include 3-8 tasks.
+- Tasks must be imperative and time-triggered.
+- No placeholders, no TBD.`;
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1800,
+    system: prompt,
+    messages: [{ role: "user", content: basePrompt }],
+  });
+  return parseJsonPayload(response.content?.[0]?.text, "Role view");
 }
 
 async function requestShoppingPatch(client, basePrompt, errors) {
@@ -1134,12 +1198,29 @@ Rules:
       }
 
       if (shouldRetryRoleViews(validationErrors)) {
-        const patch = await withTimeout(
-          requestRoleViewsPatch(client, basePrompt, validationErrors),
-          REQUEST_TIMEOUTS_MS.details,
-          "Details role views repair"
-        );
-        operationalDetails = mergeDetails(operationalDetails, patch);
+        const missingRoles = getMissingRoles(validationErrors);
+        if (missingRoles.length) {
+          const courseTypes = (menu?.courses || []).map((course) => course.type);
+          const roleViews = operationalDetails?.roleViews || [];
+          for (const role of missingRoles) {
+            const patch = await withTimeout(
+              requestSingleRoleView(client, basePrompt, role, courseTypes),
+              REQUEST_TIMEOUTS_MS.details,
+              `Details role view repair ${role}`
+            );
+            const patchViews = patch?.roleViews || [];
+            operationalDetails = mergeDetails(operationalDetails, {
+              roleViews: mergeRoleViews(roleViews, patchViews),
+            });
+          }
+        } else {
+          const patch = await withTimeout(
+            requestRoleViewsPatch(client, basePrompt, validationErrors),
+            REQUEST_TIMEOUTS_MS.details,
+            "Details role views repair"
+          );
+          operationalDetails = mergeDetails(operationalDetails, patch);
+        }
       }
 
       if (shouldRetryShopping(validationErrors)) {
