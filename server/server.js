@@ -241,30 +241,30 @@ function validateDetails(details, menu) {
     errors.push("masterTimeline incomplete");
   }
 
-  if (!Array.isArray(details.roleViews) || details.roleViews.length === 0) {
+  const roleViewsArray = Array.isArray(details.roleViews) ? details.roleViews : [];
+  const rolesPresent = new Set(roleViewsArray.map((r) => r.role));
+  requiredRoles.forEach((role) => {
+    if (!rolesPresent.has(role)) {
+      errors.push(`roleViews missing ${role}`);
+    }
+  });
+  if (roleViewsArray.length === 0) {
     errors.push("roleViews missing roles");
-  } else {
-    const rolesPresent = new Set(details.roleViews.map((r) => r.role));
-    requiredRoles.forEach((role) => {
-      if (!rolesPresent.has(role)) {
-        errors.push(`roleViews missing ${role}`);
-      }
-    });
-    details.roleViews.forEach((role) => {
-      if (!Array.isArray(role.setup) || role.setup.length === 0) {
-        errors.push(`roleViews.${role.role}.setup missing`);
-      }
-      if (!Array.isArray(role.courseTasks) || role.courseTasks.length === 0) {
-        errors.push(`roleViews.${role.role}.courseTasks missing`);
-      }
-      if (!Array.isArray(role.transitions) || role.transitions.length === 0) {
-        errors.push(`roleViews.${role.role}.transitions missing`);
-      }
-      if (!Array.isArray(role.endOfNight) || role.endOfNight.length === 0) {
-        errors.push(`roleViews.${role.role}.endOfNight missing`);
-      }
-    });
   }
+  roleViewsArray.forEach((role) => {
+    if (!Array.isArray(role.setup) || role.setup.length === 0) {
+      errors.push(`roleViews.${role.role}.setup missing`);
+    }
+    if (!Array.isArray(role.courseTasks) || role.courseTasks.length === 0) {
+      errors.push(`roleViews.${role.role}.courseTasks missing`);
+    }
+    if (!Array.isArray(role.transitions) || role.transitions.length === 0) {
+      errors.push(`roleViews.${role.role}.transitions missing`);
+    }
+    if (!Array.isArray(role.endOfNight) || role.endOfNight.length === 0) {
+      errors.push(`roleViews.${role.role}.endOfNight missing`);
+    }
+  });
 
   if (!details.masterShoppingList?.categories || details.masterShoppingList.categories.length < 6) {
     errors.push("masterShoppingList incomplete");
@@ -1199,9 +1199,17 @@ Rules:
 
       if (shouldRetryRoleViews(validationErrors)) {
         const missingRoles = getMissingRoles(validationErrors);
-        if (missingRoles.length) {
-          const courseTypes = (menu?.courses || []).map((course) => course.type);
-          const roleViews = operationalDetails?.roleViews || [];
+        const courseTypes = (menu?.courses || []).map((course) => course.type);
+        const roleViews = operationalDetails?.roleViews || [];
+
+        if (missingRoles.length >= requiredRoles.length) {
+          const patch = await withTimeout(
+            requestRoleViewsPatch(client, basePrompt, validationErrors),
+            REQUEST_TIMEOUTS_MS.details,
+            "Details role views repair"
+          );
+          operationalDetails = mergeDetails(operationalDetails, patch);
+        } else if (missingRoles.length) {
           for (const role of missingRoles) {
             const patch = await withTimeout(
               requestSingleRoleView(client, basePrompt, role, courseTypes),
