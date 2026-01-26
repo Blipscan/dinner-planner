@@ -1785,18 +1785,48 @@ app.post("/api/cookbook-status", async (req, res) => {
   }
 
   if (record.status === "pending") {
-    return res.json({ status: "pending" });
+    return res.json({ status: "pending", detailsId: record.detailsId || null });
   }
 
   if (record.status === "failed") {
-    return res.status(500).json({ status: "failed", message: record.error || "Cookbook generation failed." });
+    return res
+      .status(500)
+      .json({ status: "failed", message: record.error || "Cookbook generation failed.", detailsId: record.detailsId || null });
   }
 
   return res.json({
     status: "ready",
     downloadsRemaining: Math.max(0, MAX_COOKBOOK_DOWNLOADS - record.downloads),
     filename: record.filename,
+    detailsId: record.detailsId || null,
   });
+});
+
+app.post("/api/cookbook-details", async (req, res) => {
+  const { code, cookbookId, detailsId } = req.body || {};
+  const accessResult = validateAccessCode(code);
+  if (!accessResult.ok) {
+    return res.status(accessResult.status).json({ error: accessResult.message });
+  }
+
+  let resolvedDetailsId = detailsId;
+  if (!resolvedDetailsId && cookbookId) {
+    const record = await getCookbookRecord(cookbookId);
+    if (record?.detailsId) {
+      resolvedDetailsId = record.detailsId;
+    }
+  }
+
+  if (!resolvedDetailsId) {
+    return res.status(404).json({ error: "Details not found." });
+  }
+
+  const details = await readDetails(resolvedDetailsId);
+  if (!details) {
+    return res.status(404).json({ error: "Details not found." });
+  }
+
+  res.json({ detailsId: resolvedDetailsId, details });
 });
  
 // ============================================================
