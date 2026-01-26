@@ -1199,22 +1199,22 @@ a { color: var(--navy); }
         <p id="detailsLoadingTimer" class="loading-subtext">Elapsed 0:00 • Typical time: up to 5:00</p>
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="expertGuidanceCard">
         <h3 class="card-title" style="font-size:1.2rem">Expert Guidance</h3>
         <div id="expertGuidance"></div>
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="wineTiersCard">
         <h3 class="card-title" style="font-size:1.2rem">Wine Pairing Tiers</h3>
         <div id="wineTierList" class="wine-tier-grid"></div>
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="recipePreviewsCard">
         <h3 class="card-title" style="font-size:1.2rem">Recipe Previews</h3>
         <div id="recipePreview"></div>
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="timelineCard">
         <h3 class="card-title" style="font-size:1.2rem">Day-Of Timeline</h3>
         <div id="timelinePreview" class="timeline-list"></div>
       </div>
@@ -1558,7 +1558,6 @@ a { color: var(--navy); }
       }
 
       if (step === 6 && selectedMenu !== null) {
-        renderTimelinePreview();
         loadMenuDetails();
       }
     }
@@ -1736,9 +1735,10 @@ a { color: var(--navy); }
       const wineContainer = document.getElementById('wineTierList');
       const recipeContainer = document.getElementById('recipePreview');
       const guidanceContainer = document.getElementById('expertGuidance');
-      if (wineContainer) wineContainer.innerHTML = markup;
-      if (recipeContainer) recipeContainer.innerHTML = markup;
+      setDetailCardsVisible(false);
       if (guidanceContainer) guidanceContainer.innerHTML = markup;
+      const guidanceCard = document.getElementById('expertGuidanceCard');
+      if (guidanceCard) guidanceCard.classList.remove('hidden');
     }
 
     function renderRecipePreview(recipes) {
@@ -1850,16 +1850,41 @@ a { color: var(--navy); }
       }).map(item => ({ ...item, staffingMinutes: staffing.activeMin }));
     }
 
-    function renderTimelinePreview() {
+    function renderTimelinePreview(details) {
       const container = document.getElementById('timelinePreview');
       if (!container) return;
-      const items = buildTimelineItems();
-      container.innerHTML = items.map(item => `
-        <div class="timeline-item">
-          <div class="timeline-time">${item.time}</div>
-          <div class="timeline-task">${item.task}</div>
-        </div>
-      `).join('');
+      const timeline = details?.masterTimeline;
+      if (!Array.isArray(timeline) || !timeline.length) {
+        container.innerHTML = '<div class="error-msg">Timeline will appear once operational details are compiled.</div>';
+        return;
+      }
+      container.innerHTML = timeline.map(item => {
+        const timeLabel = item.time || item.offset || '';
+        const roleLabel = item.role ? `[${item.role}]` : '';
+        const courseLabel = item.course ? `${item.course}` : '';
+        const parallelLabel = item.parallel ? '[Parallel]' : '';
+        const taskLine = [roleLabel, parallelLabel, courseLabel, item.task].filter(Boolean).join(' ');
+        const deps = item.dependsOn?.length ? `Depends on: ${item.dependsOn.join(', ')}` : '';
+        return `
+          <div class="timeline-item">
+            <div class="timeline-time">${timeLabel}</div>
+            <div class="timeline-task">
+              ${taskLine}
+              ${deps ? `<div style="margin-top:0.35rem;font-size:0.8rem;color:#6b7280">${deps}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setDetailCardsVisible(visible) {
+      const ids = ['expertGuidanceCard', 'wineTiersCard', 'recipePreviewsCard', 'timelineCard'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.toggle('hidden', !visible);
+        }
+      });
     }
 
     function parseBudgetRange(value) {
@@ -1904,7 +1929,8 @@ a { color: var(--navy); }
         renderWineTiers(selectedMenuDetails.wineTiers);
         renderRecipePreview(selectedMenuDetails.recipes);
         renderExpertGuidance(selectedMenuDetails);
-        renderTimelinePreview();
+        renderTimelinePreview(selectedMenuDetails);
+        setDetailCardsVisible(true);
         return selectedMenuDetails;
       }
 
@@ -1912,7 +1938,7 @@ a { color: var(--navy); }
       renderWineTiers([]);
       renderRecipePreview([]);
       renderExpertGuidance(null);
-      renderTimelinePreview();
+      setDetailCardsVisible(false);
 
       try {
         const res = await fetchWithTimeout('/api/generate-details', {
@@ -1935,6 +1961,8 @@ a { color: var(--navy); }
         renderWineTiers(selectedMenuDetails.wineTiers);
         renderRecipePreview(selectedMenuDetails.recipes);
         renderExpertGuidance(selectedMenuDetails);
+        renderTimelinePreview(selectedMenuDetails);
+        setDetailCardsVisible(true);
       } catch (err) {
         const detailMessage = err?.name === 'AbortError'
           ? 'Request timed out. Please try again.'
@@ -2453,7 +2481,9 @@ a { color: var(--navy); }
     function selectStaffingOption(id) {
       selectedStaffing = id;
       initStaffingOptions();
-      renderTimelinePreview();
+      if (selectedMenuDetails) {
+        renderTimelinePreview(selectedMenuDetails);
+      }
     }
     
     // ============================================================
