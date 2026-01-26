@@ -1249,6 +1249,7 @@ a { color: var(--navy); }
         <p id="cookbookLoadingMessage">Validating details and quality checks...</p>
         <p id="cookbookLoadingTimer" class="loading-subtext">Time remaining: 5:00</p>
         <p id="cookbookLoadingNote" class="loading-subtext"></p>
+        <p id="cookbookLoadingId" class="loading-subtext"></p>
         <div class="actions" style="margin-top:1rem">
           <button class="btn btn-secondary" onclick="leaveCookbook()">Continue Planning</button>
           <button class="btn btn-outline" onclick="copyCookbookId()">Copy Cookbook ID</button>
@@ -1451,6 +1452,7 @@ a { color: var(--navy); }
       const storedId = window.localStorage.getItem('pendingCookbookId');
       if (!storedId) return;
       pendingCookbookId = storedId;
+      setCookbookIdDisplay(storedId);
       showCookbookBanner('pending', `Cookbook ID ${storedId}. You can resume anytime.`);
       startCookbookStatusPolling(storedId);
     }
@@ -1687,6 +1689,7 @@ a { color: var(--navy); }
       const messageEl = document.getElementById('cookbookLoadingMessage');
       const timerEl = document.getElementById('cookbookLoadingTimer');
       const noteEl = document.getElementById('cookbookLoadingNote');
+      const idEl = document.getElementById('cookbookLoadingId');
       if (!loading) return;
       loading.classList.toggle('hidden', !show);
 
@@ -1703,6 +1706,9 @@ a { color: var(--navy); }
       if (noteEl) {
         noteEl.textContent = 'Starting cookbook job...';
       }
+      if (idEl) {
+        idEl.textContent = '';
+      }
       updateCookbookLoadingStatus(messageEl, timerEl);
       if (cookbookLoadingTimer) {
         clearInterval(cookbookLoadingTimer);
@@ -1714,6 +1720,13 @@ a { color: var(--navy); }
       const noteEl = document.getElementById('cookbookLoadingNote');
       if (noteEl) {
         noteEl.textContent = message || '';
+      }
+    }
+
+    function setCookbookIdDisplay(id) {
+      const idEl = document.getElementById('cookbookLoadingId');
+      if (idEl) {
+        idEl.textContent = id ? `Cookbook ID: ${id}` : '';
       }
     }
 
@@ -2619,6 +2632,7 @@ a { color: var(--navy); }
           cookbookId = data.cookbookId;
           pendingCookbookId = cookbookId;
           window.localStorage.setItem('pendingCookbookId', cookbookId);
+          setCookbookIdDisplay(cookbookId);
           setCookbookNote(`Cookbook ID ${cookbookId}. Still compiling — you can come back later.`);
           showCookbookBanner('pending', `Cookbook ID ${cookbookId}. You can return to download later.`);
           startCookbookStatusPolling(cookbookId);
@@ -2631,6 +2645,7 @@ a { color: var(--navy); }
           cookbookId = data.cookbookId;
           pendingCookbookId = null;
           window.localStorage.removeItem('pendingCookbookId');
+          setCookbookIdDisplay(cookbookId);
           showCookbookBanner('ready', 'Cookbook is ready to download.');
           document.getElementById('cookbookComplete').classList.remove('hidden');
         } else {
@@ -2711,6 +2726,7 @@ a { color: var(--navy); }
       if (!pendingCookbookId) return;
       goToStep(7);
       showCookbookLoading(true);
+      setCookbookIdDisplay(pendingCookbookId);
       startCookbookStatusPolling(pendingCookbookId);
     }
 
@@ -2722,7 +2738,10 @@ a { color: var(--navy); }
 
     function copyCookbookId() {
       const id = pendingCookbookId || cookbookId;
-      if (!id) return;
+      if (!id) {
+        setCookbookNote('Cookbook ID not assigned yet. Please wait.');
+        return;
+      }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(id).catch(() => {});
       }
