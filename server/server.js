@@ -309,6 +309,22 @@ function shouldRetryOperations(errors) {
   return errors.some((err) => !err.includes("recipes") && !err.includes("wineTiers"));
 }
 
+function shouldRetryRoleViews(errors) {
+  return errors.some((err) => err.includes("roleViews"));
+}
+
+function shouldRetryShopping(errors) {
+  return errors.some((err) => err.includes("masterShoppingList"));
+}
+
+function shouldRetryExecution(errors) {
+  return errors.some((err) => err.includes("executionPacket"));
+}
+
+function shouldRetryConstraints(errors) {
+  return errors.some((err) => err.includes("equipmentConstraints") || err.includes("contingencies") || err.includes("cleanupReset"));
+}
+
 async function requestOperationsPatch(client, basePrompt, errors) {
   const errorList = errors.map((err, index) => `${index + 1}. ${err}`).join("\n");
   const prompt = `Your previous operational output failed these checks:\n${errorList}\n\nReturn ONLY JSON that fixes the missing fields. Include complete objects/arrays for any missing section. No placeholders. No empty arrays. Use the same schema as the operational details.`;
@@ -331,6 +347,54 @@ async function requestRecipesPatch(client, basePrompt, errors) {
     messages: [{ role: "user", content: basePrompt }],
   });
   return parseJsonPayload(response.content?.[0]?.text, "Recipe patch");
+}
+
+async function requestRoleViewsPatch(client, basePrompt, errors) {
+  const errorList = errors.map((err, index) => `${index + 1}. ${err}`).join("\n");
+  const prompt = `Your role views output failed these checks:\n${errorList}\n\nReturn ONLY JSON with a complete "roleViews" array for ALL roles. No placeholders.`;
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 2800,
+    system: prompt,
+    messages: [{ role: "user", content: basePrompt }],
+  });
+  return parseJsonPayload(response.content?.[0]?.text, "Role views patch");
+}
+
+async function requestShoppingPatch(client, basePrompt, errors) {
+  const errorList = errors.map((err, index) => `${index + 1}. ${err}`).join("\n");
+  const prompt = `Your shopping list output failed these checks:\n${errorList}\n\nReturn ONLY JSON with a complete "masterShoppingList" section. No placeholders.`;
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 2200,
+    system: prompt,
+    messages: [{ role: "user", content: basePrompt }],
+  });
+  return parseJsonPayload(response.content?.[0]?.text, "Shopping patch");
+}
+
+async function requestExecutionPatch(client, basePrompt, errors) {
+  const errorList = errors.map((err, index) => `${index + 1}. ${err}`).join("\n");
+  const prompt = `Your execution packet output failed these checks:\n${errorList}\n\nReturn ONLY JSON with a complete "executionPacket" array (one entry per course). No placeholders.`;
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 2200,
+    system: prompt,
+    messages: [{ role: "user", content: basePrompt }],
+  });
+  return parseJsonPayload(response.content?.[0]?.text, "Execution patch");
+}
+
+async function requestConstraintsPatch(client, basePrompt, errors) {
+  const errorList = errors.map((err, index) => `${index + 1}. ${err}`).join("\n");
+  const prompt = `Your constraints output failed these checks:\n${errorList}\n\nReturn ONLY JSON with "equipmentConstraints", "contingencies", and "cleanupReset". No placeholders.`;
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 2200,
+    system: prompt,
+    messages: [{ role: "user", content: basePrompt }],
+  });
+  return parseJsonPayload(response.content?.[0]?.text, "Constraints patch");
 }
 
 function isBondTheme(context) {
@@ -990,6 +1054,42 @@ Rules:
           requestOperationsPatch(client, basePrompt, validationErrors),
           REQUEST_TIMEOUTS_MS.details,
           "Details operations repair"
+        );
+        operationalDetails = mergeDetails(operationalDetails, patch);
+      }
+
+      if (shouldRetryRoleViews(validationErrors)) {
+        const patch = await withTimeout(
+          requestRoleViewsPatch(client, basePrompt, validationErrors),
+          REQUEST_TIMEOUTS_MS.details,
+          "Details role views repair"
+        );
+        operationalDetails = mergeDetails(operationalDetails, patch);
+      }
+
+      if (shouldRetryShopping(validationErrors)) {
+        const patch = await withTimeout(
+          requestShoppingPatch(client, basePrompt, validationErrors),
+          REQUEST_TIMEOUTS_MS.details,
+          "Details shopping repair"
+        );
+        operationalDetails = mergeDetails(operationalDetails, patch);
+      }
+
+      if (shouldRetryExecution(validationErrors)) {
+        const patch = await withTimeout(
+          requestExecutionPatch(client, basePrompt, validationErrors),
+          REQUEST_TIMEOUTS_MS.details,
+          "Details execution repair"
+        );
+        operationalDetails = mergeDetails(operationalDetails, patch);
+      }
+
+      if (shouldRetryConstraints(validationErrors)) {
+        const patch = await withTimeout(
+          requestConstraintsPatch(client, basePrompt, validationErrors),
+          REQUEST_TIMEOUTS_MS.details,
+          "Details constraints repair"
         );
         operationalDetails = mergeDetails(operationalDetails, patch);
       }
