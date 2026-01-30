@@ -5,15 +5,183 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dinner Party Planner</title>
   <style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap');
 :root{
-  --navy:#1E3A5F; --navy-dark:#152b46;
-  --gold:#C9A227; --gold-light:#D4B03A;
-  --cream:#FDF8F3; --cream-dark:#EFE6DD;
+  --navy:#1E3A5F; --navy-dark:#152b46; --navy-light:#2f5686;
+  --gold:#C9A227; --gold-light:#D4B03A; --gold-dark:#b88916;
+  --cream:#FDF8F3; --cream-dark:#EFE6DD; --cream-bright:#fffaf6;
   --text:#1f2937; --text-light:#6b7280;
   --success:#16a34a; --success-light:#dcfce7;
   --error:#dc2626; --error-light:#fee2e2;
+  --shadow-card: 0 12px 30px rgba(30,58,95,0.12);
+  --shadow-soft: 0 8px 20px rgba(30,58,95,0.08);
+  --shadow-highlight: 0 10px 25px rgba(201,162,39,0.25);
 }
-body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}    
+* { box-sizing: border-box; }
+body{
+  margin: 0;
+  font-family: "Source Sans 3", "Helvetica Neue", Arial, sans-serif;
+  background: radial-gradient(circle at top, #ffffff 0%, var(--cream) 45%, #f7efe6 100%);
+  color:var(--text);
+  line-height: 1.6;
+}    
+img { max-width: 100%; }
+a { color: var(--navy); }
+
+.container{
+  max-width: 1120px;
+  margin: -2.5rem auto 3.5rem;
+  padding: 0 1.5rem 3rem;
+  position: relative;
+  z-index: 2;
+}
+
+.header{
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255,255,255,0.35), transparent 50%),
+    radial-gradient(circle at 80% 0%, rgba(201,162,39,0.25), transparent 45%),
+    linear-gradient(135deg, #152b46 0%, #1f3d63 35%, #2c4f7a 70%, #1b3656 100%);
+  color: white;
+  text-align: center;
+  padding: 4.5rem 1.5rem 6rem;
+  position: relative;
+  overflow: hidden;
+}
+.header::after{
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -60px;
+  height: 120px;
+  background: var(--cream);
+  transform: skewY(-3deg);
+  box-shadow: 0 -10px 30px rgba(21,43,70,0.2);
+}
+.header-content{
+  max-width: 720px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.header-icon{
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 1rem;
+}
+.header h1{
+  font-family: "Playfair Display", serif;
+  font-size: 3rem;
+  margin: 0.2rem 0 0.4rem;
+  letter-spacing: 0.02em;
+}
+.header p{
+  margin: 0;
+  color: rgba(255,255,255,0.85);
+  font-size: 1.1rem;
+}
+
+.card{
+  background: linear-gradient(180deg, #ffffff 0%, var(--cream-bright) 100%);
+  border: 1px solid rgba(30,58,95,0.08);
+  border-radius: 18px;
+  padding: 2rem;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 1.5rem;
+}
+.card-title{
+  font-family: "Playfair Display", serif;
+  font-size: 1.6rem;
+  color: var(--navy);
+  margin: 0 0 0.35rem;
+}
+.card-subtitle{
+  color: var(--text-light);
+  margin: 0 0 1.25rem;
+}
+
+.form-row{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.form-group label{
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--navy);
+  margin-bottom: 0.4rem;
+}
+.form-group input,
+.form-group select,
+.form-group textarea{
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(30,58,95,0.15);
+  background: white;
+  font-size: 0.95rem;
+  box-shadow: inset 0 1px 2px rgba(15,23,42,0.08);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus{
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(30,58,95,0.15);
+}
+
+.progress{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 1.5rem auto 2.5rem;
+  flex-wrap: wrap;
+}
+.progress-step{
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--cream-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.2s;
+}
+.progress-step.active{
+  background: var(--navy);
+  border-color: var(--navy);
+  color: white;
+  box-shadow: var(--shadow-highlight);
+}
+.progress-step.complete{
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  border-color: var(--gold-dark);
+  color: white;
+}
+.progress-line{
+  width: 28px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--cream-dark);
+}
+.progress-line.complete{
+  background: linear-gradient(90deg, var(--gold) 0%, var(--navy) 100%);
+}
     /* ===== INSPIRATION CARDS ===== */
     .inspiration-grid {
       display: grid;
@@ -22,18 +190,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       margin-top: 1.25rem;
     }
     .inspiration-card {
-      background: var(--cream);
-      border: 2px solid transparent;
+      background: white;
+      border: 1px solid rgba(30,58,95,0.08);
       border-radius: 12px;
       padding: 1.25rem 1rem;
       text-align: center;
       cursor: pointer;
       transition: all 0.25s;
+      box-shadow: var(--shadow-soft);
     }
     .inspiration-card:hover {
       border-color: var(--gold);
       transform: translateY(-3px);
-      box-shadow: 0 6px 20px rgba(201,162,39,0.15);
+      box-shadow: var(--shadow-highlight);
     }
     .inspiration-card.selected {
       border-color: var(--navy);
@@ -61,13 +230,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
     .style-card {
       background: white;
-      border: 2px solid var(--cream-dark);
+      border: 1px solid rgba(30,58,95,0.08);
       border-radius: 12px;
       padding: 1.125rem;
       cursor: pointer;
       transition: all 0.2s;
+      box-shadow: var(--shadow-soft);
     }
-    .style-card:hover { border-color: var(--gold); }
+    .style-card:hover { border-color: var(--gold); box-shadow: var(--shadow-highlight); }
     .style-card.selected {
       border-color: var(--navy);
       background: rgba(30,58,95,0.03);
@@ -139,17 +309,18 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     }
     .expert-card {
       background: white;
-      border: 2px solid var(--cream-dark);
+      border: 1px solid rgba(30,58,95,0.08);
       border-radius: 14px;
       padding: 1.5rem;
       cursor: pointer;
       transition: all 0.25s;
       text-align: center;
+      box-shadow: var(--shadow-soft);
     }
     .expert-card:hover {
       border-color: var(--gold);
       transform: translateY(-3px);
-      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-highlight);
     }
     .expert-card.selected {
       border-color: var(--navy);
@@ -234,18 +405,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     /* ===== MENU CARDS ===== */
     .menu-card {
       background: white;
-      border: 2px solid var(--cream-dark);
+      border: 1px solid rgba(30,58,95,0.08);
       border-radius: 14px;
       padding: 1.75rem;
       margin-bottom: 1.25rem;
       cursor: pointer;
       transition: all 0.25s;
       position: relative;
+      box-shadow: var(--shadow-soft);
     }
     .menu-card:hover {
       border-color: var(--gold);
       transform: translateY(-3px);
-      box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-highlight);
     }
     .menu-card.selected {
       border-color: var(--navy);
@@ -275,12 +447,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       color: var(--navy);
     }
     .menu-card .cost-badge {
-      background: var(--cream);
+      background: linear-gradient(135deg, rgba(201,162,39,0.18) 0%, rgba(201,162,39,0.05) 100%);
       padding: 0.35rem 0.75rem;
       border-radius: 20px;
       font-size: 0.8rem;
       color: var(--gold-dark);
       font-weight: 600;
+      border: 1px solid rgba(201,162,39,0.3);
     }
     .menu-card .personality {
       font-size: 0.95rem;
@@ -314,6 +487,26 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       color: var(--gold);
       font-style: italic;
     }
+
+    .menu-controls {
+      display: flex;
+      justify-content: center;
+      margin: 0.5rem 0 1.5rem;
+    }
+    .toggle-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--cream-dark);
+      background: white;
+      color: var(--text-light);
+      font-size: 0.85rem;
+    }
+    .toggle-field input {
+      accent-color: var(--navy);
+    }
     
     /* ===== STAFFING ===== */
     .staffing-option {
@@ -321,13 +514,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       align-items: center;
       gap: 1.25rem;
       padding: 1.25rem;
-      border: 2px solid var(--cream-dark);
+      border: 1px solid rgba(30,58,95,0.08);
       border-radius: 12px;
       cursor: pointer;
       margin-bottom: 0.875rem;
       transition: all 0.2s;
+      background: white;
+      box-shadow: var(--shadow-soft);
     }
-    .staffing-option:hover { border-color: var(--gold); }
+    .staffing-option:hover { border-color: var(--gold); box-shadow: var(--shadow-highlight); }
     .staffing-option.selected {
       border-color: var(--navy);
       background: rgba(30,58,95,0.03);
@@ -359,10 +554,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       margin-top: 0.75rem;
     }
     .wine-tier-card {
-      border: 1px solid var(--cream-dark);
+      border: 1px solid rgba(30,58,95,0.08);
       border-radius: 12px;
       padding: 1rem;
       background: white;
+      box-shadow: var(--shadow-soft);
     }
     .wine-tier-title {
       font-weight: 600;
@@ -383,11 +579,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       line-height: 1.4;
     }
     .recipe-card {
-      border: 1px solid var(--cream-dark);
+      border: 1px solid rgba(30,58,95,0.08);
       border-radius: 12px;
       padding: 1rem;
       margin-bottom: 0.9rem;
       background: white;
+      box-shadow: var(--shadow-soft);
     }
     .recipe-card h4 {
       margin: 0 0 0.4rem;
@@ -405,6 +602,22 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       color: var(--text-light);
       font-size: 0.85rem;
     }
+    .expert-notes {
+      display: grid;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    .expert-note {
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--cream-dark);
+      border-radius: 10px;
+      background: white;
+    }
+    .expert-note h4 {
+      margin: 0 0 0.4rem;
+      font-size: 0.95rem;
+      color: var(--navy);
+    }
     .timeline-list {
       display: grid;
       gap: 0.6rem;
@@ -415,9 +628,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       grid-template-columns: 110px 1fr;
       gap: 0.75rem;
       padding: 0.6rem 0.75rem;
-      border: 1px solid var(--cream-dark);
+      border: 1px solid rgba(30,58,95,0.08);
       border-radius: 10px;
       background: white;
+      box-shadow: var(--shadow-soft);
     }
     .timeline-time {
       font-weight: 600;
@@ -438,18 +652,19 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       gap: 0.5rem;
       padding: 0.95rem 2rem;
       border: none;
-      border-radius: 10px;
+      border-radius: 999px;
       font-size: 1rem;
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
       transition: all 0.25s;
       text-decoration: none;
+      letter-spacing: 0.02em;
     }
     .btn-primary {
-      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 45%, var(--navy-dark) 100%);
       color: white;
-      box-shadow: 0 2px 8px rgba(30,58,95,0.25);
+      box-shadow: var(--shadow-soft);
     }
     .btn-primary:hover {
       transform: translateY(-2px);
@@ -464,13 +679,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     .btn-secondary {
       background: white;
       color: var(--navy);
-      border: 2px solid var(--navy);
+      border: 2px solid rgba(30,58,95,0.4);
+      box-shadow: var(--shadow-soft);
     }
     .btn-secondary:hover { background: var(--cream); }
     .btn-gold {
-      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+      background: linear-gradient(135deg, var(--gold-dark) 0%, var(--gold) 45%, var(--gold-light) 100%);
       color: white;
-      box-shadow: 0 2px 8px rgba(201,162,39,0.3);
+      box-shadow: var(--shadow-highlight);
     }
     .btn-gold:hover {
       transform: translateY(-2px);
@@ -512,6 +728,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       font-size: 1.1rem;
       font-style: italic;
     }
+    .loading .loading-subtext {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-light);
+      font-style: normal;
+    }
     
     /* ===== MESSAGES ===== */
     .success-msg {
@@ -539,6 +761,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       font-size: 1.75rem;
       font-weight: 600;
       color: var(--navy);
+      background: linear-gradient(90deg, var(--navy), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       text-align: center;
       margin: 2rem 0 1.5rem;
     }
@@ -615,15 +840,65 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       font-weight: bold;
     }
     
+    /* ===== API STATUS ===== */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status-online {
+      background: var(--success-light);
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .status-offline {
+      background: var(--error-light);
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .footer-version {
+      margin-left: 0.6rem;
+      color: var(--text-light);
+      font-size: 0.85rem;
+    }
+    .deploy-info {
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.78);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .status-banner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(30,58,95,0.12);
+      background: white;
+      box-shadow: var(--shadow-soft);
+      margin: 1.2rem 0 1.5rem;
+    }
+    .status-banner strong { color: var(--navy); }
+    .status-banner .actions { margin: 0; }
+
     /* ===== FOOTER ===== */
     footer {
       text-align: center;
       padding: 2.5rem 1rem;
       color: var(--text-light);
       font-size: 0.9rem;
-      border-top: 1px solid var(--cream-dark);
+      border-top: 1px solid rgba(30,58,95,0.08);
       margin-top: 3rem;
-      background: white;
+      background: linear-gradient(180deg, #ffffff 0%, var(--cream) 100%);
+      box-shadow: 0 -10px 30px rgba(30,58,95,0.08);
     }
     footer a { color: var(--navy); }
     
@@ -637,6 +912,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       body { font-size: 16px; }
       .header h1 { font-size: 2rem; }
       .header { padding: 2rem 1rem 3rem; }
+      .container { margin: -1.5rem auto 2.5rem; }
       .card { padding: 1.5rem; }
       .form-row { grid-template-columns: 1fr; }
       .inspiration-grid { grid-template-columns: repeat(2, 1fr); }
@@ -655,10 +931,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       <div class="header-icon">🍽️</div>
       <h1>Dinner Party Planner</h1>
       <p>Create Unforgettable Experiences</p>
+      <div class="deploy-info" id="deployInfo">Deploy: —</div>
     </div>
   </header>
   
   <div class="container">
+    <div id="cookbookStatusBanner" class="status-banner hidden"></div>
     <!-- Progress -->
     <div class="progress">
       <div class="progress-step active" id="dot1" onclick="jumpToStep(1)">1</div>
@@ -705,6 +983,22 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <div class="form-group">
             <label for="eventDate">Date</label>
             <input type="date" id="eventDate">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eventLocation">Location</label>
+            <input type="text" id="eventLocation" placeholder="e.g., 123 Rose Ave, Dining Room">
+          </div>
+          <div class="form-group">
+            <label for="serviceStyle">Service Style</label>
+            <select id="serviceStyle">
+              <option value="plated" selected>Plated</option>
+              <option value="family-style">Family-Style</option>
+              <option value="buffet">Buffet</option>
+              <option value="passed">Passed Courses</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
           </div>
         </div>
         <div class="form-row">
@@ -828,6 +1122,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     <!-- Step 4: Menu Selection -->
     <section id="step4" class="hidden">
       <h2 class="section-title">Choose Your Menu</h2>
+
+      <div class="menu-controls">
+        <label class="toggle-field">
+          <input type="checkbox" id="showWineToggle" onchange="toggleWinePairings(this.checked)">
+          Show wine pairings
+        </label>
+      </div>
       
       <div id="menuLoading" class="loading hidden">
         <div class="spinner"></div>
@@ -911,20 +1212,26 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
       <div id="detailsLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Preparing recipes, wine tiers, and timeline...</p>
+        <p id="detailsLoadingMessage">Preparing recipes, wine tiers, and timeline...</p>
+        <p id="detailsLoadingTimer" class="loading-subtext">Elapsed 0:00 • Typical time: up to 10:00</p>
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="expertGuidanceCard">
+        <h3 class="card-title" style="font-size:1.2rem">Expert Guidance</h3>
+        <div id="expertGuidance"></div>
+      </div>
+
+      <div class="card hidden" id="wineTiersCard">
         <h3 class="card-title" style="font-size:1.2rem">Wine Pairing Tiers</h3>
         <div id="wineTierList" class="wine-tier-grid"></div>
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="recipePreviewsCard">
         <h3 class="card-title" style="font-size:1.2rem">Recipe Previews</h3>
         <div id="recipePreview"></div>
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="timelineCard">
         <h3 class="card-title" style="font-size:1.2rem">Day-Of Timeline</h3>
         <div id="timelinePreview" class="timeline-list"></div>
       </div>
@@ -939,7 +1246,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     <section id="step7" class="hidden">
       <div id="cookbookLoading" class="loading hidden">
         <div class="spinner"></div>
-        <p>Creating your complete cookbook with recipes, timeline, and shopping list...</p>
+        <p id="cookbookLoadingMessage">Validating details and quality checks...</p>
+        <p id="cookbookLoadingTimer" class="loading-subtext">Time remaining: 5:00</p>
+        <p id="cookbookLoadingNote" class="loading-subtext"></p>
+        <p id="cookbookLoadingId" class="loading-subtext"></p>
+        <div class="actions" style="margin-top:1rem">
+          <button class="btn btn-secondary" onclick="leaveCookbook()">Continue Planning</button>
+          <button class="btn btn-outline" onclick="copyCookbookId()">Copy Cookbook ID</button>
+          <button class="btn btn-primary" onclick="checkCookbookStatus()">Check Status</button>
+        </div>
       </div>
       
       <div id="cookbookComplete" class="hidden">
@@ -985,6 +1300,10 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     <footer>
       <p>Dinner Party Planner &copy; 2025</p>
+      <p>
+        <span id="apiStatus" class="status-pill status-offline">API: Offline</span>
+        <span id="apiVersion" class="footer-version">Version: —</span>
+      </p>
       <p style="font-size:0.75rem;margin-top:0.35rem;opacity:0.7">AI-assisted recipe development. Recipes are original adaptations inspired by classic techniques.</p>
     </footer>
   </div>
@@ -1016,10 +1335,21 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     let menuDetailsCache = {};
     let selectedMenuDetails = null;
     let preferencesVisited = false;
+    let preferencesCompleted = false;
+    let showWinePairings = false;
+    let detailsLoadingTimer = null;
+    let detailsLoadingStart = null;
+    let cookbookLoadingTimer = null;
+    let cookbookLoadingStart = null;
+    let cookbookStatusTimer = null;
+    let pendingCookbookId = null;
+    let lastDetailsErrorMessage = '';
     const FETCH_TIMEOUTS_MS = {
-      menus: 30000,
-      details: 20000
+      menus: 60000,
+      details: 600000,
+      cookbook: 300000
     };
+    const API_STATUS_REFRESH_MS = 30000;
     
     // ============================================================
     // INITIALIZATION
@@ -1041,6 +1371,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       initStaffingOptions();
       initAveryProducts();
       initCookbookSections();
+      loadApiStatus();
+      setInterval(loadApiStatus, API_STATUS_REFRESH_MS);
+      restorePendingCookbook();
       
       // Set default date 2 weeks out
       const defaultDate = new Date();
@@ -1058,6 +1391,87 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // ============================================================
     // INIT HELPERS
     // ============================================================
+    function setApiStatus(isOnline, version, isConfigured) {
+      const statusEl = document.getElementById('apiStatus');
+      const versionEl = document.getElementById('apiVersion');
+      if (!statusEl || !versionEl) return;
+
+      const hasKey = isConfigured !== false;
+      const label = !isOnline ? 'API: Offline' : hasKey ? 'API: Online' : 'API: Key Missing';
+      statusEl.textContent = label;
+      statusEl.classList.toggle('status-online', isOnline && hasKey);
+      statusEl.classList.toggle('status-offline', !isOnline || !hasKey);
+      versionEl.textContent = version ? `Version: ${version}` : 'Version: —';
+    }
+
+    function setDeployInfo(deployId) {
+      const deployEl = document.getElementById('deployInfo');
+      if (!deployEl) return;
+      deployEl.textContent = deployId ? `Deploy: ${deployId}` : 'Deploy: —';
+    }
+
+    function showCookbookBanner(state, message) {
+      const banner = document.getElementById('cookbookStatusBanner');
+      if (!banner) return;
+      if (!state) {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+        return;
+      }
+
+      const title = state === 'ready'
+        ? 'Cookbook ready'
+        : state === 'failed'
+          ? 'Cookbook failed'
+          : 'Cookbook compiling';
+
+      const text = message || (state === 'ready'
+        ? 'Your cookbook is ready to download.'
+        : state === 'failed'
+          ? 'Cookbook generation failed.'
+          : 'You can leave this page and return later.');
+
+      const actions = state === 'ready'
+        ? `
+          <div class="actions">
+            <button class="btn btn-primary" onclick="resumeCookbook()">Download</button>
+          </div>`
+        : `
+          <div class="actions">
+            <button class="btn btn-outline" onclick="resumeCookbook()">Resume</button>
+          </div>`;
+
+      banner.innerHTML = `
+        <div><strong>${title}:</strong> ${text}</div>
+        ${actions}
+      `;
+      banner.classList.remove('hidden');
+    }
+
+    function restorePendingCookbook() {
+      const storedId = window.localStorage.getItem('pendingCookbookId');
+      if (!storedId) return;
+      pendingCookbookId = storedId;
+      setCookbookIdDisplay(storedId);
+      showCookbookBanner('pending', `Cookbook ID ${storedId}. You can resume anytime.`);
+      startCookbookStatusPolling(storedId);
+    }
+
+    async function loadApiStatus() {
+      try {
+        const res = await fetch('/api/health', { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error('Health check failed');
+        }
+        const data = await res.json();
+        setApiStatus(true, data?.version, data?.apiConfigured);
+        setDeployInfo(data?.deploy);
+      } catch (e) {
+        setApiStatus(false);
+        setDeployInfo();
+      }
+    }
+
     function initStyleGrid() {
       const grid = document.getElementById('styleGrid');
       if (!DATA.MENU_STYLES) return;
@@ -1183,10 +1597,14 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     // NAVIGATION
     // ============================================================
     function goToStep(step) {
-      if (step >= 4 && !preferencesVisited) {
+      if (step >= 4 && !preferencesCompleted) {
         step = 3;
       }
       const isStepChange = step !== currentStep;
+
+      if (step <= 3) {
+        preferencesCompleted = false;
+      }
 
       // Update max reached
       if (step > maxStepReached) maxStepReached = step;
@@ -1215,7 +1633,6 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       }
 
       if (step === 6 && selectedMenu !== null) {
-        renderTimelinePreview();
         loadMenuDetails();
       }
     }
@@ -1245,8 +1662,125 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
 
     function showDetailsLoading(show) {
       const loading = document.getElementById('detailsLoading');
+      const messageEl = document.getElementById('detailsLoadingMessage');
+      const timerEl = document.getElementById('detailsLoadingTimer');
       if (!loading) return;
       loading.classList.toggle('hidden', !show);
+
+      if (!show) {
+        if (detailsLoadingTimer) {
+          clearInterval(detailsLoadingTimer);
+        }
+        detailsLoadingTimer = null;
+        detailsLoadingStart = null;
+        return;
+      }
+
+      detailsLoadingStart = Date.now();
+      updateDetailsLoadingStatus(messageEl, timerEl);
+      if (detailsLoadingTimer) {
+        clearInterval(detailsLoadingTimer);
+      }
+      detailsLoadingTimer = setInterval(() => updateDetailsLoadingStatus(messageEl, timerEl), 1000);
+    }
+
+    function showCookbookLoading(show) {
+      const loading = document.getElementById('cookbookLoading');
+      const messageEl = document.getElementById('cookbookLoadingMessage');
+      const timerEl = document.getElementById('cookbookLoadingTimer');
+      const noteEl = document.getElementById('cookbookLoadingNote');
+      const idEl = document.getElementById('cookbookLoadingId');
+      if (!loading) return;
+      loading.classList.toggle('hidden', !show);
+
+      if (!show) {
+        if (cookbookLoadingTimer) {
+          clearInterval(cookbookLoadingTimer);
+        }
+        cookbookLoadingTimer = null;
+        cookbookLoadingStart = null;
+        return;
+      }
+
+      cookbookLoadingStart = Date.now();
+      if (noteEl) {
+        noteEl.textContent = 'Starting cookbook job...';
+      }
+      if (idEl) {
+        idEl.textContent = '';
+      }
+      updateCookbookLoadingStatus(messageEl, timerEl);
+      if (cookbookLoadingTimer) {
+        clearInterval(cookbookLoadingTimer);
+      }
+      cookbookLoadingTimer = setInterval(() => updateCookbookLoadingStatus(messageEl, timerEl), 1000);
+    }
+
+    function setCookbookNote(message) {
+      const noteEl = document.getElementById('cookbookLoadingNote');
+      if (noteEl) {
+        noteEl.textContent = message || '';
+      }
+    }
+
+    function setCookbookIdDisplay(id) {
+      const idEl = document.getElementById('cookbookLoadingId');
+      if (idEl) {
+        idEl.textContent = id ? `Cookbook ID: ${id}` : '';
+      }
+    }
+
+    function formatDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = String(totalSeconds % 60).padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    }
+
+    function updateDetailsLoadingStatus(messageEl, timerEl) {
+      if (!detailsLoadingStart) return;
+      const elapsedMs = Date.now() - detailsLoadingStart;
+      const elapsedLabel = formatDuration(elapsedMs);
+      const maxLabel = formatDuration(FETCH_TIMEOUTS_MS.details);
+
+      if (messageEl) {
+        if (elapsedMs < 30000) {
+          messageEl.textContent = 'Generating recipes and wine tiers...';
+        } else if (elapsedMs < 60000) {
+          messageEl.textContent = 'Still working on detailed recipes...';
+        } else {
+          messageEl.textContent = 'Finalizing wine pairings and prep guidance...';
+        }
+      }
+
+      if (timerEl) {
+        timerEl.textContent = `Elapsed ${elapsedLabel} • Typical time: up to ${maxLabel}`;
+      }
+    }
+
+    function updateCookbookLoadingStatus(messageEl, timerEl) {
+      if (!cookbookLoadingStart) return;
+      const elapsedMs = Date.now() - cookbookLoadingStart;
+      const remainingMs = Math.max(0, FETCH_TIMEOUTS_MS.cookbook - elapsedMs);
+      const remainingLabel = formatDuration(remainingMs);
+
+      if (messageEl) {
+        if (elapsedMs < 20000) {
+          messageEl.textContent = 'Validating details and quality checks...';
+        } else if (elapsedMs < 60000) {
+          messageEl.textContent = 'Compiling the operational cookbook...';
+        } else if (elapsedMs < 120000) {
+          messageEl.textContent = 'Assembling timelines, checklists, and packets...';
+        } else if (elapsedMs < 180000) {
+          messageEl.textContent = 'Finalizing the cookbook package...';
+        } else {
+          messageEl.textContent = 'Still working — large cookbooks take time...';
+        }
+      }
+
+      if (timerEl) {
+        timerEl.textContent = `Time remaining: ${remainingLabel}`;
+      }
     }
 
     async function fetchWithTimeout(url, options, timeoutMs) {
@@ -1297,13 +1831,12 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       const markup = `<div class="error-msg">${message}${detailHtml}</div>`;
       const wineContainer = document.getElementById('wineTierList');
       const recipeContainer = document.getElementById('recipePreview');
-      if (wineContainer) wineContainer.innerHTML = markup;
-      if (recipeContainer) recipeContainer.innerHTML = markup;
-    }
-
-    function allowDemoFallback() {
-      if (!DATA) return false;
-      return DATA.apiConfigured === false || DATA.allowDemoFallback === true;
+      const guidanceContainer = document.getElementById('expertGuidance');
+      setDetailCardsVisible(false);
+      if (guidanceContainer) guidanceContainer.innerHTML = markup;
+      const guidanceCard = document.getElementById('expertGuidanceCard');
+      if (guidanceCard) guidanceCard.classList.remove('hidden');
+      lastDetailsErrorMessage = detail ? `${message} ${detail}` : message;
     }
 
     function renderRecipePreview(recipes) {
@@ -1327,10 +1860,38 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           <ol>
             ${(recipe.steps || []).map(s => `<li>${s}</li>`).join('')}
           </ol>
+          ${recipe.equipment?.length ? `<div class="recipe-meta"><strong>Equipment:</strong> ${recipe.equipment.join(', ')}</div>` : ''}
+          ${recipe.holding ? `<div class="recipe-meta"><strong>Holding:</strong> ${recipe.holding}</div>` : ''}
+          ${recipe.failurePoints?.length ? `<div class="recipe-meta"><strong>Failure Points:</strong> ${recipe.failurePoints.join(' • ')}</div>` : ''}
           ${recipe.notes ? `<div class="recipe-meta"><em>${recipe.notes}</em></div>` : ''}
           ${recipe.makeAhead ? `<div class="recipe-meta"><strong>Make Ahead:</strong> ${recipe.makeAhead}</div>` : ''}
         </div>
       `).join('');
+    }
+
+    function renderExpertGuidance(details) {
+      const container = document.getElementById('expertGuidance');
+      if (!container) return;
+
+      if (!details) {
+        container.innerHTML = '<div class="error-msg">Expert notes will appear once details are ready.</div>';
+        return;
+      }
+
+      const chefNote = details.chefOverview;
+      const wineNote = details.wineOverview;
+
+      if (!chefNote && !wineNote) {
+        container.innerHTML = '<div class="error-msg">Expert notes were not returned. Try again.</div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="expert-notes">
+          ${chefNote ? `<div class="expert-note"><h4>Chef Guidance</h4><div>${chefNote}</div></div>` : ''}
+          ${wineNote ? `<div class="expert-note"><h4>Sommelier Guidance</h4><div>${wineNote}</div></div>` : ''}
+        </div>
+      `;
     }
 
     function parseServiceTime(timeStr) {
@@ -1387,16 +1948,41 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       }).map(item => ({ ...item, staffingMinutes: staffing.activeMin }));
     }
 
-    function renderTimelinePreview() {
+    function renderTimelinePreview(details) {
       const container = document.getElementById('timelinePreview');
       if (!container) return;
-      const items = buildTimelineItems();
-      container.innerHTML = items.map(item => `
-        <div class="timeline-item">
-          <div class="timeline-time">${item.time}</div>
-          <div class="timeline-task">${item.task}</div>
-        </div>
-      `).join('');
+      const timeline = details?.masterTimeline;
+      if (!Array.isArray(timeline) || !timeline.length) {
+        container.innerHTML = '<div class="error-msg">Timeline will appear once operational details are compiled.</div>';
+        return;
+      }
+      container.innerHTML = timeline.map(item => {
+        const timeLabel = item.time || item.offset || '';
+        const roleLabel = item.role ? `[${item.role}]` : '';
+        const courseLabel = item.course ? `${item.course}` : '';
+        const parallelLabel = item.parallel ? '[Parallel]' : '';
+        const taskLine = [roleLabel, parallelLabel, courseLabel, item.task].filter(Boolean).join(' ');
+        const deps = item.dependsOn?.length ? `Depends on: ${item.dependsOn.join(', ')}` : '';
+        return `
+          <div class="timeline-item">
+            <div class="timeline-time">${timeLabel}</div>
+            <div class="timeline-task">
+              ${taskLine}
+              ${deps ? `<div style="margin-top:0.35rem;font-size:0.8rem;color:#6b7280">${deps}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function setDetailCardsVisible(visible) {
+      const ids = ['expertGuidanceCard', 'wineTiersCard', 'recipePreviewsCard', 'timelineCard'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.toggle('hidden', !visible);
+        }
+      });
     }
 
     function parseBudgetRange(value) {
@@ -1431,73 +2017,6 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       return `$${min}-${max} total`;
     }
 
-    function buildFallbackRecipes(menu) {
-      const guestCount = parseInt(document.getElementById('guestCount').value || '6', 10);
-      const timeByCourse = {
-        'Amuse-Bouche': { active: '20 min', total: '45 min' },
-        'First Course': { active: '30 min', total: '1 hour' },
-        'Second Course': { active: '25 min', total: '45 min' },
-        'Main Course': { active: '45 min', total: '1.5 hours' },
-        'Dessert': { active: '35 min', total: '1 hour' }
-      };
-
-      return (menu?.courses || []).map(course => {
-        const timing = timeByCourse[course.type] || { active: '30 min', total: '1 hour' };
-        const title = course.name || course.type;
-        return {
-          title,
-          serves: guestCount,
-          activeTime: timing.active,
-          totalTime: timing.total,
-          ingredients: [
-            title,
-            'Kosher salt',
-            'Freshly ground black pepper',
-            'Olive oil or butter',
-            'Seasonal herbs'
-          ],
-          steps: [
-            `Prep ingredients for ${title}.`,
-            `Cook the core components of ${title} until perfectly done.`,
-            `Season, plate, and serve ${title}.`
-          ],
-          notes: 'Taste and adjust seasoning right before serving.',
-          makeAhead: 'Most prep can be completed earlier in the day.'
-        };
-      });
-    }
-
-    function buildFallbackWineTiers(menu) {
-      const baseRange = parseBudgetRange(document.getElementById('wineBudget').value || menu?.wineCost || '$80-120');
-      const basePairings = (menu?.courses || []).map(course => {
-        return course.wine || `${course.type} pairing`;
-      });
-      const tiers = [
-        { id: 'value', label: 'Value', factor: 0.7 },
-        { id: 'classic', label: 'Classic', factor: 1 },
-        { id: 'premium', label: 'Premium', factor: 1.6 },
-        { id: 'splurge', label: 'Splurge', factor: 2.4 }
-      ];
-
-      return tiers.map(tier => {
-        const min = Math.max(30, Math.round(baseRange.min * tier.factor));
-        const max = Math.max(min, Math.round(baseRange.max * tier.factor));
-        return {
-          id: tier.id,
-          label: tier.label,
-          totalCost: formatBudgetRange(min, max),
-          pairings: basePairings.map(pairing => `${tier.label} pick: ${pairing}`)
-        };
-      });
-    }
-
-    function buildFallbackDetails(menu) {
-      return {
-        recipes: buildFallbackRecipes(menu),
-        wineTiers: buildFallbackWineTiers(menu)
-      };
-    }
-
     async function loadMenuDetails() {
       const menu = menus[selectedMenu];
       if (!menu) return;
@@ -1507,14 +2026,17 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         selectedMenuDetails = menuDetailsCache[cacheKey];
         renderWineTiers(selectedMenuDetails.wineTiers);
         renderRecipePreview(selectedMenuDetails.recipes);
-        renderTimelinePreview();
+        renderExpertGuidance(selectedMenuDetails);
+        renderTimelinePreview(selectedMenuDetails);
+        setDetailCardsVisible(true);
         return selectedMenuDetails;
       }
 
       showDetailsLoading(true);
       renderWineTiers([]);
       renderRecipePreview([]);
-      renderTimelinePreview();
+      renderExpertGuidance(null);
+      setDetailCardsVisible(false);
 
       try {
         const res = await fetchWithTimeout('/api/generate-details', {
@@ -1528,19 +2050,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || data.error) {
-          if (allowDemoFallback()) {
-            selectedMenuDetails = buildFallbackDetails(menu);
-            menuDetailsCache[cacheKey] = selectedMenuDetails;
-            renderWineTiers(selectedMenuDetails.wineTiers);
-            renderRecipePreview(selectedMenuDetails.recipes);
-            return selectedMenuDetails;
-          }
           renderDetailError('Details generation failed.', data.detail || 'Check your API key and account credits.');
-          return null;
-        }
-
-        if (data.demo && !allowDemoFallback()) {
-          renderDetailError('Details are in demo mode.', 'Enable the API key to generate real recipes and wine tiers.');
           return null;
         }
 
@@ -1548,14 +2058,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         menuDetailsCache[cacheKey] = selectedMenuDetails;
         renderWineTiers(selectedMenuDetails.wineTiers);
         renderRecipePreview(selectedMenuDetails.recipes);
+        renderExpertGuidance(selectedMenuDetails);
+        renderTimelinePreview(selectedMenuDetails);
+        setDetailCardsVisible(true);
+        lastDetailsErrorMessage = '';
       } catch (err) {
-        if (allowDemoFallback()) {
-          selectedMenuDetails = buildFallbackDetails(menu);
-          menuDetailsCache[cacheKey] = selectedMenuDetails;
-          renderWineTiers(selectedMenuDetails.wineTiers);
-          renderRecipePreview(selectedMenuDetails.recipes);
-          return selectedMenuDetails;
-        }
         const detailMessage = err?.name === 'AbortError'
           ? 'Request timed out. Please try again.'
           : 'Network error. Please try again.';
@@ -1829,8 +2336,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             context: getContext()
           })
         });
-        const data = await res.json();
-        
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.error) {
+          const message = data.detail || data.error || 'Chat failed. Please try again.';
+          chatHistory[chatHistory.length - 1] = { role: 'assistant', content: message };
+          renderChat();
+          return;
+        }
+
         chatHistory[chatHistory.length - 1] = { role: 'assistant', content: data.response || 'Please try again.' };
         renderChat();
       } catch (err) {
@@ -1843,9 +2357,11 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       return {
         eventTitle: document.getElementById('eventTitle').value,
         eventDate: document.getElementById('eventDate').value,
+        eventLocation: document.getElementById('eventLocation').value,
         guestCount: document.getElementById('guestCount').value,
         guestList: document.getElementById('guestList').value,
         serviceTime: document.getElementById('serviceTime').value,
+        serviceStyle: document.getElementById('serviceStyle').value,
         foodBudget: document.getElementById('foodBudget').value,
         wineBudget: document.getElementById('wineBudget').value,
         skillLevel: document.getElementById('skillLevel').value,
@@ -1874,6 +2390,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
         goToStep(3);
         return;
       }
+      preferencesCompleted = true;
       goToStep(4);
       await generateMenus();
     }
@@ -1907,17 +2424,9 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           return;
         }
 
-        if (data.demo && !allowDemoFallback()) {
-          renderMenuError('Menu generation is in demo mode.', 'Enable the API key to generate real menus.');
-          return;
-        }
-
         if (data.menus && data.menus.length > 0) {
           menus = data.menus;
           renderMenus();
-          if (data.demo) {
-            document.getElementById('menuList').insertAdjacentHTML('afterbegin', '<div class="error-msg">Demo menus shown because the AI service is unavailable.</div>');
-          }
           document.getElementById('menuActions').classList.remove('hidden');
         } else {
           renderMenuError('Unable to generate menus.', 'Please try again.');
@@ -1933,6 +2442,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     
     function renderMenus() {
       const container = document.getElementById('menuList');
+      const showWine = showWinePairings;
       container.innerHTML = menus.map((menu, i) => `
         <div class="menu-card ${selectedMenu === i ? 'selected' : ''}" onclick="highlightMenu(${i})">
           <div class="menu-header">
@@ -1945,13 +2455,20 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
               <div class="course">
                 <span class="course-type">${c.type}</span>
                 <span class="course-name">${c.name}</span>
-                ${c.wine ? `<span class="course-wine">🍷 ${c.wine}</span>` : ''}
+                ${showWine && c.wine ? `<span class="course-wine">🍷 ${c.wine}</span>` : ''}
               </div>
             `).join('')}
           </div>
-          <div style="margin-top:0.75rem;font-size:0.9rem;color:var(--gold-dark)">Wine: ${menu.wineCost}</div>
+          ${showWine ? `<div style="margin-top:0.75rem;font-size:0.9rem;color:var(--gold-dark)">Wine: ${menu.wineCost}</div>` : ''}
         </div>
       `).join('');
+    }
+
+    function toggleWinePairings(value) {
+      showWinePairings = !!value;
+      if (menus && menus.length) {
+        renderMenus();
+      }
     }
     
     function highlightMenu(index) {
@@ -2028,8 +2545,15 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             context: getContext()
           })
         });
-        const data = await res.json();
-        
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.error) {
+          const message = data.detail || data.error || "I understand. Tell me more about what you're envisioning...";
+          rejectionHistory[rejectionHistory.length - 1] = { role: 'assistant', content: message };
+          renderRejectionChat();
+          return;
+        }
+
         rejectionHistory[rejectionHistory.length - 1] = { 
           role: 'assistant', 
           content: data.response || "I understand. Tell me more about what you're envisioning..." 
@@ -2056,22 +2580,39 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
     function selectStaffingOption(id) {
       selectedStaffing = id;
       initStaffingOptions();
-      renderTimelinePreview();
+      if (selectedMenuDetails) {
+        renderTimelinePreview(selectedMenuDetails);
+      }
     }
     
     // ============================================================
     // STEP 7: COOKBOOK
     // ============================================================
-    async function generateCookbook() {
-      if (!selectedMenuDetails) {
-        await loadMenuDetails();
-      }
+    async function generateCookbook(overrideMealBalance = false) {
       goToStep(7);
-      document.getElementById('cookbookLoading').classList.remove('hidden');
+      showCookbookLoading(true);
       document.getElementById('cookbookComplete').classList.add('hidden');
+      stopCookbookStatusPolling();
+
+      if (!selectedMenuDetails) {
+        const detailsResult = await loadMenuDetails();
+        if (!detailsResult) {
+          showCookbookLoading(false);
+          const reason = lastDetailsErrorMessage ? `<div style="margin-top:0.5rem;font-size:0.85rem;color:#6b7280">${lastDetailsErrorMessage}</div>` : '';
+          const actions = `
+            <div class="actions" style="margin-top:1rem">
+              <button class="btn btn-primary" onclick="retryDetailsForCookbook()">Retry Details</button>
+              <button class="btn btn-secondary" onclick="goToStep(6)">Back to Details</button>
+            </div>
+          `;
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">Cookbook details are incomplete. Please regenerate details and try again.${reason}${actions}</div>`;
+          document.getElementById('cookbookComplete').classList.remove('hidden');
+          return;
+        }
+      }
       
       try {
-        const res = await fetch('/api/generate-cookbook', {
+        const res = await fetchWithTimeout('/api/generate-cookbook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2080,25 +2621,159 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
             context: getContext(),
             staffing: selectedStaffing,
             chatHistory: chatHistory,
-            recipes: selectedMenuDetails?.recipes || null
+            recipes: selectedMenuDetails?.recipes || null,
+            details: selectedMenuDetails || null,
+            detailsId: selectedMenuDetails?.detailsId || null,
+            overrideMealBalance: overrideMealBalance
           })
-        });
-        const data = await res.json();
-        
-        document.getElementById('cookbookLoading').classList.add('hidden');
-        
+        }, FETCH_TIMEOUTS_MS.cookbook);
+        const data = await res.json().catch(() => ({}));
+
+        if (data.success && data.status === 'pending') {
+          cookbookId = data.cookbookId;
+          pendingCookbookId = cookbookId;
+          window.localStorage.setItem('pendingCookbookId', cookbookId);
+          setCookbookIdDisplay(cookbookId);
+          setCookbookNote(`Cookbook ID ${cookbookId}. Still compiling — you can come back later.`);
+          showCookbookBanner('pending', `Cookbook ID ${cookbookId}. You can return to download later.`);
+          startCookbookStatusPolling(cookbookId);
+          return;
+        }
+
+        showCookbookLoading(false);
+
         if (data.success) {
           cookbookId = data.cookbookId;
+          pendingCookbookId = null;
+          window.localStorage.removeItem('pendingCookbookId');
+          setCookbookIdDisplay(cookbookId);
+          showCookbookBanner('ready', 'Cookbook is ready to download.');
           document.getElementById('cookbookComplete').classList.remove('hidden');
         } else {
-          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}</div>`;
+          const errorItems = Array.isArray(data.errors) ? data.errors.map(e => `<li>${e}</li>`).join('') : '';
+          const errorList = errorItems ? `<ul style="margin:0.5rem 0 0 1.2rem">${errorItems}</ul>` : '';
+          const overrideAction = data.requiresOverride
+            ? `<div class="actions" style="margin-top:1rem">
+                 <button class="btn btn-primary" onclick="overrideMealBalanceAndGenerate()">Override Meal Balance</button>
+               </div>`
+            : '';
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}${errorList}${overrideAction}</div>`;
           document.getElementById('cookbookComplete').classList.remove('hidden');
         }
       } catch (err) {
-        document.getElementById('cookbookLoading').classList.add('hidden');
-        document.getElementById('cookbookComplete').innerHTML = '<div class="error-msg">Connection error. Please try again.</div>';
+        showCookbookLoading(false);
+        const detailMessage = err?.name === 'AbortError'
+          ? 'Cookbook generation timed out. Please try again.'
+          : 'Connection error. Please try again.';
+        document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${detailMessage}</div>`;
         document.getElementById('cookbookComplete').classList.remove('hidden');
       }
+    }
+
+    function startCookbookStatusPolling(id) {
+      stopCookbookStatusPolling();
+      if (!id) return;
+      pollCookbookStatus(id);
+      cookbookStatusTimer = setInterval(() => pollCookbookStatus(id), 10000);
+    }
+
+    function stopCookbookStatusPolling() {
+      if (cookbookStatusTimer) {
+        clearInterval(cookbookStatusTimer);
+        cookbookStatusTimer = null;
+      }
+    }
+
+    async function pollCookbookStatus(id) {
+      try {
+        const res = await fetchWithTimeout('/api/cookbook-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: accessCode, cookbookId: id })
+        }, 15000);
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (data?.message) {
+            const noteEl = document.getElementById('cookbookLoadingNote');
+            if (noteEl) noteEl.textContent = data.message;
+          }
+          return;
+        }
+
+        if (data.status === 'ready') {
+          stopCookbookStatusPolling();
+          showCookbookLoading(false);
+          document.getElementById('cookbookComplete').classList.remove('hidden');
+          showCookbookBanner('ready', 'Cookbook is ready to download.');
+          pendingCookbookId = null;
+          window.localStorage.removeItem('pendingCookbookId');
+          return;
+        }
+
+        if (data.status === 'failed') {
+          stopCookbookStatusPolling();
+          showCookbookLoading(false);
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Cookbook generation failed.'}</div>`;
+          document.getElementById('cookbookComplete').classList.remove('hidden');
+          showCookbookBanner('failed', data.message || 'Cookbook generation failed.');
+          pendingCookbookId = null;
+          window.localStorage.removeItem('pendingCookbookId');
+        }
+      } catch (err) {
+        // keep polling
+      }
+    }
+
+    function resumeCookbook() {
+      if (!pendingCookbookId && cookbookId) {
+        pendingCookbookId = cookbookId;
+      }
+      if (!pendingCookbookId) return;
+      goToStep(7);
+      showCookbookLoading(true);
+      setCookbookIdDisplay(pendingCookbookId);
+      startCookbookStatusPolling(pendingCookbookId);
+    }
+
+    function leaveCookbook() {
+      showCookbookLoading(false);
+      stopCookbookStatusPolling();
+      goToStep(6);
+    }
+
+    function copyCookbookId() {
+      const id = pendingCookbookId || cookbookId;
+      if (!id) {
+        setCookbookNote('Cookbook ID not assigned yet. Please wait.');
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(id).catch(() => {});
+      }
+    }
+
+    function checkCookbookStatus() {
+      const id = pendingCookbookId || cookbookId;
+      if (!id) {
+        setCookbookNote('Cookbook ID not assigned yet. Please wait a moment.');
+        return;
+      }
+      pollCookbookStatus(id);
+    }
+
+    async function retryDetailsForCookbook() {
+      showCookbookLoading(true);
+      const result = await loadMenuDetails();
+      if (!result) {
+        showCookbookLoading(false);
+        return;
+      }
+      await generateCookbook();
+    }
+
+    async function overrideMealBalanceAndGenerate() {
+      await generateCookbook(true);
     }
     
     async function downloadCookbook() {
@@ -2108,7 +2783,13 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: accessCode,
-            cookbookId: cookbookId
+            cookbookId: cookbookId,
+            menu: menus[selectedMenu],
+            context: getContext(),
+            staffing: selectedStaffing,
+            recipes: selectedMenuDetails?.recipes || null,
+            details: selectedMenuDetails || null,
+            detailsId: selectedMenuDetails?.detailsId || null
           })
         });
         
@@ -2123,8 +2804,28 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
+        } else if (res.status === 202) {
+          const noteEl = document.getElementById('cookbookLoadingNote');
+          const data = await res.json().catch(() => ({}));
+          if (noteEl) {
+            noteEl.textContent = data?.message || 'Cookbook is still compiling.';
+          }
+          showCookbookLoading(true);
+          showCookbookBanner('pending', data?.message || 'Cookbook is still compiling.');
+          startCookbookStatusPolling(cookbookId);
         } else {
-          alert('Error downloading cookbook. Please try again.');
+          let message = 'Error downloading cookbook. Please try again.';
+          try {
+            const data = await res.json();
+            if (data?.error) {
+              message = data.detail ? `${data.error}: ${data.detail}` : data.error;
+            } else if (data?.message) {
+              message = data.message;
+            }
+          } catch (err) {
+            // ignore JSON parse errors
+          }
+          alert(message);
         }
       } catch (err) {
         alert('Connection error. Please try again.');
@@ -2144,6 +2845,7 @@ body{font-family:Georgia,serif;background:var(--cream);color:var(--text);}
       menuDetailsCache = {};
       selectedMenuDetails = null;
       preferencesVisited = false;
+      preferencesCompleted = false;
       maxStepReached = 2;
       goToStep(2);
     }
