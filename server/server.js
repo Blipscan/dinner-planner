@@ -349,7 +349,16 @@ async function removeCookbookFile(record) {
   delete global.cookbookFiles[record.id];
 }
 
-async function buildCookbookFromDetails({ cookbookId, menu, context, staffing, recipes, details, detailsId }) {
+async function buildCookbookFromDetails({
+  cookbookId,
+  menu,
+  context,
+  staffing,
+  recipes,
+  details,
+  detailsId,
+  overrideMealBalance,
+}) {
   const filename =
     (context?.eventTitle || "Dinner_Party").replace(/[^a-zA-Z0-9]/g, "_") + "_Cookbook.docx";
   const keys = getCookbookKeys(cookbookId);
@@ -363,6 +372,7 @@ async function buildCookbookFromDetails({ cookbookId, menu, context, staffing, r
     detailsId,
     docKey: keys.docKey,
     manifestKey: keys.manifestKey,
+    overrideMealBalance: !!overrideMealBalance,
   };
   global.cookbookFiles[cookbookId] = manifest;
   await writeManifest(cookbookId, manifest);
@@ -587,11 +597,11 @@ function scanForPlaceholders(details) {
   return errors;
 }
 
-function runCookbookQualityCheck(details, menu) {
+function runCookbookQualityCheck(details, menu, options = {}) {
   const errors = [];
   errors.push(...validateDetails(details, menu));
 
-  if (details?.mealBalance?.overridesRequired) {
+  if (details?.mealBalance?.overridesRequired && !options.allowMealBalanceOverride) {
     errors.push("mealBalance override required");
   }
 
@@ -1671,7 +1681,16 @@ Rules:
 
 // Generate cookbook (creates an id, then /api/download-cookbook downloads DOCX)
 app.post("/api/generate-cookbook", async (req, res) => {
-  const { code, menu, context, staffing, recipes, details, detailsId: requestDetailsId } = req.body || {};
+  const {
+    code,
+    menu,
+    context,
+    staffing,
+    recipes,
+    details,
+    detailsId: requestDetailsId,
+    overrideMealBalance,
+  } = req.body || {};
   const accessResult = validateAccessCode(code);
   if (!accessResult.ok) {
     return res.status(accessResult.status).json({ success: false, message: accessResult.message });
@@ -1689,12 +1708,15 @@ app.post("/api/generate-cookbook", async (req, res) => {
   }
 
   if (detailsPayload) {
-    const qualityErrors = runCookbookQualityCheck(detailsPayload, menu);
+    const qualityErrors = runCookbookQualityCheck(detailsPayload, menu, {
+      allowMealBalanceOverride: !!overrideMealBalance,
+    });
     if (qualityErrors.length) {
       return res.status(422).json({
         success: false,
         message: "Quality check failed.",
         errors: qualityErrors,
+        requiresOverride: qualityErrors.includes("mealBalance override required"),
       });
     }
   } else {
@@ -1724,6 +1746,7 @@ app.post("/api/generate-cookbook", async (req, res) => {
     recipes,
     details: detailsPayload,
     detailsId,
+    overrideMealBalance: !!overrideMealBalance,
   });
 
   res.json({

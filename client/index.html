@@ -2588,7 +2588,7 @@ a { color: var(--navy); }
     // ============================================================
     // STEP 7: COOKBOOK
     // ============================================================
-    async function generateCookbook() {
+    async function generateCookbook(overrideMealBalance = false) {
       goToStep(7);
       showCookbookLoading(true);
       document.getElementById('cookbookComplete').classList.add('hidden');
@@ -2623,7 +2623,8 @@ a { color: var(--navy); }
             chatHistory: chatHistory,
             recipes: selectedMenuDetails?.recipes || null,
             details: selectedMenuDetails || null,
-            detailsId: selectedMenuDetails?.detailsId || null
+            detailsId: selectedMenuDetails?.detailsId || null,
+            overrideMealBalance: overrideMealBalance
           })
         }, FETCH_TIMEOUTS_MS.cookbook);
         const data = await res.json().catch(() => ({}));
@@ -2651,7 +2652,12 @@ a { color: var(--navy); }
         } else {
           const errorItems = Array.isArray(data.errors) ? data.errors.map(e => `<li>${e}</li>`).join('') : '';
           const errorList = errorItems ? `<ul style="margin:0.5rem 0 0 1.2rem">${errorItems}</ul>` : '';
-          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}${errorList}</div>`;
+          const overrideAction = data.requiresOverride
+            ? `<div class="actions" style="margin-top:1rem">
+                 <button class="btn btn-primary" onclick="overrideMealBalanceAndGenerate()">Override Meal Balance</button>
+               </div>`
+            : '';
+          document.getElementById('cookbookComplete').innerHTML = `<div class="error-msg">${data.message || 'Error generating cookbook.'}${errorList}${overrideAction}</div>`;
           document.getElementById('cookbookComplete').classList.remove('hidden');
         }
       } catch (err) {
@@ -2764,6 +2770,10 @@ a { color: var(--navy); }
         return;
       }
       await generateCookbook();
+    }
+
+    async function overrideMealBalanceAndGenerate() {
+      await generateCookbook(true);
     }
     
     async function downloadCookbook() {
